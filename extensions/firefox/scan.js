@@ -11,7 +11,7 @@
   for (const [selector] of globalThis.KitsuvoRules.meta) meta[selector] = document.querySelector(selector)?.getAttribute('content') || '';
   const url = new URL(location.href); url.search = ''; url.hash = ''; url.username = ''; url.password = '';
   return detector.analyze({ url: url.href, title: document.title.slice(0, 200),
-    html: copy.outerHTML.slice(0, 3_000_000), meta,
+    html: copy.outerHTML.slice(0, 3_000_000), dom: copy, meta,
     generator: document.querySelector('meta[name=generator]')?.getAttribute('content') || '',
     resources: performance.getEntriesByType('resource').slice(-380).map(e => e.name.split(/[?#]/)[0].slice(0, 300)) });
 })();
