@@ -17,6 +17,9 @@ python scripts/build_extensions.py
 node --test tests/extensions.test.cjs tests/extensions-ui.test.cjs
 CHROME_PATH=/path/to/Chromium node scripts/smoke_extension.cjs
 npx --yes web-ext@10.7.0 lint --source-dir dist/extensions/firefox
+python -m pip install -r scripts/extension-qa-requirements.txt
+python scripts/smoke_extension_firefox.py
+python scripts/prepare_extension_submissions.py
 ```
 
 `extensions/shared/rules.js` is generated from the Rust tables. Regenerate it
@@ -35,12 +38,33 @@ mobile browsers vary in extension support; compatibility is not claimed for
 every mobile browser. Runtime testing in one engine does not prove Safari or
 Firefox behavior; complete per-browser qualification before store submission.
 
-The runtime smoke was verified with Chromium 143 on Windows. Use an unbranded
-Chromium build that supports `--load-extension`; recent branded Chrome builds
-may disable that flag. The smoke loads a real worker and injects the bundled
-detector into a loopback fixture, then verifies that password pages are skipped.
+The runtime smoke was verified on Windows with Chrome for Testing
+155.0.8059.39, installed Chrome, and installed Edge. It loads the temporary
+package using CDP `Extensions.loadUnpacked` over a debugging pipe. The randomly
+generated test key pins its ID so built-in browser workers cannot satisfy the
+test. The smoke loads the real worker, injects the bundled detector into a
+loopback fixture, and verifies that password pages are skipped.
 Only the temporary smoke package receives loopback host access to substitute
 for the toolbar's activeTab grant. Public packages do not contain that access.
+
+Firefox 157.0.1 on Windows passed 14 real-browser checks: temporary add-on
+installation, popup and guide replay, Lovable score 78, report URL sanitization,
+password and browser-page skips, editable-content exclusion, installed detector
+sign-in exclusion, strong search-host filtering, weaker/ordinary results retained,
+Show hidden results restoration, and restoration when filtering is disabled.
+The harness calls the real event-page scanner and injects the production search
+scripts on a local Google-shaped fixture. It does not establish live Google
+markup compatibility or exercise a native toolbar click's activeTab grant.
+Selenium Manager uses an isolated profile and caches stable Firefox/geckodriver
+when `FIREFOX_PATH` is absent. Evidence is under
+`target/extension-firefox-smoke/` and `target/extension-chromium-smoke/`.
+
+`Browser extension qualification` repeats Chromium/Firefox runtime checks on
+Windows and macOS and generates an unsigned Safari containing app on a macOS
+runner. `python3 scripts/package_safari_extension.py` uses Apple's current
+packager (or the older converter) and compiles the embedded extension with
+Xcode. A successful unsigned build does not establish Safari runtime support,
+signing, or store approval. Real Safari device testing remains a release gate.
 
 ## Product and privacy
 
@@ -70,6 +94,40 @@ existing Kitsuvo icons in each package and the actual-UI screenshots generated
 by `node scripts/render_extension_listing.cjs`. The screenshots clearly label
 the example as illustrative. Store descriptions must retain the scope and
 uncertainty language; do not call this a safety certificate or claim approval.
+
+`python scripts/prepare_extension_submissions.py` prepares five portal-specific
+folders under `dist/store-submissions/` with upload ZIP, icons, screenshots,
+listing, reviewer instructions, readable reviewer source, package SHA-256 and
+explicit pending submission state. Chrome, Edge and Opera use the same
+Chromium package; Brave/Vivaldi can install that package, but their independent
+runtime behavior is not yet qualified. Nothing in this command submits to a
+store. It does not mark publisher IDs or approval URLs as known.
+
+For Firefox, the owner must choose an AMO-supported license explicitly:
+`python scripts/prepare_extension_submissions.py --amo-license LICENSE`.
+No license grant is inferred from the private repository. With publisher API
+credentials set securely as `WEB_EXT_API_KEY` and `WEB_EXT_API_SECRET`, submit:
+
+```sh
+npx --yes web-ext@10.7.0 sign --channel listed --no-input \
+  --source-dir dist/extensions/firefox \
+  --amo-metadata dist/store-submissions/firefox/amo-metadata.json \
+  --upload-source-code dist/store-submissions/reviewer-source.zip \
+  --artifacts-dir target/firefox-signed --approval-timeout 0
+```
+
+This command submits to AMO; a returned upload ID is not approval. Preserve the
+returned IDs and verify the listing/signing state in AMO. Readable source needs
+Python 3 to regenerate ZIPs; runtime QA also needs Node 22+ and the pinned
+Selenium dependency. Do not place publisher secrets in submission bundles.
+
+Safari can also be packaged in a browser through App Store Connect's Xcode
+Cloud extension upload flow; a Mac is not required for that packaging route.
+Apple Developer membership and an app record are required. Use the Safari ZIP
+and prepared `app-metadata.json`; confirm the suggested bundle ID is available
+before registration. Safari runtime qualification still requires a Safari
+device. Store questions about legal identity, content rights and age ratings
+must be answered using the actual publisher's details.
 
 | Destination | Publisher prerequisite | Submit |
 | --- | --- | --- |
