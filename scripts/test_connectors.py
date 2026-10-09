@@ -22,7 +22,9 @@ def answer(message):
                   'serverInfo': {'name': 'kitsuvo-fixture', 'version': '1.0'}}
     elif method == 'tools/list':
         result = {'tools': [{'name': 'echo', 'description': 'Echo fixture input.', 'inputSchema': {'type': 'object'},
-                             'annotations': {'readOnlyHint': True}}]}
+                             'annotations': {'readOnlyHint': True}},
+                            {'name': 'connect', 'description': 'A tool named like a connection action.',
+                             'inputSchema': {'type': 'object'}}]}
     elif method == 'tools/call':
         result = {'content': [{'type': 'text', 'text': json.dumps({'arguments': message['params']['arguments'],
                    'inherited_secret': os.environ.get('KITSUVO_TEST_SECRET')})}], 'isError': False}
@@ -83,20 +85,28 @@ class ConnectorContracts(unittest.TestCase):
         result = self.run_client('tools', 'fixture', '--approve', 'fixture:connect')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)[0]['name'], 'echo')
-        result = self.run_client('call', 'fixture', 'echo', '{"message":"hello"}', '--approve', 'fixture:connect', '--approve', 'fixture:echo')
+        result = self.run_client('call', 'fixture', 'echo', '{"message":"hello"}', '--approve', 'fixture:connect', '--approve', 'fixture:tool:echo')
         self.assertEqual(result.returncode, 0, result.stderr)
         text = json.loads(result.stdout)['content'][0]['text']
         self.assertEqual(json.loads(text), {'arguments': {'message': 'hello'}, 'inherited_secret': None})
 
     def test_call_requires_exact_tool_consent(self):
-        result = self.run_client('call', 'fixture', 'echo', '{}', '--approve', 'fixture:connect', '--approve', 'other:echo')
+        result = self.run_client('call', 'fixture', 'echo', '{}', '--approve', 'fixture:connect', '--approve', 'other:tool:echo')
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('fixture:echo', result.stderr)
+        self.assertIn('fixture:tool:echo', result.stderr)
 
     def test_unknown_tools_are_not_sent(self):
-        result = self.run_client('call', 'fixture', 'delete', '{}', '--approve', 'fixture:connect', '--approve', 'fixture:delete')
+        result = self.run_client('call', 'fixture', 'delete', '{}', '--approve', 'fixture:connect', '--approve', 'fixture:tool:delete')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('current catalog', result.stderr)
+
+    def test_connection_consent_cannot_authorize_a_tool_named_connect(self):
+        result = self.run_client('call', 'fixture', 'connect', '{}', '--approve', 'fixture:connect')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('fixture:tool:connect', result.stderr)
+        result = self.run_client('call', 'fixture', 'connect', '{}', '--approve', 'fixture:connect',
+                                 '--approve', 'fixture:tool:connect')
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_http_streamable_discovery(self):
         server = ThreadingHTTPServer(('127.0.0.1', 0), HTTPFixture)

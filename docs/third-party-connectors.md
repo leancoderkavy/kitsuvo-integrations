@@ -15,7 +15,7 @@ variables are not inherited. No configured process starts automatically.
 kitsuvo connect --config connectors.json list
 kitsuvo connect --config connectors.json tools kitsuvo-local --approve kitsuvo-local:connect
 kitsuvo connect --config connectors.json call kitsuvo-local kitsuvo_report '{}' \
-  --approve kitsuvo-local:connect --approve kitsuvo-local:kitsuvo_report
+  --approve kitsuvo-local:connect --approve kitsuvo-local:tool:kitsuvo_report
 ```
 
 Every connection and every tool call requires an exact named approval,
@@ -52,7 +52,7 @@ by this automatic native-client registration flow.
 ## Validation and limits
 
 The client discovered all 17 tools from the actual installed Kitsuvo MCP
-server. Six executable fixture tests exercise stdio calls, HTTP discovery,
+server. Seven executable fixture tests exercise stdio calls, HTTP discovery,
 process environment isolation, exact consent, unknown-tool refusal and
 redirect refusal. Three Rust unit tests cover URL and consent validation.
 Tests run using `cargo test --manifest-path crates/kitsuvo-connectors/Cargo.toml`

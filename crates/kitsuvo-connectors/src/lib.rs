@@ -43,7 +43,13 @@ pub struct Registry {
 }
 impl Registry {
     pub fn load(path: &Path) -> Result<Self> {
-        let bytes = std::fs::read(path).context("Cannot read connector registry")?;
+        use std::io::Read;
+        let mut bytes = Vec::new();
+        std::fs::File::open(path)
+            .context("Cannot read connector registry")?
+            .take(256 * 1024 + 1)
+            .read_to_end(&mut bytes)
+            .context("Cannot read connector registry")?;
         if bytes.len() > 256 * 1024 {
             bail!("Connector registry exceeds 256 KiB");
         }
@@ -243,7 +249,8 @@ impl Session {
         args: Value,
         approvals: &[String],
     ) -> Result<Value> {
-        require_approval(approvals, name, tool)?;
+        // Tool names cannot reuse connection or login consent.
+        require_approval(approvals, name, &format!("tool:{tool}"))?;
         let arguments = args
             .as_object()
             .cloned()
@@ -451,6 +458,7 @@ mod tests {
         assert!(require_approval(&approvals, "slack", "search").is_err());
         assert!(require_approval(&approvals, "drive", "delete").is_err());
         assert!(require_approval(&["*".into()], "drive", "search").is_err());
+        assert!(require_approval(&["drive:connect".into()], "drive", "tool:connect").is_err());
     }
     #[test]
     fn malformed_process_configs_are_rejected() {
