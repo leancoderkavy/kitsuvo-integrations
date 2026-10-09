@@ -40,6 +40,15 @@ secure, authenticated tunnel. Public cloud-directory submission needs a stable
 HTTPS endpoint with authentication and a connection to each user's own browser.
 See [MCP setup](docs/marketplace-integrations.md).
 
+## Authenticated cloud relay
+
+`integrations/mcp-cloud` includes the separate OAuth-protected cloud relay and
+interactive local connector. The endpoint is
+https://kitsuvo-mcp-relay.fly.dev/mcp. Connecting forwards selected page results
+to the relay and the client you explicitly approve. Disconnecting revokes access.
+See [cloud setup](integrations/mcp-cloud/README.md) for prerequisites, consent,
+ephemeral-state limits and remaining publisher identity requirements.
+
 ## Rust connector client
 
 Build the standalone client with `cargo build --locked --manifest-path
