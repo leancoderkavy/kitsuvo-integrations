@@ -40,6 +40,14 @@ secure, authenticated tunnel. Public cloud-directory submission needs a stable
 HTTPS endpoint with authentication and a connection to each user's own browser.
 See [MCP setup](docs/marketplace-integrations.md).
 
+## Rust connector client
+
+Build the standalone client with `cargo build --locked --manifest-path
+crates/kitsuvo-connectors/Cargo.toml`. It discovers and calls tools from explicitly
+approved stdio and Streamable HTTP MCP servers. OAuth credentials are stored in
+the macOS or Windows credential store. See [connector setup](docs/third-party-connectors.md)
+for approval syntax and current provider qualification limits.
+
 ## Browser extensions
 
 `extensions/chromium` targets Chrome, Edge, Opera, Brave and Vivaldi.

@@ -1,0 +1,13 @@
+{
+  "connectors": {
+    "kitsuvo-local": {
+      "transport": "stdio",
+      "command": "kitsuvo",
+      "args": ["mcp"]
+    },
+    "local-http": {
+      "transport": "http",
+      "url": "http://127.0.0.1:8787/mcp"
+    }
+  }
+}
