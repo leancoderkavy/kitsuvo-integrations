@@ -1,0 +1,3 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100" role="img" aria-label="Kitsuvo"><defs><mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><rect width="100" height="100" fill="#fff"/><path d="M18.2 18.8L33 31.3L20.3 40ZM81.8 18.8L67 31.3L79.7 40Z" fill="#000"/><path d="M55 54.5L74 49.5" fill="none" stroke="#000" stroke-width="4.2" stroke-linecap="round"/></mask></defs>
+  <path d="M50 93L17 58L12 7L38 29H62L88 7L83 58Z" fill="#1C1A17" stroke="#1C1A17" stroke-width="3" stroke-linejoin="round" mask="url(#cut)"/><path d="M26 49Q37 42 45 55Q34 59 26 49Z" fill="#D23F1A"/><path d="M50 31Q54.6 39.5 50 47.5Q45.4 39.5 50 31Z" fill="#D23F1A"/>
+</svg>

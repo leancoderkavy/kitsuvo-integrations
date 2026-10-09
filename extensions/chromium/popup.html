@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kitsuvo — page evidence</title><link rel="stylesheet" href="popup.css"></head>
+<body><header><img src="icons/icon-32.png" width="32" height="32" alt=""><h1>Kitsuvo</h1><button id="help" type="button" aria-label="Replay feature tour">Help</button></header>
+<main><section id="tour" hidden aria-labelledby="tour-title"><h2 id="tour-title">See how this page was built</h2><p>Choose <strong>Scan this page</strong> for local builder evidence. The search filter is optional and asks for access only to the supported search sites. Scores are clues, not proof of authorship or safety.</p><button id="dismiss" type="button">Close guide</button></section>
+<p class="eyebrow">LOCAL PAGE EVIDENCE</p><button id="scan" class="primary" type="button">Scan this page</button>
+<p id="status" role="status" aria-live="polite">No page data leaves your browser.</p>
+<section id="report" hidden aria-labelledby="verdict"><div class="score-row"><strong id="score"></strong><div><h2 id="verdict"></h2><p id="builder"></p></div></div><p id="page-title"></p><ul id="evidence"></ul><p class="fine">AI-built does not mean harmful. A low score does not prove human authorship or safety.</p></section>
+<section class="setting"><label for="filter"><input id="filter" type="checkbox"> Filter likely AI-builder search results</label><p class="fine">Google.com, Bing, and DuckDuckGo. Uses known builder hosting only, without visiting results. You can reveal hidden results on the page. Changes apply after reloading search tabs.</p></section>
+<footer><a href="https://kitsuvo.com/extensions" target="_blank" rel="noopener noreferrer">Extension guide</a><a href="https://kitsuvo.com/privacy#extensions" target="_blank" rel="noopener noreferrer">Privacy</a></footer>
+</main><script src="popup.js"></script></body></html>

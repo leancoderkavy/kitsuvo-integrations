@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Kitsuvo \u2014 see how sites were built",
+  "version": "0.1.0",
+  "description": "Check local AI-builder fingerprints and optionally filter builder-hosted search results. No account, cloud AI, or telemetry.",
+  "homepage_url": "https://kitsuvo.com/extensions",
+  "icons": {
+    "32": "icons/icon-32.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "Kitsuvo page evidence",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "32": "icons/icon-32.png"
+    }
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "optional_host_permissions": [
+    "https://www.google.com/search*",
+    "https://www.bing.com/search*",
+    "https://duckduckgo.com/*",
+    "https://html.duckduckgo.com/*",
+    "https://lite.duckduckgo.com/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; connect-src 'none'"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "minimum_chrome_version": "120",
+  "incognito": "not_allowed"
+}
