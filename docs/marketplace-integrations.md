@@ -99,6 +99,22 @@ share its tabs; mutating calls run in order. Run a separate bridge with a
 different `KITSUVO_PROFILE_DIR` and port for another independent browser.
 Closing the bridge stops its MCP process; the native browser may remain open.
 
+## Public authenticated cloud relay
+
+The separate `integrations/mcp-cloud` service exposes
+`https://kitsuvo-mcp-relay.fly.dev/mcp`. Each user starts its connector locally,
+opts in to forwarding, and explicitly approves the requesting OAuth client in
+the terminal. PKCE-protected tokens route only to that user's connected isolated
+browser. Closing the connector revokes its grants. This is separate from the
+loopback bridge above; installing the local plugin does not enable forwarding.
+See [cloud setup](../integrations/mcp-cloud/README.md).
+
+The live relay passed a disposable Windows native-browser smoke with 17 tools,
+navigation, snapshots, reports, sensitive-page refusal and disconnect revocation.
+It has ephemeral state in one process and requires reauthorization after restart.
+OpenAI-managed client mTLS, verified-email identity, reviewer setup and public
+directory approval are not established by this test.
+
 ## Capabilities and data access
 
 The MCP exposes navigation, tab management, accessibility snapshots, clicks,

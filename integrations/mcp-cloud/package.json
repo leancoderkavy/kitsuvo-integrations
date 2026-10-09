@@ -1,0 +1,9 @@
+{
+  "name": "@kitsuvo/mcp-cloud",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "start": "node server.mjs", "connect": "node connect.mjs", "test": "node --test test/*.test.mjs" },
+  "dependencies": { "@modelcontextprotocol/sdk": "1.32.1", "express": "5.3.0", "ws": "8.22.0" }
+}
