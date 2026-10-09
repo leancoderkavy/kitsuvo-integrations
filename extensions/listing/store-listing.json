@@ -1,0 +1,19 @@
+{
+  "name": "Kitsuvo — see how sites were built",
+  "short_description": "Check local AI-builder evidence and filter builder-hosted search results. No cloud AI or telemetry.",
+  "description": "Keep your browser. Add evidence. Kitsuvo checks the current page for known AI-builder fingerprints, generator tags, and builder hosting, then shows the score, suspected builder, and each observation. All checks run locally in the extension.\n\nOptionally filter search results on Google.com, Bing, and DuckDuckGo using known builder-hosting domains. This feature is off by default and asks for access only to those search sites. Results are never opened in the background. A Show hidden results control lets you reveal them.\n\nNo account, API key, cloud model, telemetry, browsing-history database, or desktop companion is needed. Sign-in provider pages, password-field pages, and private tabs are skipped. Page content is not uploaded.\n\nAI-built is provenance, not proof of harm. A low score does not prove human authorship or safety. This extension uses a focused local fingerprint subset of Kitsuvo's desktop detector. It does not provide the desktop browser's slop or impersonation checks, cloud verdicts, or navigation blocking.",
+  "homepage": "https://kitsuvo.com/extensions",
+  "privacy_policy": "https://kitsuvo.com/privacy#extensions",
+  "support": "mailto:hello@kitsuvo.com",
+  "category": "Productivity",
+  "single_purpose": "Show local AI-builder evidence for the current page and optionally filter likely builder-hosted search results.",
+  "permission_justifications": {
+    "activeTab": "Read the current page only after the user presses Scan this page.",
+    "scripting": "Run the bundled local detector on the selected tab and register the optional search filter.",
+    "storage": "Save only search-filter preference and completed guide version, locally. No reports or browsing history are stored.",
+    "optional_host_permissions": "Run the opt-in search filter on the supported Google.com, Bing, and DuckDuckGo hosts. No other sites receive permanent access."
+  },
+  "data_collection": "None. No data transmission or remote code. Local page processing only.",
+  "reviewer_instructions": "Load the package, open https://example.com, and press Scan this page. No credentials are required. Enable the search-filter checkbox to see the optional host access prompt. Search results on known builder domains can be hidden; Show hidden results restores them. Disable filtering to remove the optional access and reload the search tab. Browser settings pages and sign-in providers return a skipped status. Built-in Help replays the optional guide. Use the readable source archive and tests for controlled fingerprint fixtures.",
+  "status": "Prepared for submission; no store registration, submission, or approval is claimed."
+}

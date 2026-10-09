@@ -1,0 +1,10 @@
+{
+  "name": "@kitsuvo/mcp-http",
+  "version": "0.2.3",
+  "private": true,
+  "type": "module",
+  "description": "Loopback Streamable HTTP bridge for the Kitsuvo desktop browser MCP server.",
+  "engines": { "node": ">=22" },
+  "scripts": { "start": "node server.mjs", "test": "node --test test/*.test.mjs" },
+  "dependencies": { "@modelcontextprotocol/sdk": "1.32.1" }
+}

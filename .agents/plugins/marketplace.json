@@ -1,0 +1,10 @@
+{
+  "name": "kitsuvo-browser",
+  "interface": { "displayName": "Kitsuvo Browser" },
+  "plugins": [{
+    "name": "kitsuvo",
+    "source": { "source": "local", "path": "./plugins/kitsuvo" },
+    "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+    "category": "Productivity"
+  }]
+}
