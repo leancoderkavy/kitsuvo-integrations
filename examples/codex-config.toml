@@ -1,0 +1,3 @@
+[mcp_servers.kitsuvo]
+command = "kitsuvo"
+args = ["mcp"]
