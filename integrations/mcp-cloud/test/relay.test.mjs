@@ -4,7 +4,7 @@ import { createServer, request as httpRequest } from 'node:http';
 import { EventEmitter, once } from 'node:events';
 import { randomBytes, createHash } from 'node:crypto';
 import { createRelay } from '../server.mjs';
-import { connectBrowser } from '../connect.mjs';
+import { connectBrowser, browserTransportConfig } from '../connect.mjs';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -17,11 +17,14 @@ async function fixture(t) {
   await new Promise(resolve => relay.http.listen(new URL(origin).port, '127.0.0.1', resolve));
   t.after(() => relay.close());
   const post = (path, values) => fetch(origin + path, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(values) });
-  async function browser(label) {
+  async function browser(label, app = false) {
     const events = new EventEmitter();
     const connection = connectBrowser({ origin, backend: {
-      async listTools() { return { tools: [{ name: 'fixture', description: label, inputSchema: { type: 'object' } }] }; },
+      getServerCapabilities() { return app ? { resources: {} } : {}; },
+      async listTools() { return { tools: [{ name: 'fixture', description: label, inputSchema: { type: 'object' }, ...(app ? { _meta: { ui: { resourceUri: 'ui://kitsuvo/browser.html' } } } : {}) }] }; },
       async callTool() { return { content: [{ type: 'text', text: label }] }; },
+      async listResources() { return { resources: [{ uri: 'ui://kitsuvo/browser.html', name: 'browser', mimeType: 'text/html;profile=mcp-app' }] }; },
+      async readResource({ uri }) { return { contents: [{ uri, mimeType: 'text/html;profile=mcp-app', text: `<p>${label}</p>` }] }; },
     }, onMessage: message => events.emit(message.type, message) });
     connection.socket.on('error', error => events.emit('error', error));
     await once(events, 'connected');
@@ -80,8 +83,8 @@ test('OAuth PKCE, resource binding, replay, rotation and revocation fail closed'
   assert.equal((await fetch(f.origin + '/userinfo', { headers: { Authorization: 'Bearer ' + rotated.access_token } })).status, 401);
 });
 
-test('MCP tools route only to the browser that approved each client; disconnect revokes access', { timeout: 20000 }, async t => {
-  const f = await fixture(t), a = await f.browser('browser-a'), b = await f.browser('browser-b');
+test('MCP tools and App resources route only to the consenting browser; disconnect revokes access', { timeout: 20000 }, async t => {
+  const f = await fixture(t), a = await f.browser('browser-a', true), b = await f.browser('browser-b', true);
   const clients = await Promise.all([f.client(), f.client()]);
   const auth = await Promise.all([f.authorize(clients[0], a), f.authorize(clients[1], b)]);
   const tokens = await Promise.all(clients.map(async (client, index) => (await f.exchange(client, auth[index])).json()));
@@ -93,9 +96,25 @@ test('MCP tools route only to the browser that approved each client; disconnect 
   assert.equal((await sdk[0].listTools()).tools[0].description, 'browser-a');
   assert.equal((await sdk[1].callTool({ name: 'fixture', arguments: {} })).content[0].text, 'browser-b');
   assert.deepEqual((await sdk[0].listTools()).tools[0]._meta.securitySchemes, [{ type: 'oauth2', scopes: ['browser'] }]);
+  assert.equal((await sdk[0].listTools()).tools[0]._meta.ui.resourceUri, 'ui://kitsuvo/browser.html');
+  assert.equal((await sdk[0].listResources()).resources[0].uri, 'ui://kitsuvo/browser.html');
+  assert.equal((await sdk[0].readResource({ uri: 'ui://kitsuvo/browser.html' })).contents[0].text, '<p>browser-a</p>');
+  assert.equal((await sdk[1].readResource({ uri: 'ui://kitsuvo/browser.html' })).contents[0].text, '<p>browser-b</p>');
+  await assert.rejects(sdk[0].readResource({ uri: 'file:///private/config' }));
   const closed = once(a.socket, 'close'); a.socket.close(); await closed;
   assert.equal((await fetch(f.origin + '/userinfo', { headers: { Authorization: 'Bearer ' + tokens[0].access_token } })).status, 401);
   assert.equal((await sdk[1].listTools()).tools[0].description, 'browser-b');
+  await assert.rejects(sdk[0].listResources());
+});
+
+test('connector App mode uses the fixed stdio bridge and preserves an isolated profile', () => {
+  const config = browserTransportConfig({ KITSUVO_BINARY: 'C:/Program Files/Kitsuvo/kitsuvo.exe', KITSUVO_PROFILE_DIR: '/tmp/isolated-profile' }, true);
+  assert.equal(config.command, process.execPath);
+  assert.ok(config.args[0].endsWith('server.mjs'));
+  assert.equal(config.args[1], '--stdio');
+  assert.equal(config.env.KITSUVO_BINARY, 'C:/Program Files/Kitsuvo/kitsuvo.exe');
+  assert.equal(config.env.KITSUVO_PROFILE_DIR, '/tmp/isolated-profile');
+  assert.deepEqual(browserTransportConfig({}, false).args, ['mcp']);
 });
 
 test('unsafe relay URLs, redirects, hosts, origins and scopes are rejected', { timeout: 20000 }, async t => {

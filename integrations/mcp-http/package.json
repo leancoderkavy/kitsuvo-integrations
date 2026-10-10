@@ -3,8 +3,20 @@
   "version": "0.2.3",
   "private": true,
   "type": "module",
-  "description": "Loopback Streamable HTTP bridge for the Kitsuvo desktop browser MCP server.",
-  "engines": { "node": ">=22" },
-  "scripts": { "start": "node server.mjs", "test": "node --test test/*.test.mjs" },
-  "dependencies": { "@modelcontextprotocol/sdk": "1.32.1" }
+  "description": "Interactive Kitsuvo MCP App and embedding SDK for assistants and applications, over local stdio or loopback HTTP.",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": { "./embed": { "types": "./embed-host.d.ts", "import": "./embed-host.mjs" } },
+  "scripts": {
+    "start": "node server.mjs",
+    "start:stdio": "node server.mjs --stdio",
+    "embed": "node server.mjs --embed",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "2.0.3",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "esbuild": "0.28.2"
+  }
 }

@@ -10,10 +10,11 @@ import { createServer } from 'node:http';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { connectBrowser } from './connect.mjs';
+import { browserTransportConfig, connectBrowser } from './connect.mjs';
 
 if (process.env.KITSUVO_CLOUD_SMOKE !== '1') throw new Error('Set KITSUVO_CLOUD_SMOKE=1 to explicitly run disposable native qualification.');
 const origin = new URL(process.env.KITSUVO_CLOUD_ORIGIN).origin;
+const appMode = process.argv.includes('--app');
 const profile = await mkdtemp(join(tmpdir(), 'kitsuvo-cloud-smoke-'));
 const native = new Client({ name: 'kitsuvo-cloud-smoke-native', version: '1' });
 const sdk = new Client({ name: 'kitsuvo-cloud-smoke-client', version: '1' });
@@ -21,9 +22,7 @@ const events = new EventEmitter();
 const fixture = createServer((_req, res) => res.end('<title>Kitsuvo cloud qualification</title><main><h1>Isolated browser relay fixture</h1></main>'));
 let browser, grant;
 try {
-  const env = Object.fromEntries(['PATH', 'SystemRoot', 'USERPROFILE', 'HOME', 'TMP', 'TEMP', 'LOCALAPPDATA'].filter(key => process.env[key]).map(key => [key, process.env[key]]));
-  env.KITSUVO_PROFILE_DIR = profile;
-  await native.connect(new StdioClientTransport({ command: process.env.KITSUVO_BINARY || 'kitsuvo', args: ['mcp'], env, stderr: 'inherit' }));
+  await native.connect(new StdioClientTransport(browserTransportConfig({ ...process.env, KITSUVO_PROFILE_DIR: profile }, appMode)));
   browser = connectBrowser({ origin, backend: native, onMessage: message => events.emit(message.type, message) });
   browser.socket.on('error', error => events.emit('error', error));
   await once(events, 'connected');
@@ -52,11 +51,20 @@ try {
   await call('browser_navigate', { url: `http://127.0.0.1:${fixture.address().port}` });
   assert.match(JSON.stringify((await call('browser_snapshot')).content), /Isolated browser relay fixture/);
   await call('kitsuvo_report');
+  if (appMode) {
+    const uri = 'ui://kitsuvo/browser.html';
+    assert.ok((await sdk.listResources()).resources.some(resource => resource.uri === uri));
+    const app = await sdk.readResource({ uri });
+    assert.ok(app.contents.some(content => content.text?.includes('<html') && !content.text.includes('/* BROWSER_APP */')));
+    const panel = await call('kitsuvo_browser', { url: `http://127.0.0.1:${fixture.address().port}` });
+    assert.match(JSON.stringify(panel.structuredContent), /Isolated browser relay fixture/);
+    assert.ok(panel.structuredContent.tabs.length > 0);
+  }
   assert.equal((await sdk.callTool({ name: 'browser_navigate', arguments: { url: 'https://accounts.google.com/' } })).isError, true);
   const count = (await sdk.listTools()).tools.length;
   await sdk.close(); const closed = once(browser.socket, 'close'); browser.socket.close(); await closed;
   assert.equal((await fetch(origin + '/userinfo', { headers: { Authorization: 'Bearer ' + grant.access_token } })).status, 401);
-  console.log(`Cloud relay ${origin}: OAuth PKCE, ${count} native tools, isolated navigation, snapshot, report, sensitive-page refusal and disconnect revocation passed.`);
+  console.log(`Cloud relay ${origin}: OAuth PKCE, ${count} ${appMode ? 'native and App' : 'native'} tools, isolated navigation, snapshot, report, ${appMode ? 'bundled App resource and panel, ' : ''}sensitive-page refusal and disconnect revocation passed.`);
 } finally {
   await sdk.close(); browser?.socket.terminate(); await native.close();
   fixture.closeAllConnections(); await new Promise(resolve => fixture.close(resolve));

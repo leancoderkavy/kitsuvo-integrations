@@ -25,6 +25,29 @@ Approval authorizes navigation, tab management, clicking, typing, page JavaScrip
 and reading snapshots, reports and supported screenshots in this isolated agent profile.
 The native server's sensitive-page restrictions remain enabled.
 
+### Interactive browser panel in ChatGPT or Claude
+
+To include the MCP App, install the sibling bridge's dependencies too, then
+start the connector in App mode from this directory:
+
+```sh
+npm ci --ignore-scripts --prefix ../mcp-http
+npm run connect -- --app
+```
+
+Complete the same `CONNECT` and OAuth approval flow. Ask your connected host
+to **“Open Kitsuvo in chat at https://example.com”**. The panel provides page
+previews on Windows, page text and controls on both desktop platforms, and
+Kitsuvo's detection evidence. The local browser still renders pages. Tools,
+UI resource reads and panel actions route to the browser that authorized
+that client; stopping the connector revokes all of them.
+
+The relay deployment must include the resource-forwarding handlers in this
+version before `--app` can display a panel through it. The deployed relay passed
+the explicit Windows App smoke on October 10, 2026: bundled UI resource,
+real native page state, sensitive-page refusal and disconnect revocation.
+This does not establish a registered connection inside ChatGPT or Claude.
+
 Tool arguments and selected page snapshots, screenshots and detection reports
 pass through the relay to the authorized MCP client. Do not approve an
 unrecognized client. The cloud service retains ephemeral authorization state
@@ -44,6 +67,8 @@ refresh rotation, revocation, host/origin checks and independent browser routing
 For an explicit native test in a disposable profile, set
 `KITSUVO_CLOUD_SMOKE=1` and run `node smoke-native.mjs` against your chosen relay.
 The smoke approves only its own named test client and closes its own browser.
+Run `node smoke-native.mjs --app` to also check the actual UI resource and
+browser panel. Install the HTTP bridge's dependencies first as shown above.
 
 `fly deploy --remote-only --ha=false` builds the supplied Dockerfile. Keep exactly
 one machine/process: authorization state and browser sockets are ephemeral,

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; frame-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Kitsuvo browser</title>
+  <style>
+    :root{color-scheme:light dark;font:14px system-ui,sans-serif;background:var(--color-background-primary,Canvas);color:var(--color-text-primary,CanvasText)}
+    *{box-sizing:border-box}body{margin:0;padding:12px}button,input,select{font:inherit;color:inherit;background:var(--color-background-secondary,Canvas);border:1px solid var(--color-border-primary,#8886);border-radius:7px;padding:8px}button{cursor:pointer}button:disabled{opacity:.5;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #ed563b;outline-offset:2px}header,.toolbar,form,.element{display:flex;align-items:center;gap:6px;flex-wrap:wrap}header{justify-content:space-between;margin-bottom:10px}h1{font-size:16px;margin:0}#title{font-weight:600;margin:10px 0;overflow-wrap:anywhere}.toolbar{margin-bottom:8px}.toolbar form{flex:1;min-width:180px}input{min-width:0}#url{flex:1}#tabs{max-width:100%;flex:1}#status{margin:8px 0;min-height:20px}#preview{display:block;max-width:100%;max-height:480px;margin:auto;object-fit:contain;border:1px solid #8885;border-radius:8px}#preview[hidden]{display:none}#previewNote{font-size:12px;opacity:.75}#elements{display:grid;gap:8px;max-height:300px;overflow:auto}.element{border-bottom:1px solid #8883;padding:6px 0}.element span{flex:1;min-width:140px;overflow-wrap:anywhere}.element input{flex:1;min-width:120px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px ui-monospace,monospace;max-height:360px;overflow:auto}details{margin:12px 0}summary{cursor:pointer}#workspace[aria-busy=true]{opacity:.65}.primary{background:#ed563b;color:#fff;border-color:#ed563b}@media(max-width:420px){body{padding:8px}.toolbar form{flex-basis:100%}.element input{flex-basis:100%}}
+  </style>
+</head>
+<body>
+  <header><h1>Kitsuvo</h1><button id="fullscreen" disabled>Expand</button></header>
+  <div id="workspace" aria-busy="false">
+    <div class="toolbar">
+      <button data-action="back" aria-label="Go back" disabled>←</button>
+      <button data-action="forward" aria-label="Go forward" disabled>→</button>
+      <button data-action="reload" aria-label="Reload page" disabled>↻</button>
+      <form id="navigate"><input id="url" aria-label="Web address" placeholder="Enter a web address" autocomplete="off" disabled><button class="primary" disabled>Go</button></form>
+    </div>
+    <div class="toolbar"><select id="tabs" aria-label="Browser tab" disabled></select><button data-action="new" disabled>New tab</button><button data-action="close" disabled>Close tab</button><button data-action="refresh" disabled>Refresh view</button></div>
+    <div id="title"></div>
+    <img id="preview" alt="Current page preview. Use the page controls below to interact." hidden>
+    <p id="previewNote"></p>
+    <div class="toolbar"><button data-key="PageUp" disabled>Scroll up</button><button data-key="PageDown" disabled>Scroll down</button><button data-action="report" disabled>Check page evidence</button></div>
+    <details id="reportPanel" hidden><summary>Detection evidence</summary><pre id="report"></pre></details>
+    <details open><summary>Page controls</summary><div id="elements"></div></details>
+    <details><summary>Page text</summary><pre id="snapshot"></pre></details>
+  </div>
+  <p id="status" role="status" aria-live="polite">Connecting to your browser…</p>
+  <script>/* BROWSER_APP */</script>
+</body>
+</html>
