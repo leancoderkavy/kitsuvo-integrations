@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/leancoderkavy/kitsuvo-integrations/blob/main/SECURITY.md
+    about: Do not open a public issue. Follow the private reporting steps.
+  - name: Install the Kitsuvo desktop browser
+    url: https://kitsuvo.com/install
+    about: First-launch prompts on Windows and macOS, Apple silicon or Intel, Linux and phone options.
+  - name: Setup guide for Claude Code, ChatGPT and Codex
+    url: https://kitsuvo.com/integrations
+    about: Step-by-step setup, what data the tools can read, and known limits.

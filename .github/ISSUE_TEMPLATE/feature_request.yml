@@ -1,0 +1,35 @@
+name: Feature request
+description: Suggest a client, tool, skill, workflow or doc that would help.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The task or workflow, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Claude Code or Codex plugin
+        - Skills
+        - MCP server or HTTP bridge
+        - Cloud relay
+        - Browser extension
+        - Documentation or examples
+        - Another MCP client
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today instead
