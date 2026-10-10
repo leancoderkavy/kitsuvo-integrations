@@ -1,0 +1,77 @@
+name: Bug report
+description: A plugin, skill, MCP server, bridge, relay or browser extension does not behave as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Security problems do not belong here: see [SECURITY.md](https://github.com/leancoderkavy/kitsuvo-integrations/blob/main/SECURITY.md).
+        Remove tokens, cookies and personal data from anything you paste.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Claude Code plugin or skills
+        - Codex plugin or skills
+        - Kitsuvo MCP server (kitsuvo mcp) in another client
+        - HTTP MCP bridge (integrations/mcp-http)
+        - Cloud relay or connector (integrations/mcp-cloud)
+        - Rust connector client (crates/kitsuvo-connectors)
+        - Browser extension (Chromium)
+        - Browser extension (Firefox)
+        - Browser extension (Safari)
+        - Documentation
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 64-bit
+        - macOS on Apple silicon
+        - macOS on Intel
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Kitsuvo desktop version, the client and its version (Claude Code, Codex or other), Node.js version if you use the bridge.
+      placeholder: "Kitsuvo 0.2.4, Claude Code 2.1, Node 22"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands and the prompt you gave the agent.
+      placeholder: |
+        1. claude plugin marketplace add leancoderkavy/kitsuvo-integrations
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Error text, tool output or a screenshot. Redact personal data.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I removed tokens, cookies and personal data from this report.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

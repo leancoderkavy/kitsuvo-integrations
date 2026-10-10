@@ -1,0 +1,56 @@
+name: Install help
+description: You could not get the plugin, MCP server, bridge or extension running.
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Kitsuvo's plugins start the installed desktop browser; they do not install it.
+        Check [kitsuvo.com/install](https://kitsuvo.com/install) for first-launch prompts, then tell us which step failed.
+  - type: dropdown
+    id: target
+    attributes:
+      label: What are you installing?
+      options:
+        - Claude Code plugin
+        - Codex plugin
+        - MCP server added directly to a client (kitsuvo mcp)
+        - HTTP MCP bridge with a tunnel
+        - Cloud relay connector
+        - Browser extension (load unpacked or temporary add-on)
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 64-bit
+        - macOS on Apple silicon
+        - macOS on Intel
+        - Linux or other
+    validations:
+      required: true
+  - type: dropdown
+    id: installed
+    attributes:
+      label: Is the Kitsuvo desktop browser installed on this computer?
+      options:
+        - "Yes, and the kitsuvo command is on PATH"
+        - "Yes, but I am not sure the kitsuvo command is on PATH"
+        - "No"
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: Commands you ran and where it stopped
+      description: Paste the commands and the exact error. Redact personal data.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Client and version, custom executable path, proxy or tunnel in use.
