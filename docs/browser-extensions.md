@@ -69,7 +69,8 @@ signing, or store approval. Real Safari device testing remains a release gate.
 ## Product and privacy
 
 The toolbar popup offers **Scan this page**, the evidence report, and an
-optional search filter for Google.com, Bing, and DuckDuckGo. Filtered results
+optional search filter for Google.com, Bing, and DuckDuckGo, including its
+no-AI search page. Filtered results
 have a **Show hidden results** control on the search page. Only hosting
 signals that reach the native 70 threshold are filtered; weaker hosting such
 as Replit is not hidden on hosting alone. Search-engine markup can change;

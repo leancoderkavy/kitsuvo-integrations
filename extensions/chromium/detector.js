@@ -94,13 +94,18 @@
       }
     }
     const generator = (snapshot.generator || '').toLowerCase();
+    const agent = rules.agentGenerators.find(([name]) => generator.trim() === name);
+    const declared = snapshot.dom?.querySelector('head meta[name="ai-built"]')?.getAttribute('content')?.trim().toLowerCase() === 'true';
+    if (agent || declared) add('agent_provenance', 'Publisher declares coding-agent construction',
+      agent ? `Generator: ${snapshot.generator} (unverified publisher declaration)` : 'ai-built=true (unverified publisher declaration)', 60, agent?.[1] || null);
     const named = rules.generators.find(([needle]) => contains(generator, needle));
     if (named) add('generator_ai', `Generator names ${named[1]}`, snapshot.generator, named[2], named[1]);
     else if (rules.humanGenerators.some(g => generator.includes(g)))
       add('generator_cms', 'Traditional CMS or static generator', snapshot.generator, -20);
     if (source.includes('wp-content/') || source.includes('wp-includes/'))
       add('wordpress', 'WordPress assets', 'wp-content or wp-includes in markup', -15);
-    const points = signals.reduce((sum, s) => sum + s.weight, 0);
+    const total = signals.reduce((sum, s) => sum + s.weight, 0);
+    const points = signals.some(s => s.id === 'agent_provenance') ? Math.max(60, total) : total;
     const value = score(points);
     const builders = signals.filter(s => s.builder).sort((a, b) => b.weight - a.weight);
     return { url: snapshot.url, title: snapshot.title, score: value,

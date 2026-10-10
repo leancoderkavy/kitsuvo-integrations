@@ -1,8 +1,20 @@
 import WebSocket from 'ws';
 import { createInterface } from 'node:readline';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
+
+export function browserTransportConfig(env = process.env, app = false) {
+  return {
+    command: app ? process.execPath : env.KITSUVO_BINARY || 'kitsuvo',
+    args: app ? [fileURLToPath(new URL('../mcp-http/server.mjs', import.meta.url)), '--stdio'] : ['mcp'],
+    stderr: 'inherit',
+    env: { ...getDefaultEnvironment(),
+      ...(env.KITSUVO_BINARY ? { KITSUVO_BINARY: env.KITSUVO_BINARY } : {}),
+      ...(env.KITSUVO_PROFILE_DIR ? { KITSUVO_PROFILE_DIR: env.KITSUVO_PROFILE_DIR } : {}),
+    },
+  };
+}
 
 const display = value => JSON.stringify(value).replace(/[\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`);
 
@@ -24,6 +36,15 @@ export function connectBrowser({ origin, backend, onMessage = () => {} }) {
       try {
         let result;
         if (message.method === 'tools/list') result = await backend.listTools();
+        else if (message.method === 'resources/list') {
+          result = backend.listResources && backend.getServerCapabilities?.()?.resources
+            ? await backend.listResources() : { resources: [] };
+        } else if (message.method === 'resources/read') {
+          const catalog = backend.listResources && backend.getServerCapabilities?.()?.resources
+            ? await backend.listResources() : { resources: [] };
+          if (!catalog.resources.some(resource => resource.uri === message.params?.uri)) throw new Error('Unknown browser resource.');
+          result = await backend.readResource(message.params);
+        }
         else if (message.method === 'tools/call') {
           const catalog = await backend.listTools();
           if (!catalog.tools.some(tool => tool.name === message.params?.name)) throw new Error('Unknown tool');
@@ -45,7 +66,7 @@ async function main() {
   console.error('Cloud access forwards selected tool arguments, page snapshots and reports to the relay and your authorized MCP client.\nIt uses Kitsuvo\'s isolated agent profile. Closing this connector revokes its grants.');
   if ((await ask(`Connect to ${new URL(origin).origin}? Type CONNECT: `)) !== 'CONNECT') { terminal.close(); return; }
   const backend = new Client({ name: 'kitsuvo-cloud-connector', version: '0.1.0' });
-  const native = new StdioClientTransport({ command: process.env.KITSUVO_BINARY || 'kitsuvo', args: ['mcp'], stderr: 'inherit' });
+  const native = new StdioClientTransport(browserTransportConfig(process.env, process.argv.includes('--app')));
   let connection, stopping = false, approvalPending = false;
   const stop = async () => {
     if (stopping) return; stopping = true;

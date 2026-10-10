@@ -416,6 +416,48 @@ globalThis.KitsuvoRules = {
       45
     ]
   ],
+  "agentGenerators": [
+    [
+      "claude code",
+      "Claude Code",
+      60
+    ],
+    [
+      "openai codex",
+      "OpenAI Codex",
+      60
+    ],
+    [
+      "codex",
+      "OpenAI Codex",
+      60
+    ],
+    [
+      "cursor agent",
+      "Cursor Agent",
+      60
+    ],
+    [
+      "replit agent",
+      "Replit Agent",
+      60
+    ],
+    [
+      "cline",
+      "Cline",
+      60
+    ],
+    [
+      "roo code",
+      "Roo Code",
+      60
+    ],
+    [
+      "aider",
+      "Aider",
+      60
+    ]
+  ],
   "meta": [
     [
       "meta[name=author]",

@@ -8,7 +8,7 @@ import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middlew
 import { InvalidGrantError, InvalidTokenError, InvalidScopeError, InvalidTargetError, InvalidClientMetadataError, TemporarilyUnavailableError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { ListToolsRequestSchema, CallToolRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 const nonce = () => randomBytes(32).toString('base64url');
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -136,12 +136,14 @@ export function createRelay({ origin }) {
     if (req.method !== 'POST') return res.status(405).set('Allow', 'POST').end();
     const browser = browsers.get(req.auth.extra.browserId);
     if (!browser) return res.status(503).end('Your browser is disconnected.');
-    const server = new Server({ name: 'kitsuvo', version: '0.1.0' }, { capabilities: { tools: {} } });
+    const server = new Server({ name: 'kitsuvo', version: '0.1.0' }, { capabilities: { tools: {}, resources: {} } });
     server.setRequestHandler(ListToolsRequestSchema, async () => {
       const result = await browser.call('tools/list');
       return { ...result, tools: result.tools.map(tool => ({ ...tool, securitySchemes: [{ type: 'oauth2', scopes: scope }], _meta: { ...tool._meta, securitySchemes: [{ type: 'oauth2', scopes: scope }] } })) };
     });
     server.setRequestHandler(CallToolRequestSchema, request => browser.call('tools/call', request.params));
+    server.setRequestHandler(ListResourcesRequestSchema, () => browser.call('resources/list'));
+    server.setRequestHandler(ReadResourceRequestSchema, request => browser.call('resources/read', request.params));
     res.on('close', () => { void server.close().catch(() => {}); });
     try {
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });

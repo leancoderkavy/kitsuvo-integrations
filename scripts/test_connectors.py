@@ -10,7 +10,8 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = Path(__file__).resolve().parents[1]
-BINARY = ROOT / 'crates/kitsuvo-connectors/target/debug' / ('kitsuvo-connectors.exe' if os.name == 'nt' else 'kitsuvo-connectors')
+BINARY = Path(os.environ['KITSUVO_CONNECTORS_BINARY']) if os.environ.get('KITSUVO_CONNECTORS_BINARY') else (
+    ROOT / 'crates/kitsuvo-connectors/target/debug' / ('kitsuvo-connectors.exe' if os.name == 'nt' else 'kitsuvo-connectors'))
 
 
 def answer(message):
