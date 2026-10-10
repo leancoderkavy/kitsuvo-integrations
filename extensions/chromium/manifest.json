@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Kitsuvo \u2014 see how sites were built",
-  "version": "0.1.0",
-  "description": "Check local AI-builder fingerprints and optionally filter builder-hosted search results. No account, cloud AI, or telemetry.",
+  "name": "Kitsuvo \u2014 Less AI, less Slop",
+  "version": "0.1.1",
+  "description": "Less AI, less Slop. Check local AI-builder evidence and optionally filter builder-hosted search results.",
   "homepage_url": "https://kitsuvo.com/extensions",
   "icons": {
     "32": "icons/icon-32.png",

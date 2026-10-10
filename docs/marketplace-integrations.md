@@ -70,7 +70,7 @@ Keep `args: ["mcp"]`. Plugin installation does not install the native browser.
 An installed plugin is cached by its host; edit/reinstall the plugin copy or
 configure a separate native MCP connection when using a custom executable path.
 
-Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.3.zip`.
+Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.4.zip`.
 It contains the local marketplace manifests, branded plugin, four skills, and
 loopback HTTP MCP bridge with its locked dependencies and tests. Commands below
 run from the extracted directory or an authorized repository checkout.
@@ -133,6 +133,27 @@ popup can become active in the window; pass the snapshot's `tab` with its refs,
 or list/select the new tab and take a fresh snapshot before interacting there.
 An invalid option request preserves the existing selection and emits no change
 event; it cannot partially apply a mixed valid/invalid request.
+
+Snapshots include compact viewport, scroll, device scale, document readiness,
+language, focused-field state, frame availability, and traversal timing metadata.
+Controls expose readonly/disabled state, bounded accessible descriptions, and
+new-tab link targets. Password values and password selection offsets stay hidden.
+Text feedback follows typing and caret navigation, including same-origin frames;
+shadow controls and frame borders are handled when locating native input.
+Cross-origin frame contents remain inaccessible to the page snapshot. Large
+snapshots retain their character limit and report truncation; bounded traversal
+stops early rather than inspecting every remaining control.
+
+Click, type, press, and select accept optional `settle_ms` (0–2000, default 700).
+Use zero only for known non-navigating edits, and use `browser_wait_for` for
+asynchronous results. Keep the default for navigation and popup actions.
+October 10 Windows measurements on a 6,000-control local fixture recorded
+2.8–6.3 ms bounded snapshot traversal, 529 ms full traversal, and an 88 ms
+fast form-edit round trip. These are local samples, not a browser ranking.
+The native regression also checks trusted hover, iframe and shadow input,
+rejected readonly typing, text feedback, and Stop denying existing/new clients.
+Run `node --test tests/agent-actions.test.cjs` for the isolated Chrome control
+and snapshot-limit regressions.
 
 ## Interactive browser inside ChatGPT and Claude
 

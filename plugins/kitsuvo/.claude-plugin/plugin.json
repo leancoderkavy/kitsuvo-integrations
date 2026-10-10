@@ -1,7 +1,7 @@
 {
   "name": "kitsuvo",
-  "version": "0.2.3",
-  "description": "Browse with Kitsuvo, inspect evidence of AI-built sites, and check responsive layouts in your desktop browser.",
+  "version": "0.2.4",
+  "description": "Less AI, less Slop. Browse with Kitsuvo, inspect AI-built evidence, and check responsive layouts. Requires the Kitsuvo desktop browser.",
   "author": {
     "name": "Kitsuvo",
     "url": "https://kitsuvo.com"
