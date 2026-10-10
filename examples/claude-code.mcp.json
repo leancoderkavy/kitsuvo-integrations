@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "kitsuvo": { "type": "stdio", "command": "kitsuvo", "args": ["mcp"] }
+  }
+}
