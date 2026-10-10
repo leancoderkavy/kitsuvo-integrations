@@ -9,7 +9,7 @@
 
 **Kitsuvo integrations let Claude Code, Codex and other MCP clients drive
 [Kitsuvo](https://kitsuvo.com/?utm_source=github&utm_medium=readme&utm_campaign=integrations),
-the free anti-AI web browser for Mac and Windows: open a page, read it, and
+the First no-AI web browser. Less AI, less Slop. Free for Mac and Windows: open a page, read it, and
 explain the local evidence behind its AI-built, slop and impersonation
 verdicts, or check a layout at phone, tablet and desktop sizes.**
 

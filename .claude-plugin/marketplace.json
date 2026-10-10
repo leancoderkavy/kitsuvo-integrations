@@ -1,6 +1,14 @@
 {
   "name": "kitsuvo-browser",
-  "description": "Kitsuvo browser automation, detection evidence, and responsive checks.",
-  "owner": { "name": "Kitsuvo" },
-  "plugins": [{ "name": "kitsuvo", "source": "./plugins/kitsuvo", "description": "Browse pages, inspect AI-built evidence, and test responsive layouts with Kitsuvo." }]
+  "description": "Less AI, less Slop. Kitsuvo browser plugins for browsing, detection evidence, and responsive checks.",
+  "owner": {
+    "name": "Kitsuvo"
+  },
+  "plugins": [
+    {
+      "name": "kitsuvo",
+      "source": "./plugins/kitsuvo",
+      "description": "Less AI, less Slop. Browse pages, inspect AI-built evidence, and check responsive layouts in the Kitsuvo desktop browser."
+    }
+  ]
 }
