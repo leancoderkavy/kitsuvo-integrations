@@ -4,10 +4,11 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, writeFile, chmod, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 function launch(binary, input = '') {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [new URL('./server.mjs', import.meta.url).pathname], {
+    const child = spawn(process.execPath, [fileURLToPath(new URL('./server.mjs', import.meta.url))], {
       env: { ...process.env, KITSUVO_BINARY: binary }, stdio: ['pipe', 'pipe', 'pipe'],
     });
     let stdout = '', stderr = '';
