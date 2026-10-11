@@ -155,3 +155,15 @@ test('unsafe relay URLs, redirects, hosts, origins and scopes are rejected', { t
     assert.deepEqual(Object.keys(card).sort(), ['authentication','serverInfo','tools']);
   }
  });
+
+ test('Glama ownership proof is public metadata and absent without deployment configuration', async t => {
+  const f = await fixture(t);
+  const previous = process.env.KITSUVO_GLAMA_CLAIM;
+  t.after(() => { if (previous === undefined) delete process.env.KITSUVO_GLAMA_CLAIM; else process.env.KITSUVO_GLAMA_CLAIM = previous; });
+  delete process.env.KITSUVO_GLAMA_CLAIM;
+  assert.equal((await fetch(f.origin + '/.well-known/glama.json')).status, 404);
+  process.env.KITSUVO_GLAMA_CLAIM = 'glama_claim_publicOwnershipTest';
+  const response = await fetch(f.origin + '/.well-known/glama.json');
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { $schema: 'https://glama.ai/mcp/schemas/connector.json', claim: 'glama_claim_publicOwnershipTest' });
+ });

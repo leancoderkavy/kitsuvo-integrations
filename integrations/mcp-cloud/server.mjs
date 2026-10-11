@@ -133,6 +133,11 @@ export function createRelay({ origin }) {
     res.setHeader('Cache-Control', 'no-store'); next();
   });
   app.get('/.well-known/mcp/server-card.json', (_req, res) => res.json(serverCard));
+  app.get('/.well-known/glama.json', (_req, res) => {
+    const claim = process.env.KITSUVO_GLAMA_CLAIM;
+    if (!claim || !/^glama_claim_[A-Za-z0-9]+$/.test(claim)) return res.status(404).end();
+    return res.json({ $schema: 'https://glama.ai/mcp/schemas/connector.json', claim });
+  });
   app.use(mcpAuthRouter({ provider, issuerUrl: issuer, resourceServerUrl: resource, scopesSupported: scope, resourceName: 'Your isolated Kitsuvo browser' }));
   const bearer = requireBearerAuth({ verifier: provider, requiredScopes: scope, expectedResource: resource, resourceMetadataUrl: new URL('/.well-known/oauth-protected-resource/mcp', issuer).href });
   app.get('/userinfo', bearer, (req, res) => res.json({ sub: req.auth.extra.browserId }));
