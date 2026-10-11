@@ -1,4 +1,7 @@
 import express from 'express';
+import { readFileSync } from 'node:fs';
+const serverCard = JSON.parse(readFileSync(new URL('./server-card.json', import.meta.url), 'utf8'));
+import { operationQueue } from './operation-queue.mjs';
 import { createServer } from 'node:http';
 import { randomBytes, createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
@@ -129,6 +132,7 @@ export function createRelay({ origin }) {
     if (req.headers.host !== issuer.host || (req.headers.origin && req.headers.origin !== issuer.origin)) return res.status(403).end('Untrusted Host or Origin.');
     res.setHeader('Cache-Control', 'no-store'); next();
   });
+  app.get('/.well-known/mcp/server-card.json', (_req, res) => res.json(serverCard));
   app.use(mcpAuthRouter({ provider, issuerUrl: issuer, resourceServerUrl: resource, scopesSupported: scope, resourceName: 'Your isolated Kitsuvo browser' }));
   const bearer = requireBearerAuth({ verifier: provider, requiredScopes: scope, expectedResource: resource, resourceMetadataUrl: new URL('/.well-known/oauth-protected-resource/mcp', issuer).href });
   app.get('/userinfo', bearer, (req, res) => res.json({ sub: req.auth.extra.browserId }));
@@ -141,7 +145,7 @@ export function createRelay({ origin }) {
       const result = await browser.call('tools/list');
       return { ...result, tools: result.tools.map(tool => ({ ...tool, securitySchemes: [{ type: 'oauth2', scopes: scope }], _meta: { ...tool._meta, securitySchemes: [{ type: 'oauth2', scopes: scope }] } })) };
     });
-    server.setRequestHandler(CallToolRequestSchema, request => browser.call('tools/call', request.params));
+    server.setRequestHandler(CallToolRequestSchema, (request, extra) => browser.call('tools/call', request.params, { signal: extra.signal }));
     server.setRequestHandler(ListResourcesRequestSchema, () => browser.call('resources/list'));
     server.setRequestHandler(ReadResourceRequestSchema, request => browser.call('resources/read', request.params));
     res.on('close', () => { void server.close().catch(() => {}); });
@@ -173,18 +177,17 @@ export function createRelay({ origin }) {
   });
   ws.on('connection', socket => {
     const id = nonce(), pending = new Map();
-    let queue = Promise.resolve(), alive = true, queued = 0;
+    const queue = operationQueue(); let alive = true;
     const send = value => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(value)); };
-    const browser = { call(method, params) {
-      if (queued >= 32) return Promise.reject(new Error('Browser queue full.'));
-      queued += 1;
-      const run = () => new Promise((resolve, reject) => {
+    const browser = { call(method, params, options) {
+      return queue.run(signal => new Promise((resolve, reject) => {
         if (socket.readyState !== WebSocket.OPEN) return reject(new Error('Disconnected'));
         const callId = nonce();
-        const timer = setTimeout(() => { pending.delete(callId); reject(new Error('Browser request timed out.')); }, 180000);
-        pending.set(callId, { resolve, reject, timer }); send({ type: 'call', id: callId, method, params });
-      });
-      const result = queue.then(run).finally(() => { queued -= 1; }); queue = result.catch(() => {}); return result;
+        const cancel = () => { pending.delete(callId); send({ type: 'cancel', id: callId }); reject(new Error('Browser request cancelled.')); };
+        signal.addEventListener('abort', cancel, { once: true });
+        pending.set(callId, { resolve, reject, cleanup: () => signal.removeEventListener('abort', cancel) });
+        send({ type: 'call', id: callId, method, params });
+      }), options);
     } };
     browsers.set(id, browser); send({ type: 'connected' });
     socket.on('pong', () => { alive = true; });
@@ -202,18 +205,19 @@ export function createRelay({ origin }) {
         } else if (message.type === 'result') {
           const call = pending.get(message.id);
           if (!call) return;
-          clearTimeout(call.timer); pending.delete(message.id);
+          call.cleanup(); pending.delete(message.id);
           if (message.error) call.reject(new Error('Local browser rejected request.')); else call.resolve(message.result);
         } else socket.close(1008, 'Unknown protocol message');
       } catch { socket.close(1008, 'Invalid protocol message'); }
     });
     socket.on('error', () => {});
     socket.on('close', () => {
+      queue.close();
       clearInterval(heartbeat); browsers.delete(id);
       for (const [key, item] of tokens) if (item.browserId === id) tokens.delete(key);
       for (const [key, item] of codes) if (item.browserId === id) codes.delete(key);
       for (const [key, item] of requests) if (item.browserId === id) requests.delete(key);
-      for (const call of pending.values()) { clearTimeout(call.timer); call.reject(new Error('Disconnected')); }
+      for (const call of pending.values()) { call.cleanup(); call.reject(new Error('Disconnected')); }
       pending.clear();
     });
   });

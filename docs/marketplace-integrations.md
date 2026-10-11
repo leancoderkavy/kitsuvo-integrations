@@ -1,5 +1,7 @@
 # Kitsuvo plugins and MCP
 
+Kitsuvo is **the fastest browser for your LLM**. Connect through MCP to navigate, read pages, interact with elements and inspect local evidence.
+
 Kitsuvo's plugin bundles its native browser MCP server with setup, browsing,
 detection-evidence, and responsive-check skills. The logo and icons are copies
 of the existing Kitsuvo assets, with the brand's Vermilion accent. No API key is
@@ -10,8 +12,8 @@ needed for local browser automation or local detection.
 [Client setup and distribution](distribution-clients.md) includes Cursor, VS Code,
 Gemini CLI, Cline, Continue, LM Studio, Devin and workflow recipes for n8n,
 Zapier and Dify. The Claude Desktop bundle is
-`https://kitsuvo.com/downloads/kitsuvo-desktop-0.2.5.mcpb`. The remote plugin
-variant is `https://kitsuvo.com/downloads/kitsuvo-cloud-plugin-0.2.5.zip`.
+`https://kitsuvo.com/downloads/kitsuvo-desktop-0.2.6.mcpb`. The remote plugin
+variant is `https://kitsuvo.com/downloads/kitsuvo-cloud-plugin-0.2.6.zip`.
 Each requires the user’s own installed browser; neither implies directory approval.
 
 ## Install locally
@@ -79,7 +81,7 @@ Keep `args: ["mcp"]`. Plugin installation does not install the native browser.
 An installed plugin is cached by its host; edit/reinstall the plugin copy or
 configure a separate native MCP connection when using a custom executable path.
 
-Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.5.zip`.
+Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.6.zip`.
 It contains the local marketplace manifests, branded plugin, four skills, and
 loopback HTTP MCP bridge with its locked dependencies and tests. Commands below
 run from the extracted directory or an authorized repository checkout.
@@ -327,7 +329,7 @@ a low detection score is not proof of human authorship or safety.
 
 ## Listings and public submission
 
-Listing name: **Kitsuvo**. Short description: **Browse and inspect websites**.
+Listing name: **Kitsuvo**. Short description: **The fastest browser for your LLM**.
 Full description and sample prompts are in `plugin.json`.
 Website: <https://kitsuvo.com>. Privacy: <https://kitsuvo.com/privacy>.
 Terms: <https://kitsuvo.com/terms>. Support:

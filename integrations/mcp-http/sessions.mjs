@@ -4,22 +4,8 @@ import { InitializeRequestSchema, JSONRPCRequestSchema } from '@modelcontextprot
 
 // Keep panel state collection atomic within a connection, without making
 // another LLM wait for that connection's navigation or evaluation.
-export function operationQueue(limit = 32) {
-  let tail = Promise.resolve(), pending = 0, closed = false;
-  return {
-    run(operation) {
-      if (closed || pending >= limit) return Promise.reject(new Error(closed ? 'MCP session closed.' : 'MCP session is busy. Retry after pending requests finish.'));
-      pending++;
-      const result = tail.then(() => {
-        if (closed) throw new Error('MCP session closed.');
-        return operation();
-      });
-      tail = result.catch(() => {}).finally(() => { pending--; });
-      return result;
-    },
-    close() { closed = true; },
-  };
-}
+export { operationQueue } from './operation-queue.mjs';
+import { operationQueue } from './operation-queue.mjs';
 
 const MAX_BODY = 1 << 20;
 const reject = (res, status, message) => res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
@@ -101,7 +87,7 @@ export function sessionHandler(createBackend, createAppServer, { maxSessions = 1
           session.backend = await createBackend(body.params.clientInfo);
           const backendClosed = session.backend.onclose;
           session.backend.onclose = () => { backendClosed?.(); void dispose(session); };
-          session.server = createAppServer(session.backend, operation => session.queue.run(operation));
+          session.server = createAppServer(session.backend, (operation, options) => session.queue.run(operation, options));
           session.transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: () => session.id, enableJsonResponse: true,
             maxRequestBodySize: MAX_BODY,

@@ -1,7 +1,7 @@
 {
   "name": "kitsuvo",
-  "version": "0.2.5",
-  "description": "Less AI, less Slop. Browse with Kitsuvo, inspect AI-built evidence, and check responsive layouts. Requires the Kitsuvo desktop browser.",
+  "version": "0.2.6",
+  "description": "The fastest browser for your LLM. Browse, read and act through MCP with visible controls and a separate agent profile.",
   "author": {
     "name": "Kitsuvo",
     "url": "https://kitsuvo.com"

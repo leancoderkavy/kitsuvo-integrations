@@ -1,7 +1,9 @@
 import WebSocket from 'ws';
+import { operationQueue } from './operation-queue.mjs';
 import { createInterface } from 'node:readline';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 export function browserTransportConfig(env = process.env, app = false) {
@@ -26,16 +28,23 @@ export function connectBrowser({ origin, backend, onMessage = () => {} }) {
   }
   url.pathname = '/connect'; url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   const socket = new WebSocket(url, { maxPayload: 8 * 1024 * 1024, followRedirects: false });
-  let queue = Promise.resolve();
+  const queue = operationQueue(), requests = new Map();
+  let tools;
+  const catalogue = () => tools ??= backend.listTools().catch(error => { tools = undefined; throw error; });
+  backend.setNotificationHandler?.(ToolListChangedNotificationSchema, () => { tools = undefined; });
+  socket.on('close', () => { queue.close(); requests.clear(); });
   const send = value => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(value)); };
   socket.on('message', data => {
     let message;
     try { message = JSON.parse(data.toString()); } catch { socket.close(1008, 'Invalid message'); return; }
+    if (message.type === 'cancel') { requests.get(message.id)?.abort(); return; }
     if (message.type !== 'call') { onMessage(message); return; }
-    queue = queue.then(async () => {
+    if (requests.has(message.id)) { socket.close(1008, 'Duplicate call'); return; }
+    const request = new AbortController(); requests.set(message.id, request);
+    queue.run(async signal => {
       try {
         let result;
-        if (message.method === 'tools/list') result = await backend.listTools();
+        if (message.method === 'tools/list') result = await catalogue();
         else if (message.method === 'resources/list') {
           result = backend.listResources && backend.getServerCapabilities?.()?.resources
             ? await backend.listResources() : { resources: [] };
@@ -46,13 +55,13 @@ export function connectBrowser({ origin, backend, onMessage = () => {} }) {
           result = await backend.readResource(message.params);
         }
         else if (message.method === 'tools/call') {
-          const catalog = await backend.listTools();
+          const catalog = await catalogue();
           if (!catalog.tools.some(tool => tool.name === message.params?.name)) throw new Error('Unknown tool');
-          result = await backend.callTool(message.params, undefined, { timeout: 180000 });
+          result = await backend.callTool(message.params, undefined, { timeout: 180000, signal });
         } else throw new Error('Unsupported operation');
         send({ type: 'result', id: message.id, result });
       } catch { send({ type: 'result', id: message.id, error: 'Browser request failed.' }); }
-    });
+    }, { signal: request.signal }).catch(() => send({ type: 'result', id: message.id, error: 'Browser request cancelled or deadline exceeded.' })).finally(() => requests.delete(message.id));
   });
   return { socket, review: id => send({ type: 'review', id }), approve: id => send({ type: 'approve', id }) };
 }
