@@ -8,6 +8,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { APP_URI, APP_MIME, appTools, browserHtml, callBrowserApp } from './browser-app.mjs';
 import { serveEmbed, embedSdk } from './embed-server.mjs';
+import { sessionHandler } from './sessions.mjs';
 
 export function createAppServer(backend, serialize = operation => operation()) {
   const server = new Server(
@@ -46,7 +47,7 @@ export function readConfig(env = process.env) {
   return { port, binary: env.KITSUVO_BINARY || 'kitsuvo' };
 }
 
-export function createBridge(backend, { port = 8787, embed = false } = {}) {
+export function createBridge(backend, { port = 8787, embed = false, createBackend, ...sessionOptions } = {}) {
   const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
   const origins = new Set([...hosts].map(host => `http://${host}`));
   let queue = Promise.resolve();
@@ -55,7 +56,8 @@ export function createBridge(backend, { port = 8787, embed = false } = {}) {
     queue = result.catch(() => {});
     return result;
   };
-  return createServer(async (req, res) => {
+  const sessions = createBackend && sessionHandler(createBackend, createAppServer, sessionOptions);
+  const bridge = createServer(async (req, res) => {
     if (!hosts.has(req.headers.host) || (req.headers.origin && !origins.has(req.headers.origin))) {
       res.writeHead(403).end('Untrusted Host or Origin.');
       return;
@@ -71,6 +73,10 @@ export function createBridge(backend, { port = 8787, embed = false } = {}) {
     }
     if (req.url !== '/mcp') {
       res.writeHead(404).end('Use /mcp.');
+      return;
+    }
+    if (sessions) {
+      await sessions.handle(req, res);
       return;
     }
     if (req.method !== 'POST') {
@@ -93,16 +99,26 @@ export function createBridge(backend, { port = 8787, embed = false } = {}) {
       await server.close();
     }
   });
+  bridge.requestTimeout = 30_000;
+  bridge.headersTimeout = 10_000;
+  bridge.closeSessions = () => sessions?.close() ?? Promise.resolve();
+  bridge.once('close', () => { void bridge.closeSessions(); });
+  return bridge;
+}
+
+export async function createNativeBackend(config, clientInfo = { name: 'kitsuvo-http-bridge', version: '0.2.3' }) {
+  const backend = new Client({ name: clientInfo.name, version: clientInfo.version });
+  const transport = new StdioClientTransport({ command: config.binary, args: ['mcp'], stderr: 'inherit',
+    env: { ...getDefaultEnvironment(), ...(process.env.KITSUVO_PROFILE_DIR ? { KITSUVO_PROFILE_DIR: process.env.KITSUVO_PROFILE_DIR } : {}) },
+  });
+  try { await backend.connect(transport, { timeout: 30_000 }); return backend; }
+  catch (error) { await backend.close(); throw error; }
 }
 
 async function main() {
   const config = readConfig();
-  const backend = new Client({ name: 'kitsuvo-http-bridge', version: '0.2.3' });
-  const transport = new StdioClientTransport({ command: config.binary, args: ['mcp'], stderr: 'inherit',
-    env: { ...getDefaultEnvironment(), ...(process.env.KITSUVO_PROFILE_DIR ? { KITSUVO_PROFILE_DIR: process.env.KITSUVO_PROFILE_DIR } : {}) },
-  });
+  const backend = await createNativeBackend(config);
   try {
-    await backend.connect(transport);
     // Bundle once before accepting connections, so build errors fail at startup.
     await browserHtml();
     if (process.argv.includes('--embed')) await embedSdk();
@@ -121,10 +137,11 @@ async function main() {
       process.once('SIGTERM', stop);
       return;
     }
-    const bridge = createBridge(backend, { ...config, embed: process.argv.includes('--embed') });
+    const bridge = createBridge(backend, { ...config, embed: process.argv.includes('--embed'), createBackend: info => createNativeBackend(config, info) });
     bridge.on('error', async error => {
       console.error(error.message);
       await backend.close();
+      await bridge.closeSessions();
       process.exitCode = 1;
     });
     bridge.listen(config.port, '127.0.0.1', () => {
@@ -135,6 +152,7 @@ async function main() {
       bridge.close();
       bridge.closeAllConnections();
       void backend.close();
+      void bridge.closeSessions();
     };
     process.once('SIGINT', stop);
     process.once('SIGTERM', stop);

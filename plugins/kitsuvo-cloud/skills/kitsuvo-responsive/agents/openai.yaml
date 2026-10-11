@@ -1,0 +1,7 @@
+interface:
+  display_name: "Kitsuvo responsive checks"
+  short_description: "Check phone, tablet, and desktop browser layouts"
+  icon_small: "./assets/icon-32.png"
+  icon_large: "./assets/icon-256.png"
+  brand_color: "#D23F1A"
+  default_prompt: "Use $kitsuvo-responsive to check this page on a phone."

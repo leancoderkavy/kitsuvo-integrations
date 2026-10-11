@@ -1,0 +1,56 @@
+{
+  "manifest_version": "0.3",
+  "name": "kitsuvo",
+  "version": "0.2.5",
+  "display_name": "Kitsuvo",
+  "description": "Browse and inspect websites using your installed Kitsuvo browser.",
+  "long_description": "Requires Kitsuvo installed on Windows or macOS. Uses a separate automation profile and refuses sensitive pages by default. Page content returned through MCP is visible to your connected AI client. No cloud relay is enabled by this extension.",
+  "author": {
+    "name": "Kitsuvo",
+    "url": "https://kitsuvo.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leancoderkavy/kitsuvo-integrations"
+  },
+  "homepage": "https://kitsuvo.com",
+  "documentation": "https://kitsuvo.com/integrations",
+  "support": "https://github.com/leancoderkavy/kitsuvo-integrations/issues",
+  "icon": "icon-256.png",
+  "license": "LicenseRef-Kitsuvo-Integration",
+  "privacy_policies": [
+    "https://kitsuvo.com/privacy"
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "server.mjs",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server.mjs"
+      ],
+      "env": {
+        "KITSUVO_BINARY": "${user_config.kitsuvo_binary}"
+      }
+    }
+  },
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32"
+    ],
+    "runtimes": {
+      "node": ">=22"
+    }
+  },
+  "tools_generated": true,
+  "user_config": {
+    "kitsuvo_binary": {
+      "type": "string",
+      "title": "Kitsuvo executable",
+      "description": "Use kitsuvo when it is on PATH, or the full path to the installed executable. On Mac: /Applications/Kitsuvo.app/Contents/MacOS/kitsuvo.",
+      "default": "kitsuvo",
+      "required": true
+    }
+  }
+}

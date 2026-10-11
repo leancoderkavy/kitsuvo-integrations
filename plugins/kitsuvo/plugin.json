@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "kitsuvo",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Less AI, less Slop. Browse with Kitsuvo, inspect AI-built evidence, and check responsive layouts. Requires the Kitsuvo desktop browser.",
   "author": {
     "name": "Kitsuvo",
@@ -22,7 +22,7 @@
       "interface": {
         "displayName": "Kitsuvo",
         "shortDescription": "Less AI, less Slop",
-        "longDescription": "Less AI, less Slop. First no-AI web browser. Use your Kitsuvo desktop browser to navigate sites, read page text, interact with accessible elements, and inspect the evidence behind AI-built, slop, and impersonation verdicts. Check phone and tablet layouts. Automation uses a separate browser profile by default. Requires Kitsuvo installed on this computer; cloud clients need the local MCP bridge and Secure MCP Tunnel.",
+        "longDescription": "Connect your installed Kitsuvo browser to browse pages, inspect detection evidence and check responsive layouts. Local automation uses an isolated profile. Cloud clients use the opt-in authenticated relay or a workspace Secure MCP Tunnel. The plugin does not install the browser.",
         "developerName": "Kitsuvo",
         "category": "Productivity",
         "capabilities": [
@@ -38,7 +38,8 @@
         ],
         "brandColor": "#D23F1A",
         "composerIcon": "./assets/icon-32.png",
-        "logo": "./assets/icon-256.png"
+        "logo": "./assets/icon-256.png",
+        "supportURL": "https://github.com/leancoderkavy/kitsuvo-integrations/issues"
       }
     }
   }

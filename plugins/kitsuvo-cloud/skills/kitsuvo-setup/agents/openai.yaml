@@ -1,0 +1,7 @@
+interface:
+  display_name: "Set up Kitsuvo"
+  short_description: "Connect Kitsuvo browser tools and diagnose setup"
+  icon_small: "./assets/icon-32.png"
+  icon_large: "./assets/icon-256.png"
+  brand_color: "#D23F1A"
+  default_prompt: "Use $kitsuvo-setup to check my browser connection."

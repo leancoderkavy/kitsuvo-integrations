@@ -9,6 +9,11 @@ profile on the connecting computer.
 
 Install Kitsuvo and put `kitsuvo` on PATH. Use Node.js 22 or newer:
 
+Download and extract the [integration package](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.4.zip).
+Open a terminal in its `integrations/mcp-cloud` folder before running the commands
+below. If the browser is not on PATH, set `KITSUVO_BINARY` to its absolute executable
+path. Web hosts need the App-mode commands in the next section for the in-chat panel.
+
 ```sh
 npm ci --ignore-scripts
 export KITSUVO_CLOUD_ORIGIN=https://kitsuvo-mcp-relay.fly.dev
@@ -31,7 +36,18 @@ To include the MCP App, install the sibling bridge's dependencies too, then
 start the connector in App mode from this directory:
 
 ```sh
+npm ci --ignore-scripts
 npm ci --ignore-scripts --prefix ../mcp-http
+export KITSUVO_CLOUD_ORIGIN=https://kitsuvo-mcp-relay.fly.dev
+npm run connect -- --app
+```
+
+On Windows, use this PowerShell block instead:
+
+```powershell
+npm ci --ignore-scripts
+npm ci --ignore-scripts --prefix ../mcp-http
+$env:KITSUVO_CLOUD_ORIGIN = 'https://kitsuvo-mcp-relay.fly.dev'
 npm run connect -- --app
 ```
 
@@ -41,6 +57,19 @@ previews on Windows, page text and controls on both desktop platforms, and
 Kitsuvo's detection evidence. The local browser still renders pages. Tools,
 UI resource reads and panel actions route to the browser that authorized
 that client; stopping the connector revokes all of them.
+
+In ChatGPT, add a custom MCP server from Plugins using
+`https://kitsuvo-mcp-relay.fly.dev/mcp` and OAuth. Install the created plugin,
+select it in a new chat, and send the request above. Account/workspace policies
+can limit custom connections. See the [official ChatGPT connection guide](https://developers.openai.com/plugins/deploy/connect-chatgpt).
+In Claude, open **Customize → Connectors** and add a custom connector using
+the same server URL. Use OAuth and choose **Register automatically** for the
+OAuth client: this relay supports dynamic registration, not Claude's published
+client identity. Team and Enterprise owners add the connector through
+**Organization settings → Connectors** first. Authenticate it and enable it in
+a new conversation. See the [official custom connector guide](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
+Neither host can launch
+the connector on your computer: keep the terminal process running.
 
 The relay deployment must include the resource-forwarding handlers in this
 version before `--app` can display a panel through it. The deployed relay passed

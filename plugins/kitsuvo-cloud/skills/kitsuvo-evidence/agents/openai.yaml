@@ -1,0 +1,7 @@
+interface:
+  display_name: "Kitsuvo evidence"
+  short_description: "Explain detection verdicts with their evidence"
+  icon_small: "./assets/icon-32.png"
+  icon_large: "./assets/icon-256.png"
+  brand_color: "#D23F1A"
+  default_prompt: "Use $kitsuvo-evidence to explain why this site was flagged."

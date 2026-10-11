@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter, once } from 'node:events';
 import { randomBytes, createHash } from 'node:crypto';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:http';
@@ -16,6 +16,10 @@ if (process.env.KITSUVO_CLOUD_SMOKE !== '1') throw new Error('Set KITSUVO_CLOUD_
 const origin = new URL(process.env.KITSUVO_CLOUD_ORIGIN).origin;
 const appMode = process.argv.includes('--app');
 const profile = await mkdtemp(join(tmpdir(), 'kitsuvo-cloud-smoke-'));
+await mkdir(join(profile, 'agent'));
+await writeFile(join(profile, 'agent/state.json'), JSON.stringify({ settings_version: 4, settings: {
+  local_only: true, auto_update: false, block_ai: false, spoof_warn: false, jev_auto: false, claude_auto: false,
+} }));
 const native = new Client({ name: 'kitsuvo-cloud-smoke-native', version: '1' });
 const sdk = new Client({ name: 'kitsuvo-cloud-smoke-client', version: '1' });
 const events = new EventEmitter();

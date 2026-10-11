@@ -43,6 +43,8 @@ jobs:
         working-directory: integrations/mcp-http
       - run: npm test
         working-directory: integrations/mcp-http
+      - run: node --test integrations/desktop-extension/server.test.mjs
+      - run: npx --yes @anthropic-ai/mcpb@2.1.2 validate integrations/desktop-extension/manifest.json
       - run: npx --yes web-ext@10.7.0 lint --source-dir extensions/firefox --warnings-as-errors
       - run: npm ci --ignore-scripts
         working-directory: integrations/mcp-cloud

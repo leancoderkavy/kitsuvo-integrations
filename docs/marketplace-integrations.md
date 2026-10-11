@@ -5,6 +5,15 @@ detection-evidence, and responsive-check skills. The logo and icons are copies
 of the existing Kitsuvo assets, with the brand's Vermilion accent. No API key is
 needed for local browser automation or local detection.
 
+## More clients and install bundles
+
+[Client setup and distribution](distribution-clients.md) includes Cursor, VS Code,
+Gemini CLI, Cline, Continue, LM Studio, Devin and workflow recipes for n8n,
+Zapier and Dify. The Claude Desktop bundle is
+`https://kitsuvo.com/downloads/kitsuvo-desktop-0.2.5.mcpb`. The remote plugin
+variant is `https://kitsuvo.com/downloads/kitsuvo-cloud-plugin-0.2.5.zip`.
+Each requires the user’s own installed browser; neither implies directory approval.
+
 ## Install locally
 
 In the browser, press **Connect your AI assistant** (the plug button beside Settings),
@@ -70,7 +79,7 @@ Keep `args: ["mcp"]`. Plugin installation does not install the native browser.
 An installed plugin is cached by its host; edit/reinstall the plugin copy or
 configure a separate native MCP connection when using a custom executable path.
 
-Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.4.zip`.
+Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.5.zip`.
 It contains the local marketplace manifests, branded plugin, four skills, and
 loopback HTTP MCP bridge with its locked dependencies and tests. Commands below
 run from the extracted directory or an authorized repository checkout.
@@ -112,6 +121,10 @@ Run the setup skill, then ask “Open https://example.com in Kitsuvo and explain
 its detection evidence.” Tool names may receive a host-specific prefix.
 
 ### Local qualification
+
+The [editor qualification report](research/agent-editor-qualification-2026-10-10.md)
+records the latest Claude/GPT walkthrough, native editor and wrapped-link
+regressions, reproducible snapshot comparisons, and remaining platform limits.
 
 On Windows, point `KITSUVO_TEST_BINARY` at a built Kitsuvo executable and run
 `node --test tests/agent-native.test.cjs`. This uses an isolated profile and a
@@ -213,9 +226,9 @@ local MCP configuration.
 
 ## ChatGPT cloud: local HTTP bridge and Secure MCP Tunnel
 
-The bridge adapts the native stdio MCP server to stateless Streamable HTTP. It
+The bridge adapts the native stdio MCP server to session-based Streamable HTTP. It
 forwards native tool definitions, annotations, screenshots, and tool errors,
-and adds the browser panel tools and UI resource. It starts the native MCP process;
+and adds the browser panel tools and UI resource. Each HTTP session gets its own native MCP connection;
 the browser opens when a browser tool is first called.
 
 Requirements: Node.js 22 or newer, Kitsuvo installed locally, and OpenAI's
@@ -250,10 +263,22 @@ implementation, or wildcard CORS. Do not expose this port with an anonymous
 public forwarding service. The secure tunnel handles remote identity and
 access; the browser control token never appears in the plugin package.
 
-One bridge connects to one agent profile. Tools from simultaneous callers
-share its tabs; mutating calls run in order. Run a separate bridge with a
-different `KITSUVO_PROFILE_DIR` and port for another independent browser.
-Closing the bridge stops its MCP process; the native browser may remain open.
+One bridge connects to one agent profile. Independent HTTP MCP sessions keep
+their own selected tabs and execute concurrently in the same native browser.
+Requests within one session run in order, including the panel's state collection.
+Clients must retain the `Mcp-Session-Id` returned by initialization and send it
+on later requests; standard Streamable HTTP clients do this automatically.
+Delete a session with HTTP `DELETE /mcp` using that header when finished.
+
+The bridge permits up to 16 sessions and 32 pending tool operations per session.
+Idle sessions expire after 10 minutes; active requests are retained until their
+response closes. Expired sessions return HTTP 404 and need a new initialization.
+Startup failures, native disconnection, explicit deletion, idle expiry, and bridge shutdown close the
+session's native MCP process. Native disconnect cleanup removes that session's
+owned tabs; keep result tabs with `browser_cleanup` and `keep_tabs` before ending
+the session. Existing tabs and the profile remain. Tabs still share cookies
+and storage; use another `KITSUVO_PROFILE_DIR` and port for profile isolation.
+The opt-in `/embed` demonstration uses a separate shared connection.
 
 ## Public authenticated cloud relay
 
@@ -263,16 +288,18 @@ opts in to forwarding, and explicitly approves the requesting OAuth client in
 the terminal. PKCE-protected tokens route only to that user's connected isolated
 browser. Closing the connector revokes its grants. This is separate from the
 loopback bridge above; installing the local plugin does not enable forwarding.
-See [cloud setup](../integrations/mcp-cloud/README.md).
+See [cloud setup](https://kitsuvo.com/downloads/cloud-relay.md).
 
 For an in-chat panel through the relay, install the HTTP bridge dependencies
 and start the cloud connector with `npm run connect -- --app`. Both ChatGPT
 and Claude can use the same OAuth-protected MCP endpoint. The relay must run
-this version's UI-resource forwarding handlers; the older live smoke below
-verified native tools, not the interactive panel. See the cloud setup guide
-for installation and consent steps.
+this version's UI-resource forwarding handlers. The deployed relay passed the
+explicit App-mode Windows smoke on October 10, 2026, including the UI resource,
+real native panel state, sensitive-page refusal and disconnect revocation.
+See the cloud setup guide for installation and consent steps. This protocol
+check does not establish a signed-in ChatGPT or Claude host connection.
 
-The live relay passed a disposable Windows native-browser smoke with 17 tools,
+The live relay also passed a disposable Windows native-browser smoke covering
 navigation, snapshots, reports, sensitive-page refusal and disconnect revocation.
 It has ephemeral state in one process and requires reauthorization after restart.
 OpenAI-managed client mTLS, verified-email identity, reviewer setup and public
@@ -317,8 +344,9 @@ testing but is not a substitute for a public submission endpoint.
 Do not submit this as a skills-only plugin: the workflows depend on browser
 tools. Public cloud distribution needs an authenticated architecture that
 connects each user to their own browser, registered MCP connection metadata,
-and review in the publisher's account. No hosted service, OAuth registration,
-registered app ID, marketplace approval, or public release is claimed here.
+and review in the publisher's account. The relay above is deployed and smoke-tested;
+publisher registration, a registered host app ID, and public directory approval
+remain unverified.
 
 ## Verify
 

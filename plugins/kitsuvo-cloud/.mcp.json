@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "kitsuvo": {
+      "type": "http",
+      "url": "https://kitsuvo-mcp-relay.fly.dev/mcp"
+    }
+  }
+}
