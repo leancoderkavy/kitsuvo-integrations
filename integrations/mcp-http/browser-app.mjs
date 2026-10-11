@@ -45,8 +45,8 @@ function textOf(result) {
 
 // Only these explicit native tools can be invoked by panel controls. Sensitive
 // pages, password fields and Stop continue to be enforced by the native engine.
-export async function callBrowserApp(backend, name, args = {}) {
-  const call = (name, arguments_) => backend.callTool({ name, arguments: arguments_ }, undefined, { timeout: 180_000 });
+export async function callBrowserApp(backend, name, args = {}, signal) {
+  const call = (name, arguments_) => backend.callTool({ name, arguments: arguments_ }, undefined, { timeout: 180_000, signal });
   const fail = message => ({ content: [{ type: 'text', text: message }], isError: true });
   try {
     if (!args || typeof args !== 'object' || Array.isArray(args)) return fail('Expected an arguments object.');

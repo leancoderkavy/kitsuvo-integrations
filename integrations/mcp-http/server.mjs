@@ -8,9 +8,10 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { APP_URI, APP_MIME, appTools, browserHtml, callBrowserApp } from './browser-app.mjs';
 import { serveEmbed, embedSdk } from './embed-server.mjs';
+import { operationQueue } from './operation-queue.mjs';
 import { sessionHandler } from './sessions.mjs';
 
-export function createAppServer(backend, serialize = operation => operation()) {
+export function createAppServer(backend, serialize = (operation, options) => operation(options?.signal)) {
   const server = new Server(
     { name: 'kitsuvo', title: 'Kitsuvo browser', version: '0.2.3' },
     { capabilities: { tools: {}, resources: {} },
@@ -29,10 +30,11 @@ export function createAppServer(backend, serialize = operation => operation()) {
       _meta: { ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] }, prefersBorder: true } },
     }] };
   });
-  server.setRequestHandler(CallToolRequestSchema, request => serialize(() =>
+  server.setRequestHandler(CallToolRequestSchema, (request, extra) => serialize(signal =>
     appTools.some(tool => tool.name === request.params.name)
-      ? callBrowserApp(backend, request.params.name, request.params.arguments)
-      : backend.callTool(request.params, undefined, { timeout: 180_000 }),
+      ? callBrowserApp(backend, request.params.name, request.params.arguments, signal)
+      : backend.callTool(request.params, undefined, { timeout: 180_000, signal }),
+    { signal: extra.signal },
   ));
   return server;
 }
@@ -50,12 +52,8 @@ export function readConfig(env = process.env) {
 export function createBridge(backend, { port = 8787, embed = false, createBackend, ...sessionOptions } = {}) {
   const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
   const origins = new Set([...hosts].map(host => `http://${host}`));
-  let queue = Promise.resolve();
-  const serialize = operation => {
-    const result = queue.then(operation);
-    queue = result.catch(() => {});
-    return result;
-  };
+  const queue = operationQueue();
+  const serialize = (operation, options) => queue.run(operation, options);
   const sessions = createBackend && sessionHandler(createBackend, createAppServer, sessionOptions);
   const bridge = createServer(async (req, res) => {
     if (!hosts.has(req.headers.host) || (req.headers.origin && !origins.has(req.headers.origin))) {
@@ -102,7 +100,7 @@ export function createBridge(backend, { port = 8787, embed = false, createBacken
   bridge.requestTimeout = 30_000;
   bridge.headersTimeout = 10_000;
   bridge.closeSessions = () => sessions?.close() ?? Promise.resolve();
-  bridge.once('close', () => { void bridge.closeSessions(); });
+  bridge.once('close', () => { queue.close(); void bridge.closeSessions(); });
   return bridge;
 }
 
@@ -123,12 +121,8 @@ async function main() {
     await browserHtml();
     if (process.argv.includes('--embed')) await embedSdk();
     if (process.argv.includes('--stdio')) {
-      let queue = Promise.resolve();
-      const server = createAppServer(backend, operation => {
-        const result = queue.then(operation);
-        queue = result.catch(() => {});
-        return result;
-      });
+      const queue = operationQueue();
+      const server = createAppServer(backend, (operation, options) => queue.run(operation, options));
       await server.connect(new StdioServerTransport());
       const stop = () => { void server.close(); void backend.close(); };
       server.onclose = () => { void backend.close(); };

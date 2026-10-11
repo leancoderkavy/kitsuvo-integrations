@@ -1,6 +1,6 @@
 # Kitsuvo MCP clients and distribution
 
-Version 0.2.5. Install Kitsuvo on Windows or macOS first. The local server is
+Version 0.2.6. Install Kitsuvo on Windows or macOS first. The local server is
 `kitsuvo mcp`; automation uses an isolated profile and refuses sensitive pages.
 The client receives requested page text, screenshots and reports. No API key
 is needed for local automation. These installation sources do not establish
@@ -30,7 +30,7 @@ For skills too, install `kitsuvo@kitsuvo-browser` from the public
 
 ### Claude Desktop extension
 
-Download `https://kitsuvo.com/downloads/kitsuvo-desktop-0.2.5.mcpb`.
+Download `https://kitsuvo.com/downloads/kitsuvo-desktop-0.2.6.mcpb`.
 In Claude Desktop choose Settings → Extensions → Advanced settings → Install
 Extension. Configure the Kitsuvo executable. The bundle uses the client's Node
 runtime, has no external npm dependencies and does not install the browser.
@@ -40,19 +40,25 @@ main browsing profile. Revoke it by disabling/removing the desktop extension.
 ## Remote clients and cloud plugin
 
 Endpoint: `https://kitsuvo-mcp-relay.fly.dev/mcp`. OAuth is required. Download
-`https://kitsuvo.com/downloads/kitsuvo-cloud-plugin-0.2.5.zip` for the remote
+`https://kitsuvo.com/downloads/kitsuvo-cloud-plugin-0.2.6.zip` for the remote
 plugin. A package is installation metadata, not a registered publisher app ID.
 Do not fabricate `.app.json` registered IDs; attach the actual portal-generated
 mapping if the target host requires it.
 
 On your own Windows or Mac computer, install Kitsuvo and Node.js 22+, extract
-`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.5.zip`, then:
+`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.6.zip`, then:
 
 ```sh
 cd integrations/mcp-cloud
 npm ci --ignore-scripts
+export KITSUVO_CLOUD_ORIGIN=https://kitsuvo-mcp-relay.fly.dev
+export KITSUVO_BINARY=/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo
 npm run connect
 ```
+
+On Windows PowerShell, set `$env:KITSUVO_CLOUD_ORIGIN = 'https://kitsuvo-mcp-relay.fly.dev'`
+and `$env:KITSUVO_BINARY` to your installed `kitsuvo.exe` path before `npm run connect`.
+The macOS executable path above must also match your installation.
 
 Type `CONNECT` to opt in. Add the HTTPS endpoint with OAuth in your client.
 On the authorization page, copy the request code to the connector terminal:
@@ -98,7 +104,7 @@ real OAuth and tool call in each provider before claiming compatibility.
 | Claude plugin | Existing submission in `claude.ai/directory/manage` | Reviewer decision; do not create a duplicate |
 | Claude Desktop | `.mcpb` desktop-extension submission | Actual install/tool qualification and publisher form |
 | OpenAI | Upload reviewed remote plugin; register/scan endpoint | Verified developer identity, domain challenge, verified-email UserInfo, reviewer connection and applicable mTLS |
-| Cline | Issue in `cline/mcp-marketplace` | 400px icon and actual Cline README-only installation test |
+| Cline | Catalog PR in `cline/marketplace`; legacy extension marketplace uses `cline/mcp-marketplace` | Validate catalog entry; qualify installation and OAuth separately. Legacy submissions require a 400px icon and actual Cline README-only installation test |
 | Smithery | Publish authenticated remote server | Account access and successful end-to-end connection |
 | Glama | Remote connector listing | Account access; source listing requires open-source license |
 | Docker MCP catalog | Contribution to `docker/mcp-registry` | Appropriate remote/connector packaging and catalog review |

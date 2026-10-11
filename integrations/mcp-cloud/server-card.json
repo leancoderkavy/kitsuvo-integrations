@@ -1,0 +1,616 @@
+{
+  "serverInfo": {
+    "name": "Kitsuvo",
+    "version": "0.2.6"
+  },
+  "authentication": {
+    "required": true,
+    "schemes": [
+      "oauth2"
+    ]
+  },
+  "tools": [
+    {
+      "name": "browser_set_controller",
+      "title": "Identify controller and report usage",
+      "description": "Report your model, provider and usage for the browser's agent bar. Use known values only; never estimate unknown usage. Client defaults to MCP clientInfo. Usage is a cumulative snapshot for the current model in this MCP session, not a delta; repeated reports do not add tokens. Omitted usage is retained; null clears it. Changing client/model/provider clears previous usage. Report updated totals after model calls when available. Identity and usage are self-reported.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "client": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "usage": {
+            "additionalProperties": false,
+            "properties": {
+              "cost_usd": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "input_tokens": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "output_tokens": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "requests": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "total_tokens": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_cleanup",
+      "title": "Clean up task tabs",
+      "description": "Call at task completion, cancellation or failure. Close only tabs created by this MCP connection and their popups. Existing tabs are preserved. keep_tabs releases result tabs from automatic disconnect cleanup. Failed closes remain available for retry. Does not erase profile data or stop the shared browser.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "keep_tabs": {
+            "description": "Created result tabs to leave open for the user; omitted means close all created tabs.",
+            "items": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_navigate",
+      "title": "Navigate",
+      "description": "Open an address in the tab and wait for it to load. Returns the page snapshot.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "timeout_ms": {
+            "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
+            "type": "integer"
+          },
+          "url": {
+            "description": "http(s) address; a bare host gets https.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_navigate_back",
+      "title": "Go back",
+      "description": "Go back in the tab's history.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_navigate_forward",
+      "title": "Go forward",
+      "description": "Go forward in the tab's history.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_reload",
+      "title": "Reload",
+      "description": "Reload the page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_snapshot",
+      "title": "Page snapshot",
+      "description": "Read the page as an accessibility tree. Interactive elements carry refs for the action tools. Better than a screenshot for acting on the page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "max_chars": {
+            "description": "Size limit for the snapshot (default 30000).",
+            "type": "integer"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "viewport_only": {
+            "description": "Only what is on screen, to save tokens.",
+            "type": "boolean"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_click",
+      "title": "Click",
+      "description": "Click an element. Waits for any navigation it starts and returns the new snapshot.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "element": {
+            "description": "Human-readable description of the element, for the log.",
+            "type": "string"
+          },
+          "ref": {
+            "description": "Element ref from the latest snapshot, such as \"e12\".",
+            "type": "string"
+          },
+          "settle_ms": {
+            "description": "Navigation grace period (default 700 ms). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
+            "maximum": 2000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "timeout_ms": {
+            "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ref"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_type",
+      "title": "Type text",
+      "description": "Type into a text field, replacing what is there unless clear is false. Optionally press Enter after.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "clear": {
+            "description": "Replace the current text (default true).",
+            "type": "boolean"
+          },
+          "element": {
+            "description": "Human-readable description of the element, for the log.",
+            "type": "string"
+          },
+          "ref": {
+            "description": "Element ref from the latest snapshot, such as \"e12\".",
+            "type": "string"
+          },
+          "settle_ms": {
+            "description": "Navigation grace period (default 700 ms). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
+            "maximum": 2000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "submit": {
+            "description": "Press Enter after typing.",
+            "type": "boolean"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          },
+          "timeout_ms": {
+            "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ref",
+          "text"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_press_key",
+      "title": "Press key",
+      "description": "Press a key on the focused element: Enter, Tab, Escape, Backspace, Delete, arrow keys, Home, End, PageUp, PageDown, Space, or one character.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "settle_ms": {
+            "description": "Navigation grace period (default 700 ms). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
+            "maximum": 2000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "timeout_ms": {
+            "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_select_option",
+      "title": "Select option",
+      "description": "Choose options in a <select> by value or label.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "element": {
+            "description": "Human-readable description of the element, for the log.",
+            "type": "string"
+          },
+          "ref": {
+            "description": "Element ref from the latest snapshot, such as \"e12\".",
+            "type": "string"
+          },
+          "settle_ms": {
+            "description": "Navigation grace period (default 700 ms). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
+            "maximum": 2000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "ref",
+          "values"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_hover",
+      "title": "Hover",
+      "description": "Move the pointer over an element, for menus and tooltips.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "element": {
+            "description": "Human-readable description of the element, for the log.",
+            "type": "string"
+          },
+          "ref": {
+            "description": "Element ref from the latest snapshot, such as \"e12\".",
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ref"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_wait_for",
+      "title": "Wait",
+      "description": "Wait for text to appear or disappear, for an element ref to be visible, or a number of seconds.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "description": "Element ref from the latest snapshot, such as \"e12\".",
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          },
+          "text_gone": {
+            "type": "string"
+          },
+          "time": {
+            "description": "Seconds to wait (max 30).",
+            "type": "number"
+          },
+          "timeout_ms": {
+            "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_tabs",
+      "title": "Tabs",
+      "description": "List, open, close or select tabs for this session. New tabs open in the background by default.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "enum": [
+              "list",
+              "new",
+              "close",
+              "select"
+            ],
+            "type": "string"
+          },
+          "background": {
+            "description": "For new: defaults true. For select: true selects for this session without switching the visible browser tab; defaults false.",
+            "type": "boolean"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "url": {
+            "description": "For new: the address to open.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_take_screenshot",
+      "title": "Screenshot",
+      "description": "Take a PNG screenshot of the visible page on Windows or macOS. Full-page capture is available on Windows. Use browser_snapshot to act on the page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "full_page": {
+            "type": "boolean"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_evaluate",
+      "title": "Run JavaScript",
+      "description": "Evaluate a JavaScript expression in the page and return its JSON value. Promises are awaited on Windows and macOS.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "expression": {
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expression"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_get_text",
+      "title": "Page text",
+      "description": "The page's visible text, for reading or summarizing.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "max_chars": {
+            "description": "Size limit (default 40000).",
+            "type": "integer"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "browser_resize",
+      "title": "Responsive size",
+      "description": "Show the page at a phone, tablet or custom size (Kitsuvo's responsive mode), or turn that off. The page lays out at that width, so media queries apply. On Windows, mobile also turns on touch input, meta viewport handling and a mobile user agent; reload for sites that check the device. Devices: iphone-se, iphone-16, iphone-16-pro-max, pixel-8, galaxy-s24, ipad-mini, ipad-air, ipad-pro, laptop, desktop.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "device": {
+            "description": "Device id, such as \"iphone-16\".",
+            "type": "string"
+          },
+          "height": {
+            "description": "Custom height in CSS pixels (200-3840), with width.",
+            "type": "integer"
+          },
+          "landscape": {
+            "description": "Rotate a device to landscape.",
+            "type": "boolean"
+          },
+          "mobile": {
+            "description": "Touch and a mobile user agent (Windows). Defaults to on for phones and tablets.",
+            "type": "boolean"
+          },
+          "off": {
+            "description": "Leave responsive mode and fill the window again.",
+            "type": "boolean"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "width": {
+            "description": "Custom width in CSS pixels (200-3840), with height.",
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "kitsuvo_report",
+      "title": "AI-built report",
+      "description": "Kitsuvo's verdict on the page: a 0-100 score for how likely it was built with an AI app builder, the builder when known, and the evidence. On a search results page, the result sites it hid or labelled. `gate` says whether the page is shown: open, checking, blocked_ai or warned_spoof.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

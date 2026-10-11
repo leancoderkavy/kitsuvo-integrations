@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "kitsuvo",
-  "version": "0.2.5",
-  "description": "Less AI, less Slop. Browse with Kitsuvo, inspect AI-built evidence, and check responsive layouts. Requires the Kitsuvo desktop browser.",
+  "version": "0.2.6",
+  "description": "The fastest browser for your LLM. Browse, read and act through MCP with visible controls and a separate agent profile.",
   "author": {
     "name": "Kitsuvo",
     "url": "https://kitsuvo.com"
@@ -21,8 +21,8 @@
       "onboardingSkill": "./skills/kitsuvo-setup/SKILL.md",
       "interface": {
         "displayName": "Kitsuvo",
-        "shortDescription": "Less AI, less Slop",
-        "longDescription": "Connect your installed Kitsuvo browser to browse pages, inspect detection evidence and check responsive layouts. Local automation uses an isolated profile. Cloud clients use the opt-in authenticated relay or a workspace Secure MCP Tunnel. The plugin does not install the browser.",
+        "shortDescription": "Browser for your LLM",
+        "longDescription": "The fastest browser for your LLM. Browse, read and act through MCP. Use your Kitsuvo desktop browser to navigate sites, read page text, interact with accessible elements, and inspect the evidence behind AI-built, slop, and impersonation verdicts. Check phone and tablet layouts. Automation uses a separate browser profile by default. Requires Kitsuvo installed on this computer; cloud clients need the local MCP bridge and Secure MCP Tunnel.",
         "developerName": "Kitsuvo",
         "category": "Productivity",
         "capabilities": [

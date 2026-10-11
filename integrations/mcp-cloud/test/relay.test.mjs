@@ -102,7 +102,14 @@ test('MCP tools and App resources route only to the consenting browser; disconne
   assert.equal((await sdk[1].readResource({ uri: 'ui://kitsuvo/browser.html' })).contents[0].text, '<p>browser-b</p>');
   await assert.rejects(sdk[0].readResource({ uri: 'file:///private/config' }));
   const closed = once(a.socket, 'close'); a.socket.close(); await closed;
-  assert.equal((await fetch(f.origin + '/userinfo', { headers: { Authorization: 'Bearer ' + tokens[0].access_token } })).status, 401);
+  // Client close fires before the relay necessarily processes the close frame.
+  let disconnectedStatus;
+  const deadline = Date.now() + 1000;
+  do {
+    disconnectedStatus = (await fetch(f.origin + '/userinfo', { headers: { Authorization: 'Bearer ' + tokens[0].access_token } })).status;
+    if (disconnectedStatus !== 401) await new Promise(resolve => setTimeout(resolve, 10));
+  } while (disconnectedStatus !== 401 && Date.now() < deadline);
+  assert.equal(disconnectedStatus, 401);
   assert.equal((await sdk[1].listTools()).tools[0].description, 'browser-b');
   await assert.rejects(sdk[0].listResources());
 });
@@ -134,3 +141,17 @@ test('unsafe relay URLs, redirects, hosts, origins and scopes are rejected', { t
   assert.equal(denied.status, 302);
   assert.equal(new URL(denied.headers.get('location')).searchParams.get('error'), 'invalid_scope');
 });
+
+ test('public directory card exposes schemas, never browser state or authorization', async t => {
+  const { origin } = await fixture(t);
+  {
+    const response = await fetch(origin + '/.well-known/mcp/server-card.json');
+    assert.equal(response.status, 200);
+    const card=await response.json();
+    assert.equal(card.authentication.required, true);
+    assert.deepEqual(card.authentication.schemes, ['oauth2']);
+    assert.ok(card.tools.some(tool => tool.name === 'browser_snapshot'));
+    assert.ok(card.tools.every(tool => typeof tool.name === 'string' && tool.inputSchema.type === 'object'));
+    assert.deepEqual(Object.keys(card).sort(), ['authentication','serverInfo','tools']);
+  }
+ });

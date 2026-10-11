@@ -1,5 +1,5 @@
 name: Kitsuvo
-version: 0.2.5
+version: 0.2.6
 schema: v1
 mcpServers:
   - name: kitsuvo

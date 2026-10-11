@@ -1,6 +1,6 @@
 # Kitsuvo
 
-Less AI, less Slop. First no-AI web browser.
+The fastest browser for your LLM. First no-AI web browser.
 
 This plugin connects your AI client to Kitsuvo. Kitsuvo helps you inspect AI-built websites, read the observations behind a verdict, and check pages at phone, tablet, and desktop sizes.
 
