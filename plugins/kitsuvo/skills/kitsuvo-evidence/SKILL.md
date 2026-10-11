@@ -3,6 +3,8 @@ name: kitsuvo-evidence
 description: Inspect Kitsuvo's evidence for AI-built pages, slop, or brand impersonation when the user asks how a site was made or why the browser flagged it.
 ---
 
+Before browser work, call `browser_session` with your provider (`Codex` or `Claude`), actual session ID, short task title, and real session URL when available. Codex can derive its link from the thread ID. Never invent a Claude session URL; omit it if the host does not expose one. This lets the user see who is using the browser and return to the chat.
+
 Open the requested site with Kitsuvo's `browser_navigate`, then call `kitsuvo_report` for that tab. Kitsuvo analyzes rendered pages; do not substitute fetched HTML or a guessed verdict. If `pending` is true, wait briefly with `browser_wait_for` and request the report again. If it remains unavailable, report its `note` or `skipped` reason.
 
 Explain the score, identified builder when present, and strongest reported signals. Separate AI provenance, low-value content, and impersonation: AI-built does not imply fraud, and a low score does not prove human authorship or safety. Attribute verdicts to Kitsuvo and retain uncertainty. Do not invent evidence or request a cloud verdict engine unless the user asks.

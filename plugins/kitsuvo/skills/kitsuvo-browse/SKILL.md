@@ -3,6 +3,8 @@ name: kitsuvo-browse
 description: Navigate websites, read pages, and interact with page elements through the Kitsuvo desktop browser when the user requests browser work.
 ---
 
+Before browser work, call `browser_session` with your provider (`Codex` or `Claude`), actual session ID, short task title, and real session URL when available. Codex can derive its link from the thread ID. Never invent a Claude session URL; omit it if the host does not expose one. This lets the user see who is using the browser and return to the chat.
+
 Use Kitsuvo MCP tools (possibly host-prefixed). Open the requested URL with `browser_navigate`, or use `browser_tabs` with `action: list` to find an existing agent tab. Pass its `tab` explicitly when several tabs are open.
 
 Read `browser_snapshot` before acting. Use refs from the latest snapshot with `browser_click`, `browser_type`, `browser_select_option`, or `browser_hover`. An action returns an updated snapshot; refresh refs after navigation or a missing-ref error. Use `browser_wait_for` for text or element readiness rather than repeated sleeps. Read long content with `browser_get_text`.
