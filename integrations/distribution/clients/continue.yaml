@@ -1,0 +1,7 @@
+name: Kitsuvo
+version: 0.2.5
+schema: v1
+mcpServers:
+  - name: kitsuvo
+    command: kitsuvo
+    args: [mcp]

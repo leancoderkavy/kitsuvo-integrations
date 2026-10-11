@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "kitsuvo": {
+      "command": "kitsuvo",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}

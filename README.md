@@ -34,6 +34,13 @@ previews. The browser itself is a separate download.
 
 No Kitsuvo account or API key is needed for local browsing and detection.
 
+## Additional clients
+
+[Client configs and desktop extension](docs/distribution-clients.md) cover Cursor,
+VS Code, Gemini CLI, Cline, Continue, LM Studio, Devin and remote workflow clients.
+[Registry metadata](server.json) describes the opt-in authenticated endpoint.
+Directory approval is separate from these install sources.
+
 ## Install
 
 | You use | Run | Guide |

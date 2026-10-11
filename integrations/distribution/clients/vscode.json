@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "kitsuvo": {
+      "type": "stdio",
+      "command": "kitsuvo",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Browse with Kitsuvo"
+  short_description: "Navigate pages and interact with browser elements"
+  icon_small: "./assets/icon-32.png"
+  icon_large: "./assets/icon-256.png"
+  brand_color: "#D23F1A"
+  default_prompt: "Use $kitsuvo-browse to open and read this page."

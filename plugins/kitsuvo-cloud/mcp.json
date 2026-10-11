@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "kitsuvo": {
+      "type": "streamable-http",
+      "url": "https://kitsuvo-mcp-relay.fly.dev/mcp"
+    }
+  }
+}

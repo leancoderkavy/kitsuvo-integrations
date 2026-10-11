@@ -1,0 +1,22 @@
+Kitsuvo Integration License
+
+Copyright (c) 2026 Kitsuvo. All rights reserved.
+
+This license applies only to the files in this Kitsuvo integration package.
+It does not license the separately distributed Kitsuvo native application,
+third-party dependencies, or Kitsuvo trademarks.
+
+You may download, install, and use this package for your own personal purposes.
+You may make local configuration changes necessary to connect your own installed
+Kitsuvo application. No other modification, redistribution, sublicensing, sale,
+or publication of the package or derivative works is permitted without written
+permission from Kitsuvo. All rights not expressly granted are reserved.
+
+Third-party components remain subject to their own licenses.
+
+THE PACKAGE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+NONINFRINGEMENT. TO THE EXTENT PERMITTED BY LAW, KITSUVO IS NOT LIABLE FOR
+CLAIMS, DAMAGES, OR OTHER LIABILITY ARISING FROM USE OF THE PACKAGE.
+
+For permissions or support: hello@kitsuvo.com

@@ -17,7 +17,14 @@
   function restore() { for (const [row, wasHidden] of removed) row.hidden = wasHidden; removed.clear(); }
   function render() {
     if (!active || revealed) return;
-    for (const link of [...document.querySelectorAll('a[href]')].slice(0, 1500)) {
+    // Search engines replace result trees without navigating. Release old rows
+    // and restore their original state in case the engine later reuses them.
+    for (const [row, wasHidden] of removed) {
+      if (!row.isConnected) { row.hidden = wasHidden; removed.delete(row); }
+    }
+    let visited = 0;
+    for (const link of document.querySelectorAll('a[href]')) {
+      if (visited++ >= 1500) break;
       if (!link.querySelector('h3') && !link.matches('.result__a,[data-testid="result-title-a"],.b_algo h2 a')) continue;
       const entry = KitsuvoDetector.builderHost(destination(link));
       if (!entry || KitsuvoDetector.score(entry[2]) < 70) continue;
@@ -25,13 +32,15 @@
       if (!row || removed.has(row) || row.contains(banner)) continue;
       removed.set(row, row.hidden); row.hidden = true;
     }
-    if (!removed.size) return;
+    if (!removed.size) { banner?.remove(); banner = label = null; return; }
     if (!banner) {
       banner = document.createElement('aside'); banner.setAttribute('aria-label', 'Kitsuvo search filter');
       label = document.createElement('span');
       const show = document.createElement('button'); show.type = 'button'; show.textContent = 'Show hidden results';
-      show.addEventListener('click', () => { revealed = true; restore(); banner.remove(); });
+      show.addEventListener('click', () => { revealed = true; clearTimeout(timer); observer.disconnect(); restore(); banner.remove(); });
       banner.append(label, document.createTextNode(' '), show);
+    }
+    if (!banner.isConnected) {
       const search = document.querySelector('#search,#b_results,#links,[data-testid="mainline"]') || document.body;
       search.prepend(banner);
     }

@@ -15,9 +15,13 @@ async function scan(tabId) {
   if (tab.incognito) return { skipped: 'Private tabs are not scanned.', signals: [] };
   if (!/^https?:/.test(tab.url || '')) return { skipped: 'Select a normal website tab. Browser settings and store pages cannot be scanned.', signals: [] };
   if (KitsuvoDetector.sensitive(tab.url)) return { skipped: 'Sign-in provider pages are not scanned.', signals: [] };
-  const results = await api.scripting.executeScript({ target: { tabId }, files: ['rules.js', 'detector.js', 'scan.js'] });
+  // Safari returns a result for each injected file. Read only the scan file's
+  // result, after the dependencies have loaded, instead of selecting a rules
+  // object from the first frame-0 result.
+  await api.scripting.executeScript({ target: { tabId }, files: ['rules.js', 'detector.js'] });
+  const results = await api.scripting.executeScript({ target: { tabId }, files: ['scan.js'] });
   const result = results.find(r => r.frameId === 0)?.result;
-  if (!result) throw new Error('The page could not be read. Reload it and try again.');
+  if (!result || !Array.isArray(result.signals)) throw new Error('The page could not be read. Reload it and try again.');
   return result;
 }
 api.runtime.onMessage.addListener((message, sender, reply) => {
