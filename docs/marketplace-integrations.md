@@ -174,9 +174,8 @@ The Node bridge also exposes an **MCP App**. Ask **“Open Kitsuvo in chat at
 https://example.com”** to call `kitsuvo_browser` and display a browser panel
 inside a compatible ChatGPT or Claude conversation. It includes an address
 bar, history navigation, tabs, scrolling, page text, detection evidence, and controls for clicking,
-hovering, typing, submitting forms, and selecting options. Windows includes a
-page preview; macOS uses page text and element controls because the native
-engine does not yet support screenshots there. Press **Refresh view** after
+hovering, typing, submitting forms, and selecting options. Windows and macOS
+include a page preview captured from the native engine. Press **Refresh view** after
 the assistant changes the page with native tools. Previews update after panel
 actions; they are not a live video stream or a clickable page canvas.
 
@@ -387,8 +386,9 @@ npm test
 
 After connecting, list tools, open a harmless page, read its snapshot and
 report, and switch responsive mode on and off. Check a denied sensitive page
-and a missing executable. On macOS validate snapshots and resizing; screenshots
-are Windows-only. Call `kitsuvo_browser` to verify navigation, tabs, harmless
+and a missing executable. On both platforms validate snapshots, resizing,
+viewport screenshots, and asynchronous evaluation. Full-page screenshots remain
+Windows-only. Call `kitsuvo_browser` to verify navigation, tabs, harmless
 form submission and page evidence in the panel. Before a public submission, test the installed package in
 both clients using the publisher's registered connection.
 
