@@ -111,8 +111,9 @@ codex plugin marketplace add .
 codex plugin add kitsuvo --marketplace kitsuvo-browser
 ```
 
-Open the Plugins directory in the ChatGPT desktop app, select **Kitsuvo Browser**,
-and install **Kitsuvo**. Restart the host after package changes. The repository's
+Add the public marketplace with the commands above, then install **Kitsuvo**
+from that marketplace in a host with local plugin support. A public ChatGPT
+directory listing has not been verified. Restart the host after package changes. The repository's
 `.agents/plugins/marketplace.json` points at the portable `plugins/kitsuvo`
 package. Local execution requires a host with local MCP support; a web or cloud
 conversation needs a connection to the computer running the browser.
