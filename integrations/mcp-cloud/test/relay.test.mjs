@@ -17,7 +17,7 @@ async function fixture(t) {
   await new Promise(resolve => relay.http.listen(new URL(origin).port, '127.0.0.1', resolve));
   t.after(() => relay.close());
   const post = (path, values) => fetch(origin + path, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(values) });
-  async function browser(label, app = false) {
+  async function browser(label, app = false, overrides = {}) {
     const events = new EventEmitter();
     const connection = connectBrowser({ origin, backend: {
       getServerCapabilities() { return app ? { resources: {} } : {}; },
@@ -25,6 +25,7 @@ async function fixture(t) {
       async callTool() { return { content: [{ type: 'text', text: label }] }; },
       async listResources() { return { resources: [{ uri: 'ui://kitsuvo/browser.html', name: 'browser', mimeType: 'text/html;profile=mcp-app' }] }; },
       async readResource({ uri }) { return { contents: [{ uri, mimeType: 'text/html;profile=mcp-app', text: `<p>${label}</p>` }] }; },
+      ...overrides,
     }, onMessage: message => events.emit(message.type, message) });
     connection.socket.on('error', error => events.emit('error', error));
     await once(events, 'connected');
@@ -167,3 +168,46 @@ test('unsafe relay URLs, redirects, hosts, origins and scopes are rejected', { t
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { $schema: 'https://glama.ai/mcp/schemas/connector.json', claim: 'glama_claim_publicOwnershipTest' });
  });
+
+
+test('headless selection reaches both native and MCP App transports', () => {
+  const env = { KITSUVO_HEADLESS: '1', KITSUVO_BINARY: '/fixture/kitsuvo' };
+  const native = browserTransportConfig(env);
+  assert.deepEqual(native.args, ['mcp', '--headless']);
+  assert.equal(native.env.KITSUVO_HEADLESS, '1');
+  const app = browserTransportConfig(env, true);
+  assert.ok(app.args.includes('--stdio'));
+  assert.equal(app.env.KITSUVO_HEADLESS, '1');
+  assert.deepEqual(browserTransportConfig({}).args, ['mcp']);
+});
+
+test('relay cancellation reaches the backend and cancelled queued tools never run; catalogue is cached', {timeout:10000},async t=>{
+  const f=await fixture(t), effects=[];
+  let release, started, activeStarted, activeAborted, catalogues=0;
+  const gate=new Promise(r=>release=r), began=new Promise(r=>started=r);
+  const activeBegan=new Promise(r=>activeStarted=r), abortedBackend=new Promise(r=>activeAborted=r);
+  const browser=await f.browser('cancel-fixture',false,{
+    async listTools(){catalogues++;return {tools:[{name:'fixture',inputSchema:{type:'object',properties:{id:{type:'integer'}}}}]};},
+    async callTool(params,_,options){
+      const id=params.arguments.id;effects.push(id);
+      if(id===0){started();await gate;}
+      if(id===3){activeStarted();await new Promise((_,reject)=>options.signal.addEventListener('abort',()=>{activeAborted();reject(options.signal.reason);},{once:true}));}
+      return {content:[{type:'text',text:String(id)}]};
+    },
+  });
+  const registration=await f.client(), auth=await f.authorize(registration,browser);
+  const token=await (await f.exchange(registration,auth)).json();
+  const c=new Client({name:'cancellation-fixture',version:'1'});t.after(()=>c.close());
+  await c.connect(new StreamableHTTPClientTransport(new URL(f.origin+'/mcp'),{requestInit:{headers:{Authorization:'Bearer '+token.access_token}}}));
+  const first=c.callTool({name:'fixture',arguments:{id:0}});await began;
+  const queuedController=new AbortController();
+  const queued=c.callTool({name:'fixture',arguments:{id:1}},undefined,{signal:queuedController.signal});
+  const rejected=assert.rejects(queued);await new Promise(r=>setTimeout(r,30));queuedController.abort();await rejected;
+  await new Promise(r=>setTimeout(r,30));release();await first;
+  await c.callTool({name:'fixture',arguments:{id:2}});assert.deepEqual(effects,[0,2]);
+  const activeController=new AbortController();
+  const active=c.callTool({name:'fixture',arguments:{id:3}},undefined,{signal:activeController.signal});
+  const activeRejected=assert.rejects(active);await activeBegan;activeController.abort();await activeRejected;await abortedBackend;
+  await c.callTool({name:'fixture',arguments:{id:4}});
+  assert.deepEqual(effects,[0,2,3,4]);assert.equal(catalogues,1);
+});

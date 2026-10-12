@@ -3,13 +3,23 @@ import { pathToFileURL } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema, ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { APP_URI, APP_MIME, appTools, browserHtml, callBrowserApp } from './browser-app.mjs';
 import { serveEmbed, embedSdk } from './embed-server.mjs';
 import { operationQueue } from './operation-queue.mjs';
 import { sessionHandler } from './sessions.mjs';
+import { createSessions } from './protocol-sessions.mjs';
+
+const catalogues = new WeakMap();
+function cachedCatalogue(backend) {
+  let cache = catalogues.get(backend);
+  if (!cache) {
+    cache = {}; catalogues.set(backend,cache);
+    backend.setNotificationHandler?.(ToolListChangedNotificationSchema,()=>{cache.promise=undefined;});
+  }
+  return cache.promise ||= backend.listTools().catch(error=>{cache.promise=undefined;throw error;});
+}
 
 export function createAppServer(backend, serialize = (operation, options) => operation(options?.signal)) {
   const server = new Server(
@@ -17,8 +27,9 @@ export function createAppServer(backend, serialize = (operation, options) => ope
     { capabilities: { tools: {}, resources: {} },
       instructions: `${backend.getInstructions?.() ?? ''}\nCall kitsuvo_browser to display the interactive browser inside chat. Native tools remain available for automation.` },
   );
+  const tools = () => cachedCatalogue(backend);
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    const result = await backend.listTools();
+    const result = await tools();
     return { ...result, tools: [...result.tools, ...appTools] };
   });
   server.setRequestHandler(ListResourcesRequestSchema, () => ({ resources: [
@@ -30,10 +41,10 @@ export function createAppServer(backend, serialize = (operation, options) => ope
       _meta: { ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] }, prefersBorder: true } },
     }] };
   });
-  server.setRequestHandler(CallToolRequestSchema, (request, extra) => serialize(signal =>
+  server.setRequestHandler(CallToolRequestSchema, (request, extra) => serialize((signal, remainingMs = () => 180000) =>
     appTools.some(tool => tool.name === request.params.name)
       ? callBrowserApp(backend, request.params.name, request.params.arguments, signal)
-      : backend.callTool(request.params, undefined, { timeout: 180_000, signal }),
+      : backend.callTool({...request.params,_meta:{...request.params._meta,'kitsuvo/deadlineMs':remainingMs()}}, undefined, { timeout: remainingMs(), signal }),
     { signal: extra.signal },
   ));
   return server;
@@ -46,12 +57,13 @@ export function readConfig(env = process.env) {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error('KITSUVO_MCP_PORT must be an integer between 1 and 65535.');
   }
-  return { port, binary: env.KITSUVO_BINARY || 'kitsuvo' };
+  return { port, binary: env.KITSUVO_BINARY || 'kitsuvo', headless: env.KITSUVO_HEADLESS === '1' };
 }
 
 export function createBridge(backend, { port = 8787, embed = false, createBackend, ...sessionOptions } = {}) {
   const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
   const origins = new Set([...hosts].map(host => `http://${host}`));
+  const protocolSessions = createSessions();
   const queue = operationQueue();
   const serialize = (operation, options) => queue.run(operation, options);
   const sessions = createBackend && sessionHandler(createBackend, createAppServer, sessionOptions);
@@ -77,36 +89,24 @@ export function createBridge(backend, { port = 8787, embed = false, createBacken
       await sessions.handle(req, res);
       return;
     }
-    if (req.method !== 'POST') {
-      res.writeHead(405, { Allow: 'POST' }).end('Stateless MCP uses POST.');
-      return;
-    }
-    const server = createAppServer(backend, serialize);
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      enableJsonResponse: true,
-    });
-    res.on('close', () => { void server.close().catch(() => {}); });
-    try {
-      await server.connect(transport);
-      await transport.handleRequest(req, res);
-    } catch (error) {
-      console.error('Kitsuvo MCP request failed:', error.message);
+    try { await protocolSessions.handle(req,res,'local',()=>createAppServer(backend,serialize)); }
+    catch(error) {
+      console.error('Kitsuvo MCP request failed:',error.message);
       if (!res.headersSent) res.writeHead(500).end('MCP bridge request failed.');
       else if (!res.writableEnded) res.end();
-      await server.close();
     }
+
   });
   bridge.requestTimeout = 30_000;
   bridge.headersTimeout = 10_000;
   bridge.closeSessions = () => sessions?.close() ?? Promise.resolve();
-  bridge.once('close', () => { queue.close(); void bridge.closeSessions(); });
+  bridge.once('close', () => { queue.close(); protocolSessions.close(); void bridge.closeSessions(); });
   return bridge;
 }
 
 export async function createNativeBackend(config, clientInfo = { name: 'kitsuvo-http-bridge', version: '0.2.3' }) {
   const backend = new Client({ name: clientInfo.name, version: clientInfo.version });
-  const transport = new StdioClientTransport({ command: config.binary, args: ['mcp'], stderr: 'inherit',
+  const transport = new StdioClientTransport({ command: config.binary, args: ['mcp', '--separate-profile', ...(config.headless ? ['--headless'] : [])], stderr: 'inherit',
     env: { ...getDefaultEnvironment(), ...(process.env.KITSUVO_PROFILE_DIR ? { KITSUVO_PROFILE_DIR: process.env.KITSUVO_PROFILE_DIR } : {}) },
   });
   try { await backend.connect(transport, { timeout: 30_000 }); return backend; }

@@ -95,6 +95,12 @@ export function sessionHandler(createBackend, createAppServer, { maxSessions = 1
           });
           session.server.onclose = () => { void dispose(session); };
           await session.server.connect(session.transport);
+          const receive = session.transport.onmessage;
+          session.transport.onmessage = (message, extra) => {
+            receive(message, extra);
+            const id = message.method === 'notifications/cancelled' && message.params?.requestId;
+            if (typeof id === 'number' || typeof id === 'string') void session.transport.send({jsonrpc:'2.0',id,error:{code:-32000,message:'Request cancelled. Inspect state before retrying a dispatched mutation.'}}).catch(()=>{});
+          };
         })();
       }
       session.active++;

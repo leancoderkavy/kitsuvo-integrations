@@ -11,6 +11,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { createBridge, createNativeBackend } from './server.mjs';
 import { APP_URI, appTools } from './browser-app.mjs';
 
+const headless = process.env.KITSUVO_HEADLESS === '1';
 const profile = await mkdtemp(join(tmpdir(), 'kitsuvo-mcp-qualification-'));
 process.env.KITSUVO_PROFILE_DIR = profile;
 await mkdir(join(profile, 'agent'));
@@ -26,7 +27,7 @@ const fixture = createServer((req, res) => {
 let bridge, httpClient, parallelClient;
 try {
   await native.connect(new StdioClientTransport({ command: process.env.KITSUVO_BINARY || 'kitsuvo',
-    args: ['mcp'], env: { ...process.env, KITSUVO_PROFILE_DIR: profile }, stderr: 'inherit' }));
+    args: ['mcp', '--separate-profile', ...(headless ? ['--headless'] : [])], env: { ...process.env, KITSUVO_PROFILE_DIR: profile }, stderr: 'inherit' }));
   assert.equal(native.getServerVersion().name, 'kitsuvo');
   const tools = (await native.listTools()).tools;
   assert.ok(tools.some(tool => tool.name === 'kitsuvo_report'));
@@ -51,7 +52,7 @@ try {
   await new Promise(resolve => reservation.listen(0, '127.0.0.1', resolve));
   const port = reservation.address().port;
   await new Promise(resolve => reservation.close(resolve));
-  bridge = createBridge(native, { port, embed: true, createBackend: info => createNativeBackend({ binary: process.env.KITSUVO_BINARY || 'kitsuvo' }, info) });
+  bridge = createBridge(native, { port, embed: true, createBackend: info => createNativeBackend({ binary: process.env.KITSUVO_BINARY || 'kitsuvo', headless }, info) });
   await new Promise(resolve => bridge.listen(port, '127.0.0.1', resolve));
   httpClient = new Client({ name: 'kitsuvo-http-qualification', version: '1.0.0' });
   const httpTransport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`));
@@ -112,6 +113,17 @@ try {
   const embedded = await embedPost({ name: 'kitsuvo_browser', arguments: { url: base } });
   assert.equal(embedded.status, 200);
   assert.match(JSON.stringify(await embedded.json()), /Browser qualification/);
+  if (headless) {
+    const control = JSON.parse(await readFile(join(profile, 'agent/control.json'), 'utf8'));
+    const status = await fetch(control.url + '/v1/status', { method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + control.token, 'Content-Type': 'application/json' }, body: '{}' });
+    const result = (await status.json()).result;
+    assert.equal(result.agent.headless, true);
+    assert.equal(result.window_visible, false);
+    const panel = await call(httpClient, 'kitsuvo_browser', { url: base });
+    assert.equal(panel._meta.preview.mimeType, 'image/png');
+    assert.ok(Buffer.from(panel._meta.preview.data, 'base64').length > 1000);
+  }
   console.log(`Native MCP ${native.getServerVersion().version}: ${tools.length} native tools plus ${appTools.length} App tools, local-only isolated profile, navigation, snapshot, report, responsive mode, sensitive-page refusal, concurrent HTTP sessions, session deletion, browser panel and embed Host/origin/tool boundaries passed.`);
 } finally {
   await httpClient?.close();

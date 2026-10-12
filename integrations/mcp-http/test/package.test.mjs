@@ -45,7 +45,7 @@ test('marketplace entries resolve to the same package and bundled brand assets e
   }
 });
 
-test('MCP configurations launch the isolated browser with no sensitive-profile opt-ins', async () => {
+test('Local MCP configurations use the default profile without sensitive-page opt-ins', async () => {
   const portable = await json('plugins/kitsuvo/mcp.json');
   const native = await json('plugins/kitsuvo/.mcp.json');
   assert.equal(portable.mcpServers.kitsuvo.type, 'stdio');

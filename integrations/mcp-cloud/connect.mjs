@@ -9,9 +9,10 @@ import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotoc
 export function browserTransportConfig(env = process.env, app = false) {
   return {
     command: app ? process.execPath : env.KITSUVO_BINARY || 'kitsuvo',
-    args: app ? [fileURLToPath(new URL('../mcp-http/server.mjs', import.meta.url)), '--stdio'] : ['mcp'],
+    args: app ? [fileURLToPath(new URL('../mcp-http/server.mjs', import.meta.url)), '--stdio'] : ['mcp', ...(env.KITSUVO_HEADLESS === '1' ? ['--headless'] : [])],
     stderr: 'inherit',
     env: { ...getDefaultEnvironment(),
+      ...(env.KITSUVO_HEADLESS === '1' ? { KITSUVO_HEADLESS: '1' } : {}),
       ...(env.KITSUVO_BINARY ? { KITSUVO_BINARY: env.KITSUVO_BINARY } : {}),
       ...(env.KITSUVO_PROFILE_DIR ? { KITSUVO_PROFILE_DIR: env.KITSUVO_PROFILE_DIR } : {}),
     },
@@ -41,7 +42,7 @@ export function connectBrowser({ origin, backend, onMessage = () => {} }) {
     if (message.type !== 'call') { onMessage(message); return; }
     if (requests.has(message.id)) { socket.close(1008, 'Duplicate call'); return; }
     const request = new AbortController(); requests.set(message.id, request);
-    queue.run(async signal => {
+    queue.run(async (signal,remainingMs) => {
       try {
         let result;
         if (message.method === 'tools/list') result = await catalogue();
@@ -56,12 +57,13 @@ export function connectBrowser({ origin, backend, onMessage = () => {} }) {
         }
         else if (message.method === 'tools/call') {
           const catalog = await catalogue();
+          signal.throwIfAborted();
           if (!catalog.tools.some(tool => tool.name === message.params?.name)) throw new Error('Unknown tool');
-          result = await backend.callTool(message.params, undefined, { timeout: 180000, signal });
+          result = await backend.callTool({...message.params,_meta:{...message.params?._meta,'kitsuvo/deadlineMs':remainingMs()}}, undefined, { timeout:remainingMs(),signal });
         } else throw new Error('Unsupported operation');
         send({ type: 'result', id: message.id, result });
       } catch { send({ type: 'result', id: message.id, error: 'Browser request failed.' }); }
-    }, { signal: request.signal }).catch(() => send({ type: 'result', id: message.id, error: 'Browser request cancelled or deadline exceeded.' })).finally(() => requests.delete(message.id));
+    }, { signal: request.signal, timeoutMs: message.deadlineMs ?? 180000 }).catch(() => send({ type: 'result', id: message.id, error: 'Browser request cancelled or deadline exceeded.' })).finally(() => requests.delete(message.id));
   });
   return { socket, review: id => send({ type: 'review', id }), approve: id => send({ type: 'approve', id }) };
 }

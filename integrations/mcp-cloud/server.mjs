@@ -2,6 +2,7 @@ import express from 'express';
 import { readFileSync } from 'node:fs';
 const serverCard = JSON.parse(readFileSync(new URL('./server-card.json', import.meta.url), 'utf8'));
 import { operationQueue } from './operation-queue.mjs';
+import { createSessions } from './protocol-sessions.mjs';
 import { createServer } from 'node:http';
 import { randomBytes, createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
@@ -10,7 +11,6 @@ import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { InvalidGrantError, InvalidTokenError, InvalidScopeError, InvalidTargetError, InvalidClientMetadataError, TemporarilyUnavailableError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { ListToolsRequestSchema, CallToolRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 const nonce = () => randomBytes(32).toString('base64url');
@@ -125,6 +125,7 @@ export function createRelay({ origin }) {
       if (item?.clientId === client.client_id) revokeGrant(item.grantId);
     },
   };
+  const protocolSessions = createSessions({capacity:maxRecords});
   const app = express();
   app.disable('x-powered-by');
   app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'kitsuvo-mcp-cloud', version: '0.1.0' }));
@@ -142,27 +143,26 @@ export function createRelay({ origin }) {
   const bearer = requireBearerAuth({ verifier: provider, requiredScopes: scope, expectedResource: resource, resourceMetadataUrl: new URL('/.well-known/oauth-protected-resource/mcp', issuer).href });
   app.get('/userinfo', bearer, (req, res) => res.json({ sub: req.auth.extra.browserId }));
   app.all('/mcp', bearer, express.json({ limit: '256kb' }), async (req, res) => {
-    if (req.method !== 'POST') return res.status(405).set('Allow', 'POST').end();
-    const browser = browsers.get(req.auth.extra.browserId);
+    const browserId = req.auth.extra.browserId;
+    const browser = browsers.get(browserId);
     if (!browser) return res.status(503).end('Your browser is disconnected.');
-    const server = new Server({ name: 'kitsuvo', version: '0.1.0' }, { capabilities: { tools: {}, resources: {} } });
-    server.setRequestHandler(ListToolsRequestSchema, async () => {
-      const result = await browser.call('tools/list');
-      return { ...result, tools: result.tools.map(tool => ({ ...tool, securitySchemes: [{ type: 'oauth2', scopes: scope }], _meta: { ...tool._meta, securitySchemes: [{ type: 'oauth2', scopes: scope }] } })) };
-    });
-    server.setRequestHandler(CallToolRequestSchema, (request, extra) => browser.call('tools/call', request.params, { signal: extra.signal }));
-    server.setRequestHandler(ListResourcesRequestSchema, () => browser.call('resources/list'));
-    server.setRequestHandler(ReadResourceRequestSchema, request => browser.call('resources/read', request.params));
-    res.on('close', () => { void server.close().catch(() => {}); });
     try {
-      const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
-      await server.connect(transport); await transport.handleRequest(req, res, req.body);
+      await protocolSessions.handle(req,res,req.auth.clientId+':'+browserId,()=>{
+        const server = new Server({name:'kitsuvo',version:'0.1.0'},{capabilities:{tools:{},resources:{}}});
+        server.setRequestHandler(ListToolsRequestSchema,async (_,extra)=>{
+          const result=await browser.call('tools/list',undefined,{signal:extra.signal});
+          return {...result,tools:result.tools.map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:scope}],_meta:{...tool._meta,securitySchemes:[{type:'oauth2',scopes:scope}]}}))};
+        });
+        server.setRequestHandler(CallToolRequestSchema,(request,extra)=>browser.call('tools/call',request.params,{signal:extra.signal}));
+        server.setRequestHandler(ListResourcesRequestSchema,(_,extra)=>browser.call('resources/list',undefined,{signal:extra.signal}));
+        server.setRequestHandler(ReadResourceRequestSchema,(request,extra)=>browser.call('resources/read',request.params,{signal:extra.signal}));
+        return server;
+      },req.body);
     } catch {
-      console.error(JSON.stringify({ event: 'mcp_request_failed' }));
       if (!res.headersSent) res.status(502).end('Browser relay request failed.');
       else if (!res.writableEnded) res.end();
-      await server.close();
     }
+
   });
   const http = createServer(app);
   const ws = new WebSocketServer({ noServer: true, maxPayload: 8 * 1024 * 1024 });
@@ -185,13 +185,13 @@ export function createRelay({ origin }) {
     const queue = operationQueue(); let alive = true;
     const send = value => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(value)); };
     const browser = { call(method, params, options) {
-      return queue.run(signal => new Promise((resolve, reject) => {
+      return queue.run((signal,remainingMs) => new Promise((resolve, reject) => {
         if (socket.readyState !== WebSocket.OPEN) return reject(new Error('Disconnected'));
         const callId = nonce();
         const cancel = () => { pending.delete(callId); send({ type: 'cancel', id: callId }); reject(new Error('Browser request cancelled.')); };
         signal.addEventListener('abort', cancel, { once: true });
         pending.set(callId, { resolve, reject, cleanup: () => signal.removeEventListener('abort', cancel) });
-        send({ type: 'call', id: callId, method, params });
+        send({ type: 'call', id: callId, method, params, deadlineMs:remainingMs() });
       }), options);
     } };
     browsers.set(id, browser); send({ type: 'connected' });
@@ -218,7 +218,7 @@ export function createRelay({ origin }) {
     socket.on('error', () => {});
     socket.on('close', () => {
       queue.close();
-      clearInterval(heartbeat); browsers.delete(id);
+      clearInterval(heartbeat); browsers.delete(id); protocolSessions.removeOwner(id);
       for (const [key, item] of tokens) if (item.browserId === id) tokens.delete(key);
       for (const [key, item] of codes) if (item.browserId === id) codes.delete(key);
       for (const [key, item] of requests) if (item.browserId === id) requests.delete(key);
@@ -226,7 +226,7 @@ export function createRelay({ origin }) {
       pending.clear();
     });
   });
-  return { http, close() { for (const socket of ws.clients) socket.terminate(); ws.close(); http.closeAllConnections(); return new Promise(resolve => http.close(resolve)); } };
+  return { http, close() { protocolSessions.close(); for (const socket of ws.clients) socket.terminate(); ws.close(); http.closeAllConnections(); return new Promise(resolve => http.close(resolve)); } };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -54,7 +54,9 @@ test('HTTP MCP negotiates, forwards tools and results, and rejects untrusted req
   await assert.rejects(client.readResource({ uri: 'ui://foreign/page.html' }));
   const result = await client.callTool({ name: 'kitsuvo_report', arguments: { tab: 3 } });
   assert.equal(result.content[0].text, 'evidence');
-  assert.deepEqual(calls[0], { name: 'kitsuvo_report', arguments: { tab: 3 } });
+  assert.equal(calls[0].name,'kitsuvo_report');
+  assert.deepEqual(calls[0].arguments,{tab:3});
+  assert.ok(calls[0]._meta['kitsuvo/deadlineMs'] > 0 && calls[0]._meta['kitsuvo/deadlineMs'] <= 180000);
   assert.equal((await client.callTool({ name: 'kitsuvo_report', arguments: { tab: 99 } })).isError, true);
   calls.length = 0;
   const panel = client.callTool({ name: 'kitsuvo_browser', arguments: {} });
@@ -78,4 +80,11 @@ test('HTTP MCP negotiates, forwards tools and results, and rejects untrusted req
   assert.equal(foreignHostStatus, 403);
   assert.equal((await fetch(url)).status, 405);
   assert.equal((await fetch(new URL('/wrong', url))).status, 404);
+});
+
+
+test('headless configuration is explicit and disabled by default', () => {
+  assert.equal(readConfig({}).headless, false);
+  assert.equal(readConfig({ KITSUVO_HEADLESS: '1' }).headless, true);
+  assert.equal(readConfig({ KITSUVO_HEADLESS: 'true' }).headless, false);
 });

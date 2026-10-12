@@ -1,6 +1,6 @@
 # Kitsuvo plugins and MCP
 
-Kitsuvo is **the fastest browser for your LLM**. Connect through MCP to navigate, read pages, interact with elements and inspect local evidence.
+Kitsuvo is **a browser that filters likely AI-built websites**. Connect through MCP to navigate, read pages, interact with elements and inspect local evidence.
 
 Kitsuvo's plugin bundles its native browser MCP server with setup, browsing,
 detection-evidence, and responsive-check skills. The logo and icons are copies
@@ -329,7 +329,7 @@ a low detection score is not proof of human authorship or safety.
 
 ## Listings and public submission
 
-Listing name: **Kitsuvo**. Short description: **The fastest browser for your LLM**.
+Listing name: **Kitsuvo**. Short description: **Filter likely AI-built websites with Kitsuvo**.
 Full description and sample prompts are in `plugin.json`.
 Website: <https://kitsuvo.com>. Privacy: <https://kitsuvo.com/privacy>.
 Terms: <https://kitsuvo.com/terms>. Support:
@@ -397,3 +397,10 @@ both clients using the publisher's registered connection.
 
 Formats follow [OpenAI plugin packaging](https://developers.openai.com/plugins/build/plugins)
 and [Claude marketplace packaging](https://code.claude.com/docs/en/plugin-marketplaces).
+
+## Headless browser sessions
+
+Use `kitsuvo mcp --headless` for a hidden native browser with an isolated profile.
+`browser_view` returns a viewport image and element refs inline in MCP chats.
+For the existing interactive chat panel, set `KITSUVO_HEADLESS=1` when starting
+the MCP App bridge or cloud connector. See [headless setup](headless-browser.md).

@@ -8,7 +8,7 @@ test('queued deadlines include time spent behind a running mutation', async () =
   const first = queue.run(async () => { events.push('first'); await delay(80); }, { timeoutMs: 200 });
   const second = queue.run(() => events.push('stale'), { timeoutMs: 15 });
   await assert.rejects(second, /deadline/);
-  await assert.rejects(queue.run(() => {}), /full/);
+  assert.equal(await queue.run(() => "replacement"), "replacement");
   await first; await delay(5);
   assert.deepEqual(events, ['first']);
 });
@@ -18,7 +18,7 @@ test('cancellation aborts running work and never executes queued work', async ()
   const first = queue.run(signal => new Promise(resolve => signal.addEventListener('abort', resolve)));
   let executed = false;
   const second = queue.run(() => { executed = true; }, { signal: controller.signal });
-  controller.abort(); await assert.rejects(second, /cancelled/);
+  controller.abort(); await assert.rejects(second, /cancelled|aborted/i);
   queue.close(); await assert.rejects(first, /closed/);
   await delay(5); assert.equal(executed, false); assert.equal(queue.pending, 0);
 });

@@ -1,6 +1,6 @@
 # Kitsuvo
 
-Less AI slop. Built for your LLM. Fast browsing. Fewer AI-built sites. Local slop evidence.
+Less AI. Less slop. Fast browsing. Fewer AI-built sites. Local slop evidence.
 
 This plugin connects your AI client to Kitsuvo. Kitsuvo helps you inspect AI-built websites, read the observations behind a verdict, and check pages at phone, tablet, and desktop sizes.
 
@@ -39,7 +39,7 @@ Support: https://github.com/leancoderkavy/kitsuvo-integrations/issues
 4. Confirm an identity-provider page is refused and password fields are not typed into.
 5. Remove the native executable from PATH and confirm setup explains the missing dependency.
 
-No hosted account or API key is required. Local automation uses a disposable separate profile. Do not enter real credentials or confidential data during review.
+No hosted account or API key is required. Local MCP automation uses the normal persistent browser profile by default, including its signed-in sessions. For review without personal data, configure the server arguments as `["mcp", "--separate-profile"]` and do not enter real credentials or confidential data.
 
 ## License
 
