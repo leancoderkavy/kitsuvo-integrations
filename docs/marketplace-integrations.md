@@ -16,6 +16,15 @@ Zapier and Dify. The Claude Desktop bundle is
 variant is `https://kitsuvo.com/downloads/kitsuvo-cloud-plugin-0.2.6.zip`.
 Each requires the user’s own installed browser; neither implies directory approval.
 
+## Point a chat at an already open window
+
+Choose the tab in the desired Kitsuvo window, press the plug button, and copy
+the connection prompt into Codex or Claude. A normal window asks for explicit
+control permission first. Each prompt keeps the chat on that window and tab;
+other windows and focus changes cannot retarget it. The assistant confirms the
+page before starting. See [the connection flow](connect-open-browser.md) for
+copy recovery, Stop, multiple chats and platform qualification.
+
 ## Install locally
 
 In the browser, press **Connect your AI assistant** (the plug button beside Settings),

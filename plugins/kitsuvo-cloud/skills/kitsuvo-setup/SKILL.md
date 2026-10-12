@@ -12,3 +12,5 @@ If tools are missing, enable the installed plugin and start a new conversation. 
 Cloud clients cannot execute a local stdio server directly. Use the opt-in authenticated relay or bridge and Secure MCP Tunnel setup in the [integration guide](https://github.com/leancoderkavy/kitsuvo-integrations/blob/main/docs/marketplace-integrations.md). Do not invent a server URL or a registered app ID.
 
 When ready, offer a first task: open a user-selected page and read its Kitsuvo report. Do not enable `--main-profile` or `--allow-sensitive` as a setup shortcut.
+
+To connect to an already open window after setup, ask the user to choose its tab, open the plug button beside Settings, and copy the connection prompt into the chat. A normal window requires explicit control consent there. Attach with the exact target and pass `browser` on every call; copying does not itself confirm attachment. Never expose a bearer token or ask the user to paste control.json. Existing chats can switch by copying a new prompt; no client restart is needed after one-time setup.
