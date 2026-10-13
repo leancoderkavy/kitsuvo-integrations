@@ -14,6 +14,7 @@ export function browserTransportConfig(env = process.env, app = false) {
     env: { ...getDefaultEnvironment(),
       ...(env.KITSUVO_HEADLESS === '1' ? { KITSUVO_HEADLESS: '1' } : {}),
       ...(env.KITSUVO_BINARY ? { KITSUVO_BINARY: env.KITSUVO_BINARY } : {}),
+      ...(env.KITSUVO_PANEL_STATE_FILE ? { KITSUVO_PANEL_STATE_FILE: env.KITSUVO_PANEL_STATE_FILE } : {}),
       ...(env.KITSUVO_PROFILE_DIR ? { KITSUVO_PROFILE_DIR: env.KITSUVO_PROFILE_DIR } : {}),
     },
   };
@@ -21,14 +22,15 @@ export function browserTransportConfig(env = process.env, app = false) {
 
 const display = value => JSON.stringify(value).replace(/[\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`);
 
-export function connectBrowser({ origin, backend, onMessage = () => {} }) {
+export function connectBrowser({ origin, backend, onMessage = () => {}, connectorKey }) {
   const url = new URL(origin);
   if (url.username || url.password || url.search || url.hash || url.pathname !== '/' ||
       (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) {
     throw new Error('Use an HTTPS relay origin, or explicit loopback HTTP for development.');
   }
   url.pathname = '/connect'; url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-  const socket = new WebSocket(url, { maxPayload: 8 * 1024 * 1024, followRedirects: false });
+  if (connectorKey !== undefined && !/^[A-Za-z0-9_-]{43}$/.test(connectorKey)) throw new Error('Invalid connector identity.');
+  const socket = new WebSocket(url, { headers: connectorKey ? { 'X-Kitsuvo-Connector-Key': connectorKey } : {}, maxPayload: 8 * 1024 * 1024, followRedirects: false });
   const queue = operationQueue(), requests = new Map();
   let tools;
   const catalogue = () => tools ??= backend.listTools().catch(error => { tools = undefined; throw error; });
@@ -65,7 +67,7 @@ export function connectBrowser({ origin, backend, onMessage = () => {} }) {
       } catch { send({ type: 'result', id: message.id, error: 'Browser request failed.' }); }
     }, { signal: request.signal, timeoutMs: message.deadlineMs ?? 180000 }).catch(() => send({ type: 'result', id: message.id, error: 'Browser request cancelled or deadline exceeded.' })).finally(() => requests.delete(message.id));
   });
-  return { socket, review: id => send({ type: 'review', id }), approve: id => send({ type: 'approve', id }) };
+  return { socket, review: id => send({ type: 'review', id }), approve: id => send({ type: 'approve', id }), revoke: () => send({ type: 'revoke' }) };
 }
 
 async function main() {

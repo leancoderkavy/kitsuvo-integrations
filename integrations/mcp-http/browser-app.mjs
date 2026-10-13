@@ -67,6 +67,17 @@ export async function callBrowserApp(backend, name, args = {}, signal) {
     let target = targetTab === undefined ? {} : { tab: targetTab };
     let operation;
     let report;
+    const recovery = !context && panelId && backend._kitsuvoPanelRecovery?.get(panelId);
+    if (name !== 'kitsuvo_browser' && recovery) {
+      // Recover only a refresh, never replay an old click/type/submit against
+      // reused native IDs or stale element references after a process restart.
+      if (args.action !== 'refresh') return fail('Browser restarted. Refresh view before interacting.');
+      const opened = await call('browser_tabs', {action:'new', ...(recovery.url === null ? {} : {url:recovery.url})});
+      if (opened.isError) return opened;
+      const id = textOf(opened).match(/^Opened tab (\d+)\./m)?.[1];
+      if (!id) return fail('The browser did not identify the recovered panel tab.');
+      target = {tab:Number(id)}; owned.add(target.tab);
+    }
     if (name === 'kitsuvo_browser') {
       if (args.url !== undefined && typeof args.url !== 'string') return fail('Missing url.');
       if (args.tab === undefined) {
@@ -148,6 +159,7 @@ export async function callBrowserApp(backend, name, args = {}, signal) {
     if (panelId && state.tab !== undefined) {
       owned.add(state.tab);
       contexts.set(panelId, { tab: state.tab, owned });
+      await backend._kitsuvoPanelRecovery?.save(panelId, state.url);
     }
     let preview;
     let previewNote;

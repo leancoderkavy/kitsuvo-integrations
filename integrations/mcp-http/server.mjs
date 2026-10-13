@@ -7,6 +7,7 @@ import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotoc
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema, ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
+import { panelStore } from './panel-store.mjs';
 import { APP_URI, APP_MIME, appTools, browserHtml, callBrowserApp } from './browser-app.mjs';
 import { serveEmbed, embedSdk } from './embed-server.mjs';
 import { operationQueue } from './operation-queue.mjs';
@@ -120,7 +121,11 @@ export async function createNativeBackend(config, clientInfo = { name: 'kitsuvo-
   const transport = new StdioClientTransport({ command: config.binary, args: nativeArguments(help, config.headless), stderr: 'inherit',
     env: { ...getDefaultEnvironment(), ...(process.env.KITSUVO_PROFILE_DIR ? { KITSUVO_PROFILE_DIR: process.env.KITSUVO_PROFILE_DIR } : {}) },
   });
-  try { await backend.connect(transport, { timeout: 30_000 }); return backend; }
+  try {
+    await backend.connect(transport, { timeout: 30_000 });
+    if (process.env.KITSUVO_PANEL_STATE_FILE) backend._kitsuvoPanelRecovery = await panelStore(process.env.KITSUVO_PANEL_STATE_FILE, process.env.KITSUVO_PROFILE_DIR);
+    return backend;
+  }
   catch (error) { await backend.close(); throw error; }
 }
 

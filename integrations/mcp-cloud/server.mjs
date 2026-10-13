@@ -1,6 +1,7 @@
 import express from 'express';
 import { readFileSync } from 'node:fs';
 const serverCard = JSON.parse(readFileSync(new URL('./server-card.json', import.meta.url), 'utf8'));
+import { durableStore } from './durable-store.mjs';
 import { operationQueue } from './operation-queue.mjs';
 import { createSessions } from './protocol-sessions.mjs';
 import { createServer } from 'node:http';
@@ -22,16 +23,21 @@ const maxRecords = 500;
 const trim = map => { for (const [key, value] of map) if (value.expiresAt <= now()) map.delete(key); };
 const display = value => JSON.stringify(value).replace(/[\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`);
 
-export function createRelay({ origin }) {
+export function createRelay({ origin, stateFile }) {
   const issuer = new URL(origin);
   if (issuer.username || issuer.password || issuer.search || issuer.hash || issuer.pathname !== '/' ||
       (issuer.protocol !== 'https:' && !(issuer.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(issuer.hostname)))) {
     throw new Error('Relay origin must be an HTTPS origin, or explicit loopback HTTP for development.');
   }
   const resource = new URL('/mcp', issuer);
-  const clients = new Map(), requests = new Map(), codes = new Map(), tokens = new Map(), browsers = new Map();
+  const store = durableStore(stateFile, issuer.origin);
+  const { clients, tokens, identities } = store;
+  const requests = new Map(), codes = new Map(), browsers = new Map();
+  const durable = id => [...identities.values()].some(item => item.browserId === id && item.expiresAt > now());
+  const persist = () => store.save();
   function bounded(map, key, value) {
-    trim(map);
+    if (map === identities) { for (const [key, item] of map) if (item.expiresAt <= now() && !browsers.has(item.browserId)) map.delete(key); }
+    else trim(map);
     if (map.size >= maxRecords) throw new TemporarilyUnavailableError('Capacity reached; retry later.');
     map.set(key, value);
   }
@@ -42,16 +48,25 @@ export function createRelay({ origin }) {
     if (scopes.length !== 1 || scopes[0] !== 'browser') throw new InvalidScopeError('Only browser scope is supported.');
   }
   function record(map, value, client) {
+    store.check();
     const item = map.get(digest(value));
-    if (!item || item.expiresAt <= now() || (client && item.clientId !== client.client_id) || !browsers.has(item.browserId)) {
+    if (!item || item.expiresAt <= now() || (client && item.clientId !== client.client_id) || (!browsers.has(item.browserId) && !durable(item.browserId))) {
       throw new InvalidGrantError('Expired, revoked, disconnected or incorrect grant.');
     }
     return item;
   }
   function issue(clientId, browserId) {
+    // Explicit reapproval can renew an installed identity after inactivity.
+    const identity = [...identities.values()].find(item => item.browserId === browserId);
+    if (identity && browsers.has(browserId)) identity.expiresAt = now() + 90 * 86400;
     const access = nonce(), refresh = nonce(), grantId = nonce();
     bounded(tokens, digest(access), { clientId, browserId, grantId, kind: 'access', expiresAt: now() + ttl });
-    bounded(tokens, digest(refresh), { clientId, browserId, grantId, kind: 'refresh', expiresAt: now() + 86400 });
+    bounded(tokens, digest(refresh), { clientId, browserId, grantId, kind: 'refresh', expiresAt: now() + (durable(browserId) ? 90 * 86400 : 86400) });
+    if (durable(browserId)) {
+      clients.get(clientId).expiresAt = now() + 90 * 86400;
+      for (const item of identities.values()) if (item.browserId === browserId) item.expiresAt = now() + 90 * 86400;
+    }
+    persist();
     return { access_token: access, refresh_token: refresh, token_type: 'Bearer', expires_in: ttl, scope: 'browser' };
   }
   function revokeGrant(grantId) {
@@ -59,7 +74,7 @@ export function createRelay({ origin }) {
   }
   const provider = {
     clientsStore: {
-      getClient(id) { trim(clients); return clients.get(id)?.client; },
+      getClient(id) { store.check(); trim(clients); return clients.get(id)?.client; },
       registerClient(client) {
         if (client.client_name && client.client_name.length > 256) throw new InvalidClientMetadataError('Client name is too long.');
         if (!client.redirect_uris?.length || client.redirect_uris.length > 5) throw new InvalidClientMetadataError('One to five redirect URIs required.');
@@ -71,7 +86,7 @@ export function createRelay({ origin }) {
         }
         const saved = { ...client, client_id: nonce(), client_id_issued_at: now() };
         bounded(clients, saved.client_id, { client: saved, expiresAt: now() + 86400 });
-        return saved;
+        persist(); return saved;
       },
     },
     async authorize(client, params, res) {
@@ -96,7 +111,7 @@ export function createRelay({ origin }) {
       } else {
         // Plain text has no executable content or third-party requests. Approval
         // happens in the connected browser's terminal, never from this page.
-        res.type('text/plain').send(`Kitsuvo browser access\n\nClient: ${display(client.client_name || 'Unnamed client')}\nRedirect: ${display(params.redirectUri)}\nPermission: navigate, manage tabs, click, type, run page JavaScript, and read snapshots, reports and supported screenshots in your isolated Kitsuvo agent profile.\n\nIn your Kitsuvo cloud connector terminal, enter:\napprove ${request.id}\n\nReview the client details there and explicitly confirm. Then refresh this page.\nApproval expires in ten minutes. Close the connector to revoke all access.\n`);
+        res.type('text/plain').send(`Kitsuvo browser access\n\nClient: ${display(client.client_name || 'Unnamed client')}\nRedirect: ${display(params.redirectUri)}\nPermission: navigate, manage tabs, click, type, run page JavaScript, and read snapshots, reports and supported screenshots in your isolated Kitsuvo agent profile.\n\nIn your Kitsuvo cloud connector terminal, enter:\napprove ${request.id}\n\nReview the client details there and explicitly confirm. Then refresh this page.\nApproval expires in ten minutes. A temporary connector revokes access when closed. An installed background connector keeps approved access for up to 90 days of inactivity; use service.mjs revoke or disconnect this app to revoke it.\n`);
       }
     },
     async challengeForAuthorizationCode(client, code) { return record(codes, code, client).params.codeChallenge; },
@@ -122,16 +137,29 @@ export function createRelay({ origin }) {
     },
     async revokeToken(client, { token }) {
       const item = tokens.get(digest(token));
-      if (item?.clientId === client.client_id) revokeGrant(item.grantId);
+      if (item?.clientId === client.client_id) { revokeGrant(item.grantId); persist(); }
     },
   };
   const protocolSessions = createSessions({capacity:maxRecords});
+  function revokeBrowser(id) {
+    for (const map of [tokens, codes, requests]) for (const [key, item] of map) if (item.browserId === id) map.delete(key);
+    protocolSessions.removeOwner(id); persist();
+  }
   const app = express();
   app.disable('x-powered-by');
   app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'kitsuvo-mcp-cloud', version: '0.1.0' }));
   app.use((req, res, next) => {
     if (req.headers.host !== issuer.host || (req.headers.origin && req.headers.origin !== issuer.origin)) return res.status(403).end('Untrusted Host or Origin.');
     res.setHeader('Cache-Control', 'no-store'); next();
+  });
+  app.post('/connector/revoke', (_req, res) => {
+    const credential = _req.headers['x-kitsuvo-connector-key'];
+    if (typeof credential !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(credential)) return res.status(403).end();
+    try {
+      store.check(); const identity = identities.get(digest(credential));
+      if (!identity) return res.status(404).end();
+      revokeBrowser(identity.browserId); return res.json({revoked:true});
+    } catch { return res.status(503).end(); }
   });
   app.get('/.well-known/mcp/server-card.json', (_req, res) => res.json(serverCard));
   app.get('/.well-known/glama.json', (_req, res) => {
@@ -144,8 +172,8 @@ export function createRelay({ origin }) {
   app.get('/userinfo', bearer, (req, res) => res.json({ sub: req.auth.extra.browserId }));
   app.all('/mcp', bearer, express.json({ limit: '256kb' }), async (req, res) => {
     const browserId = req.auth.extra.browserId;
-    const browser = browsers.get(browserId);
-    if (!browser) return res.status(503).end('Your browser is disconnected.');
+    const browser = { call: (...args) => { const active = browsers.get(browserId); if (!active) throw new Error('Browser offline'); return active.call(...args); } };
+    if (!browsers.has(browserId)) return res.status(503).end('Your browser is disconnected.');
     try {
       await protocolSessions.handle(req,res,req.auth.clientId+':'+browserId,()=>{
         const server = new Server({name:'kitsuvo',version:'0.1.0'},{capabilities:{tools:{},resources:{}}});
@@ -178,10 +206,23 @@ export function createRelay({ origin }) {
       socket.end('HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\n\r\n'); return;
     }
     attempts.count += 1; enrollments.set(address, attempts);
-    ws.handleUpgrade(req, socket, head, connection => ws.emit('connection', connection));
+    let identity;
+    const credential = req.headers['x-kitsuvo-connector-key'];
+    if (credential !== undefined) {
+      if (!stateFile || typeof credential !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(credential)) { socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return; }
+      try {
+        store.check();
+        for (const [key, item] of identities) if (item.expiresAt <= now() && !browsers.has(item.browserId)) identities.delete(key);
+        const key = digest(credential);
+        identity = identities.get(key);
+        if (!identity) { identity = { browserId: nonce(), expiresAt: now() + 90 * 86400 }; bounded(identities, key, identity); persist(); }
+        if (browsers.has(identity.browserId)) { socket.end('HTTP/1.1 409 Conflict\r\nConnection: close\r\n\r\n'); return; }
+      } catch { socket.end('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n'); return; }
+    }
+    ws.handleUpgrade(req, socket, head, connection => ws.emit('connection', connection, identity));
   });
-  ws.on('connection', socket => {
-    const id = nonce(), pending = new Map();
+  ws.on('connection', (socket, identity) => {
+    const id = identity?.browserId || nonce(), pending = new Map();
     const queue = operationQueue(); let alive = true;
     const send = value => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(value)); };
     const browser = { call(method, params, options) {
@@ -194,14 +235,16 @@ export function createRelay({ origin }) {
         send({ type: 'call', id: callId, method, params, deadlineMs:remainingMs() });
       }), options);
     } };
-    browsers.set(id, browser); send({ type: 'connected' });
+    browsers.set(id, browser); send({ type: 'connected', durable: Boolean(identity) });
     socket.on('pong', () => { alive = true; });
     const heartbeat = setInterval(() => { if (!alive) return socket.terminate(); alive = false; socket.ping(); }, 30000);
     heartbeat.unref();
     socket.on('message', data => {
       try {
         const message = JSON.parse(data.toString());
-        if (message.type === 'review' || message.type === 'approve') {
+        if (message.type === 'revoke' && identity) {
+          revokeBrowser(id); send({ type: 'revoked' });
+        } else if (message.type === 'review' || message.type === 'approve') {
           trim(requests);
           const request = requests.get(message.id);
           if (!request || request.browserId) return send({ type: 'rejected', message: 'Approval expired or already used.' });
@@ -218,8 +261,8 @@ export function createRelay({ origin }) {
     socket.on('error', () => {});
     socket.on('close', () => {
       queue.close();
-      clearInterval(heartbeat); browsers.delete(id); protocolSessions.removeOwner(id);
-      for (const [key, item] of tokens) if (item.browserId === id) tokens.delete(key);
+      clearInterval(heartbeat); browsers.delete(id);
+      if (!identity) { protocolSessions.removeOwner(id); for (const [key, item] of tokens) if (item.browserId === id) tokens.delete(key); }
       for (const [key, item] of codes) if (item.browserId === id) codes.delete(key);
       for (const [key, item] of requests) if (item.browserId === id) requests.delete(key);
       for (const call of pending.values()) { call.cleanup(); call.reject(new Error('Disconnected')); }
@@ -234,7 +277,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (!origin) throw new Error('KITSUVO_CLOUD_ORIGIN is required.');
   const port = Number(process.env.PORT || 8080);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT.');
-  const relay = createRelay({ origin });
+  const relay = createRelay({ origin, stateFile: process.env.KITSUVO_CLOUD_STATE_FILE });
   relay.http.listen(port, '0.0.0.0', () => console.log(JSON.stringify({ event: 'listening', port })));
   process.once('SIGTERM', () => { void relay.close(); });
   process.once('SIGINT', () => { void relay.close(); });

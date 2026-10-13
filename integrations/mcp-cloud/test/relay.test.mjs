@@ -5,21 +5,34 @@ import { EventEmitter, once } from 'node:events';
 import { randomBytes, createHash } from 'node:crypto';
 import { createRelay } from '../server.mjs';
 import { connectBrowser, browserTransportConfig } from '../connect.mjs';
+import { mkdtemp, readFile, stat, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
-async function fixture(t) {
+const fetch = (url, options = {}) => globalThis.fetch(url, {...options, headers:{...options.headers, Connection:'close'}});
+async function offline(f, headers) {
+  let status;
+  for (let i=0;i<50;i++) { status=(await fetch(f.origin+'/mcp',{headers})).status; if(status===503) return; await new Promise(r=>setTimeout(r,10)); }
+  assert.equal(status,503);
+}
+
+async function fixture(t, durable = false) {
+  const directory = await mkdtemp(path.join(tmpdir(), 'kitsuvo-relay-'));
+  t.after(() => rm(directory, {recursive:true,force:true}));
+  const stateFile = durable ? path.join(directory, 'state.json') : undefined;
   const reserve = createServer();
   await new Promise(resolve => reserve.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${reserve.address().port}`;
   await new Promise(resolve => reserve.close(resolve));
-  const relay = createRelay({ origin });
+  let relay = createRelay({ origin, stateFile });
   await new Promise(resolve => relay.http.listen(new URL(origin).port, '127.0.0.1', resolve));
   t.after(() => relay.close());
   const post = (path, values) => fetch(origin + path, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(values) });
-  async function browser(label, app = false, overrides = {}) {
+  async function browser(label, app = false, overrides = {}, connectorKey) {
     const events = new EventEmitter();
-    const connection = connectBrowser({ origin, backend: {
+    const connection = connectBrowser({ origin, connectorKey, backend: {
       getServerCapabilities() { return app ? { resources: {} } : {}; },
       async listTools() { return { tools: [{ name: 'fixture', description: label, inputSchema: { type: 'object' }, ...(app ? { _meta: { ui: { resourceUri: 'ui://kitsuvo/browser.html' } } } : {}) }] }; },
       async callTool() { return { content: [{ type: 'text', text: label }] }; },
@@ -55,7 +68,9 @@ async function fixture(t) {
     return { code: location.searchParams.get('code'), verifier, id };
   }
   const exchange = (client, auth, overrides = {}) => post('/token', { grant_type: 'authorization_code', client_id: client.client_id, redirect_uri: client.redirect_uris[0], code: auth.code, code_verifier: auth.verifier, resource: origin + '/mcp', ...overrides });
-  return { relay, origin, post, browser, client, authorize, exchange };
+  return { get relay() { return relay; }, origin, post, browser, client, authorize, exchange, stateFile,
+    async restart() { await relay.close(); relay = createRelay({origin, stateFile}); await new Promise(resolve => relay.http.listen(new URL(origin).port, '127.0.0.1', resolve)); }
+  };
 }
 
 test('OAuth PKCE, resource binding, replay, rotation and revocation fail closed', { timeout: 20000 }, async t => {
@@ -210,4 +225,109 @@ test('relay cancellation reaches the backend and cancelled queued tools never ru
   const activeRejected=assert.rejects(active);await activeBegan;activeController.abort();await activeRejected;await abortedBackend;
   await c.callTool({name:'fixture',arguments:{id:4}});
   assert.deepEqual(effects,[0,2,3,4]);assert.equal(catalogues,1);
+});
+
+
+test('approved durable connector survives offline refresh, socket and relay restart without new authorization', {timeout:20000}, async t => {
+  const f = await fixture(t, true), key = randomBytes(32).toString('base64url');
+  let browser = await f.browser('original', true, {}, key);
+  const registration = await f.client(), auth = await f.authorize(registration, browser);
+  const token = await (await f.exchange(registration, auth)).json();
+  const headers = { Authorization: 'Bearer ' + token.access_token };
+  const subject = (await (await fetch(f.origin+'/userinfo', {headers})).json()).sub;
+  const sdk = new Client({name:'restart-fixture',version:'1'}); t.after(() => sdk.close());
+  await sdk.connect(new StreamableHTTPClientTransport(new URL(f.origin+'/mcp'),{requestInit:{headers}}));
+  assert.equal((await sdk.callTool({name:'fixture',arguments:{}})).content[0].text, 'original');
+  const closed = once(browser.socket, 'close'); browser.socket.close(); await closed;
+  assert.equal((await fetch(f.origin+'/userinfo',{headers})).status,200);
+  await offline(f,headers);
+  browser = await f.browser('same-session-resumed',true,{},key);
+  assert.equal((await sdk.callTool({name:'fixture',arguments:{}})).content[0].text,'same-session-resumed');
+  const disconnectedAgain = once(browser.socket,'close'); browser.socket.close(); await disconnectedAgain;
+  await offline(f,headers);
+  const refresh = await f.post('/token',{grant_type:'refresh_token',client_id:registration.client_id,refresh_token:token.refresh_token});
+  assert.equal(refresh.status,200); const rotated = await refresh.json();
+  browser = await f.browser('resumed', true, {}, key);
+  // Existing MCP session resolves the resumed socket, not a stale closure.
+  const freshSdk = new Client({name:'resumed-fixture',version:'1'}); t.after(() => freshSdk.close());
+  await freshSdk.connect(new StreamableHTTPClientTransport(new URL(f.origin+'/mcp'),{requestInit:{headers:{Authorization:'Bearer '+rotated.access_token}}}));
+  assert.equal((await freshSdk.callTool({name:'fixture',arguments:{}})).content[0].text,'resumed');
+  const second = randomBytes(32).toString('base64url');
+  const foreign = await f.browser('other-identity', true, {}, second);
+  assert.notEqual((await (await fetch(f.origin+'/userinfo',{headers:{Authorization:'Bearer '+rotated.access_token}})).json()).sub, undefined);
+  const persisted = await readFile(f.stateFile,'utf8');
+  for (const secret of [key,second,token.access_token,token.refresh_token,rotated.access_token,rotated.refresh_token]) assert.ok(!persisted.includes(secret));
+  assert.equal((await stat(f.stateFile)).mode & 0o777, 0o600);
+  await f.restart();
+  const restoredHeaders = {Authorization:'Bearer '+rotated.access_token};
+  assert.equal((await fetch(f.origin+'/userinfo',{headers:restoredHeaders})).status,200);
+  assert.equal((await fetch(f.origin+'/mcp',{headers:restoredHeaders})).status,503);
+  browser = await f.browser('after-relay-restart',true,{},key);
+  assert.equal((await (await fetch(f.origin+'/userinfo',{headers:restoredHeaders})).json()).sub,subject);
+  const restoredSdk = new Client({name:'restored-fixture',version:'1'}); t.after(() => restoredSdk.close());
+  await restoredSdk.connect(new StreamableHTTPClientTransport(new URL(f.origin+'/mcp'),{requestInit:{headers:restoredHeaders}}));
+  assert.equal((await restoredSdk.callTool({name:'fixture',arguments:{}})).content[0].text,'after-relay-restart');
+  assert.equal((await f.post('/token',{grant_type:'refresh_token',client_id:registration.client_id,refresh_token:token.refresh_token})).status,400);
+  const revoked = once(browser.events,'revoked'); browser.revoke(); await revoked;
+  await f.restart();
+  browser = await f.browser('revoked-connector',true,{},key);
+  assert.equal((await fetch(f.origin+'/userinfo',{headers:restoredHeaders})).status,401);
+  assert.equal((await f.post('/token',{grant_type:'refresh_token',client_id:registration.client_id,refresh_token:rotated.refresh_token})).status,400);
+});
+
+test('durable identity cannot replace an active connector; corrupt persisted grants fail closed', {timeout:10000}, async t => {
+  const f = await fixture(t,true), key = randomBytes(32).toString('base64url');
+  const browser = await f.browser('owner',false,{},key);
+  const duplicate = connectBrowser({origin:f.origin,connectorKey:key,backend:{}});
+  assert.match((await once(duplicate.socket,'error'))[0].message,/409/);
+  const registration = await f.client(), auth = await f.authorize(registration,browser);
+  const token = await (await f.exchange(registration,auth)).json();
+  const other = await f.browser('wrong-key',false,{},randomBytes(32).toString('base64url'));
+  const closed = once(browser.socket,'close'); browser.socket.close(); await closed;
+  await offline(f,{Authorization:'Bearer '+token.access_token});
+  await writeFile(f.stateFile,'{"version":1,"origin":"foreign"}');
+  assert.throws(() => createRelay({origin:f.origin,stateFile:f.stateFile}),/Invalid relay/);
+});
+
+
+test('durable grants refresh after a month offline and expire after 90 days of inactivity', {timeout:10000}, async t => {
+  const f=await fixture(t,true), key=randomBytes(32).toString('base64url');
+  const browser=await f.browser('long-offline',false,{},key), registration=await f.client();
+  const auth=await f.authorize(registration,browser), token=await (await f.exchange(registration,auth)).json();
+  const closed=once(browser.socket,'close'); browser.socket.close(); await closed;
+  await offline(f,{Authorization:'Bearer '+token.access_token});
+  const original=Date.now, start=original(); t.after(()=>{Date.now=original;});
+  Date.now=()=>start+31*86400000;
+  await f.restart();
+  assert.equal((await fetch(f.origin+'/userinfo',{headers:{Authorization:'Bearer '+token.access_token}})).status,401);
+  const refreshed=await f.post('/token',{grant_type:'refresh_token',client_id:registration.client_id,refresh_token:token.refresh_token});
+  assert.equal(refreshed.status,200); const rotated=await refreshed.json();
+  Date.now=()=>start+122*86400000;
+  await f.restart();
+  assert.equal((await f.post('/token',{grant_type:'refresh_token',client_id:registration.client_id,refresh_token:rotated.refresh_token})).status,400);
+});
+
+test('connector revocation works offline, is identity-scoped and persists across restart', {timeout:10000}, async t => {
+  const f=await fixture(t,true), keys=[randomBytes(32).toString('base64url'),randomBytes(32).toString('base64url')];
+  const browsers=await Promise.all(keys.map((key,i)=>f.browser('owner-'+i,false,{},key)));
+  const clients=await Promise.all([f.client(),f.client()]);
+  const tokens=[];
+  for(let i=0;i<2;i++) tokens.push(await (await f.exchange(clients[i],await f.authorize(clients[i],browsers[i]))).json());
+  const closed=once(browsers[0].socket,'close'); browsers[0].socket.close(); await closed;
+  assert.equal((await fetch(f.origin+'/connector/revoke',{method:'POST'})).status,403);
+  assert.equal((await fetch(f.origin+'/connector/revoke',{method:'POST',headers:{'X-Kitsuvo-Connector-Key':randomBytes(32).toString('base64url')}})).status,404);
+  assert.equal((await fetch(f.origin+'/connector/revoke',{method:'POST',headers:{'X-Kitsuvo-Connector-Key':keys[0]}})).status,200);
+  await f.restart();
+  assert.equal((await fetch(f.origin+'/userinfo',{headers:{Authorization:'Bearer '+tokens[0].access_token}})).status,401);
+  assert.equal((await fetch(f.origin+'/userinfo',{headers:{Authorization:'Bearer '+tokens[1].access_token}})).status,200);
+});
+
+test('persistence failure denies authorization rather than silently losing revocation', {timeout:10000}, async t => {
+  const f=await fixture(t,true), key=randomBytes(32).toString('base64url');
+  const browser=await f.browser('storage-failure',false,{},key), registration=await f.client();
+  const token=await (await f.exchange(registration,await f.authorize(registration,browser))).json();
+  const directory=path.dirname(f.stateFile); await rm(directory,{recursive:true,force:true}); await writeFile(directory,'blocked');
+  assert.equal((await fetch(f.origin+'/connector/revoke',{method:'POST',headers:{'X-Kitsuvo-Connector-Key':key}})).status,503);
+  assert.equal((await fetch(f.origin+'/userinfo',{headers:{Authorization:'Bearer '+token.access_token}})).status,401);
+  assert.throws(()=>createRelay({origin:f.origin,stateFile:f.stateFile}),/Invalid relay authorization store/);
 });

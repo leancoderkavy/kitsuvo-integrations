@@ -84,7 +84,7 @@ on the user's behalf. Keyboard, reduced-motion, and narrow layouts are supported
 Default permissions are `activeTab`, `scripting`, and `storage`. Persistent
 search-host access is optional and removed when the filter is disabled.
 No cookies, history, native messaging, web requests, remote executable code,
-or cloud connections are requested. Stored preferences contain no page data.
+or cloud connections are requested. Stored preferences include filter and guide settings and exact hostnames you choose to always show. Paths, query strings, page content and reports are not saved.
 Page scans skip sign-in provider hosts, password-field pages, and private tabs.
 Scan copies strip input values and editable content before local analysis.
 
@@ -154,3 +154,5 @@ Official format and distribution references:
 [Safari packaging](https://developer.apple.com/documentation/safariservices/packaging-and-distributing-safari-web-extensions-with-app-store-connect),
 [Edge publication](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/publish-extension),
 [Opera guidelines](https://help.opera.com/en/extensions/publishing-guidelines/).
+
+After scanning, Always show this host keeps that exact host visible in search. Reset the choice in the popup to restore filtering; evidence scores are unchanged. Disabling restores hidden results immediately, and reenabling resumes filtering in loaded supported pages.
