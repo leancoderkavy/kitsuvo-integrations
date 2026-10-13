@@ -1,12 +1,17 @@
 # Kitsuvo MCP clients and distribution
 
 Version 0.2.6. Install Kitsuvo on Windows or macOS first. The local server is
-`kitsuvo mcp`; automation uses an isolated profile and refuses sensitive pages.
+`kitsuvo mcp`; Mac 0.2.14 local MCP reuses the normal signed-in profile by default. Add `--separate-profile` for a separate persistent profile. Sensitive pages remain protected.
 The client receives requested page text, screenshots and reports. No API key
 is needed for local automation. These installation sources do not establish
 public directory approval or tested compatibility in every client.
 
 ## Local clients
+
+For a visual browser inside ChatGPT, Claude, Cursor, or T3 Code, use the
+[embedded browser setup](embedding-browser.md#chatgpt-claude-cursor-and-t3-code-setup).
+The native examples below provide automation tools; the Node App bridge also
+serves the interactive panel. T3 Code support depends on its selected provider.
 
 Merge an example from `integrations/distribution/clients` into your client's
 existing configuration; preserve other servers. Replace `kitsuvo` with the
@@ -23,8 +28,8 @@ normally use `/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo`.
 | LM Studio | `lm-studio.json` | Program → Install → Edit mcp.json |
 | Legacy Devin/Windsurf Cascade | `devin-cascade.json` | Cascade MCP configuration; current Devin Local uses a separate config route |
 
-Claude Code: `claude mcp add kitsuvo -- kitsuvo mcp`.
-Codex: `codex mcp add kitsuvo -- kitsuvo mcp`.
+Claude Code: `claude mcp add --scope user kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile`.
+Codex: `codex mcp add kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile`.
 For skills too, install `kitsuvo@kitsuvo-browser` from the public
 `leancoderkavy/kitsuvo-integrations` marketplace.
 
@@ -46,7 +51,7 @@ Do not fabricate `.app.json` registered IDs; attach the actual portal-generated
 mapping if the target host requires it.
 
 On your own Windows or Mac computer, install Kitsuvo and Node.js 22+, extract
-`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.6.zip`, then:
+`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.7.zip`, then:
 
 ```sh
 cd integrations/mcp-cloud
@@ -143,3 +148,26 @@ Official references: [Cursor](https://docs.cursor.com/context/model-context-prot
 [n8n](https://docs.n8n.io/integrations/builtin/cluster-nodes/sub-nodes/n8n-nodes-langchain.toolmcp),
 [Zapier](https://help.zapier.com/hc/en-us/articles/38777069364109-Connect-remote-MCP-servers-to-Zapier-using-MCP-Client),
 [Dify](https://dify.ai/blog/v1-6-0-built-in-two-way-mcp-support).
+
+## Verified local setup (Mac 0.2.14)
+
+The direct commands above use the installed Mac executable, so PATH setup is
+not required. Substitute your own installed executable on Windows and use the
+profile options its `--help` lists. Windows native testing is still pending.
+
+`claude mcp list` checks server health; `codex mcp list` lists registration.
+Restart the client and ask it to navigate to a public page, report the page
+title and visible text, then close only the new test tab by ID with `browser_tabs`. Record existing
+tab IDs first. Some hosts share one MCP connection across conversations;
+`browser_cleanup` can also close tabs from earlier chats on that connection.
+Do not require an `h1` on example.com: its current page has a title but no heading.
+Approve the requested browser tools in the client; read-only or noninteractive
+policies may deny navigation and cleanup. Keep unrelated tool policies intact.
+
+Marketplace plugins and the downloaded Desktop extension pass only `mcp`;
+on Mac 0.2.14 this uses the normal signed-in profile. The plugin also requires
+`kitsuvo` on the client's PATH. For a Mac client launched from a terminal, run
+`export PATH="/Applications/Kitsuvo.app/Contents/MacOS:$PATH"` before the plugin
+commands and confirm `kitsuvo --help` works in that terminal. This does not set
+PATH for desktop apps launched from the Dock. The browser's Add button or exported marketplace uses the actual
+absolute executable path. Use one Kitsuvo connection per conversation.

@@ -90,7 +90,7 @@ Keep `args: ["mcp"]`. Plugin installation does not install the native browser.
 An installed plugin is cached by its host; edit/reinstall the plugin copy or
 configure a separate native MCP connection when using a custom executable path.
 
-Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.6.zip`.
+Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.7.zip`.
 It contains the local marketplace manifests, branded plugin, four skills, and
 loopback HTTP MCP bridge with its locked dependencies and tests. Commands below
 run from the extracted directory or an authorized repository checkout.
@@ -111,9 +111,16 @@ claude plugin install kitsuvo@kitsuvo-browser
 ```
 
 For development: `claude --plugin-dir ./plugins/kitsuvo`. For MCP alone:
-`claude mcp add kitsuvo -- kitsuvo mcp`. Claude Desktop can merge the
+`claude mcp add --scope user kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile`. Claude Desktop can merge the
 `mcpServers` object from `plugins/kitsuvo/.mcp.json` into its existing client
 configuration; retain unrelated servers.
+
+For Codex MCP alone on Mac:
+
+```sh
+codex mcp add kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile
+codex mcp get kitsuvo
+```
 
 ChatGPT desktop / Codex local marketplace:
 
@@ -184,7 +191,9 @@ and snapshot-limit regressions.
 
 The Node bridge also exposes an **MCP App**. Ask **“Open Kitsuvo in chat at
 https://example.com”** to call `kitsuvo_browser` and display a browser panel
-inside a compatible ChatGPT or Claude conversation. It includes an address
+inside a compatible ChatGPT, Claude, Cursor, or T3 Code conversation. Use the
+[host setup helper](embedding-browser.md#chatgpt-claude-cursor-and-t3-code-setup)
+to configure the App bridge for your host and provider. It includes an address
 bar, history navigation, tabs, scrolling, page text, detection evidence, and controls for clicking,
 hovering, typing, submitting forms, and selecting options. Windows and macOS
 include a page preview captured from the native engine. Press **Refresh view** after
@@ -197,6 +206,13 @@ page iframe, or browser control token in the UI. Sign-in restrictions, detection
 gates, and the native **Stop** button continue to apply. When sign-in is needed,
 complete it directly in Kitsuvo. One connection shares one browser profile
 between the assistant and panels; use separate profiles for independent users.
+Each `kitsuvo_browser` call creates a fresh panel tab unless an existing `tab`
+is explicitly requested. Panel actions retain their own tab context, including
+after opening or closing tabs. Returning to a chat refreshes its saved panel
+from the browser, rather than replaying the original page snapshot. Tabs remain
+in the same profile and share cookies; panel IDs are routing context, not a
+separate authorization boundary. Old panels created before this update can be
+replaced by asking the assistant to open a new Kitsuvo panel.
 
 This uses the shared [MCP Apps standard](https://apps.extensions.modelcontextprotocol.io/),
 supported by [ChatGPT](https://developers.openai.com/plugins/build/app-quickstart)
@@ -219,8 +235,8 @@ bridge instead of the native `kitsuvo mcp` command:
   "mcpServers": {
     "kitsuvo": {
       "command": "node",
-      "args": ["D:/Coding/unvibe/integrations/mcp-http/server.mjs", "--stdio"],
-      "env": { "KITSUVO_BINARY": "D:/Coding/unvibe/target/release/kitsuvo.exe" }
+      "args": ["C:/path/to/kitsuvo/integrations/mcp-http/server.mjs", "--stdio"],
+      "env": { "KITSUVO_BINARY": "C:/path/to/kitsuvo/target/release/kitsuvo.exe" }
     }
   }
 }
@@ -256,7 +272,7 @@ If Kitsuvo is not on PATH, set `KITSUVO_BINARY` to the absolute executable path
 before starting. On PowerShell:
 
 ```powershell
-$env:KITSUVO_BINARY = 'D:\Coding\unvibe\target\release\kitsuvo.exe'
+$env:KITSUVO_BINARY = 'C:\path\to\kitsuvo\target\release\kitsuvo.exe'
 npm start
 ```
 
@@ -318,13 +334,20 @@ directory approval are not established by this test.
 
 ## Capabilities and data access
 
+Use the [rendered setup guide](https://kitsuvo.com/integrations#capabilities)
+for current installer versions and platform availability. Mac captures the
+viewport when browser_status reports support; full-page capture is Windows-only.
+Phone apps are not publicly listed yet.
+
+
 The MCP exposes navigation, tab management, accessibility snapshots, clicks,
 typing, hovering, selection, keys, waits, page text, JavaScript evaluation,
-responsive sizing, Windows screenshots, and `kitsuvo_report`. Detection reports
+responsive sizing, supported viewport screenshots, and `kitsuvo_report`. Detection reports
 include AI-built, slop, and impersonation evidence and gate state; search-result
 reports describe hidden or labelled sites.
 
-By default, automation has a separate profile and refuses sensitive sign-in
+On Mac 0.2.14, `kitsuvo mcp` reuses the normal signed-in profile by default;
+add `--separate-profile` for a separate persistent profile. Automation refuses sensitive sign-in
 pages and password fields. These packages do not enable `--main-profile` or
 `--allow-sensitive`. The user's native browser settings and network rules still
 apply; adding a plugin does not enable cloud verdict engines. System-keychain
@@ -413,3 +436,26 @@ Use `kitsuvo mcp --headless` for a hidden native browser with an isolated profil
 `browser_view` returns a viewport image and element refs inline in MCP chats.
 For the existing interactive chat panel, set `KITSUVO_HEADLESS=1` when starting
 the MCP App bridge or cloud connector. See [headless setup](headless-browser.md).
+
+## Verified local setup (Mac 0.2.14)
+
+The direct commands above use the installed Mac executable, so PATH setup is
+not required. Substitute your own installed executable on Windows and use the
+profile options its `--help` lists. Windows native testing is still pending.
+
+`claude mcp list` checks server health; `codex mcp list` lists registration.
+Restart the client and ask it to navigate to a public page, report the page
+title and visible text, then close only the new test tab by ID with `browser_tabs`. Record existing
+tab IDs first. Some hosts share one MCP connection across conversations;
+`browser_cleanup` can also close tabs from earlier chats on that connection.
+Do not require an `h1` on example.com: its current page has a title but no heading.
+Approve the requested browser tools in the client; read-only or noninteractive
+policies may deny navigation and cleanup. Keep unrelated tool policies intact.
+
+Marketplace plugins and the downloaded Desktop extension pass only `mcp`;
+on Mac 0.2.14 this uses the normal signed-in profile. The plugin also requires
+`kitsuvo` on the client's PATH. For a Mac client launched from a terminal, run
+`export PATH="/Applications/Kitsuvo.app/Contents/MacOS:$PATH"` before the plugin
+commands and confirm `kitsuvo --help` works in that terminal. This does not set
+PATH for desktop apps launched from the Dock. The browser's Add button or exported marketplace uses the actual
+absolute executable path. Use one Kitsuvo connection per conversation.

@@ -26,12 +26,18 @@ export async function mountKitsuvo(container, { client, initialUrl, theme = 'lig
   const bridge = new AppBridge(null, hostInfo, { serverTools: {} }, {
     hostContext: { theme, displayMode: 'inline', availableDisplayModes: ['inline'] },
   });
-  let disposed = false, timer, queue = Promise.resolve(), guide;
+  let disposed = false, timer, queue = Promise.resolve(), guide, panelId, tab;
   const enqueue = request => {
     if (disposed) return Promise.reject(new Error('Kitsuvo embed was destroyed.'));
     const work = queue.then(() => {
       if (disposed) throw new Error('Kitsuvo embed was destroyed.');
-      return client.callTool(request);
+      return client.callTool(request).then(result => {
+        if (!result.isError) {
+          if (typeof result.structuredContent?.panelId === 'string') panelId = result.structuredContent.panelId;
+          if (Number.isSafeInteger(result.structuredContent?.tab)) tab = result.structuredContent.tab;
+        }
+        return result;
+      });
     });
     queue = work.catch(() => {});
     return work;
@@ -66,11 +72,12 @@ export async function mountKitsuvo(container, { client, initialUrl, theme = 'lig
       if (!disposed) await bridge.sendToolResult(result);
       return result;
     };
-    if (initialUrl !== undefined) await action('kitsuvo_browser', { url: initialUrl });
+    // Seed a newly allocated panel before the UI can refresh another chat's tab.
+    await action('kitsuvo_browser', initialUrl === undefined ? {} : { url: initialUrl });
     guide = addGuide(container);
     return {
       iframe: frame,
-      refresh: () => action('kitsuvo_browser_action', { action: 'refresh' }),
+      refresh: () => tab === undefined && !panelId ? action('kitsuvo_browser', {}) : action('kitsuvo_browser_action', { action: 'refresh', ...(panelId ? { panelId } : {}), ...(tab !== undefined ? { tab } : {}) }),
       navigate: url => action('kitsuvo_browser', { url }),
       update: result => disposed ? Promise.reject(new Error('Kitsuvo embed was destroyed.')) : bridge.sendToolResult(result),
       setTheme: next => {

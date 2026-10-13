@@ -18,7 +18,7 @@ test('opt-in embed routes serve a bounded panel bridge and preserve local reques
   const backend = { callTool: async params => {
     calls.push(params);
     const text = params.name === 'browser_snapshot' ? 'Page: https://example.com/\nTitle: Example\n- link "Next" [ref=e1]'
-      : params.name === 'browser_tabs' ? '- tab 3 [active]: Example (https://example.com/)' : 'Screenshots unavailable';
+      : params.name === 'browser_tabs' ? `${params.arguments.action === 'new' ? 'Opened tab 3.\n' : ''}- tab 3 [active]: Example (https://example.com/)` : 'Screenshots unavailable';
     return { content: [{ type: 'text', text }], isError: params.name === 'browser_take_screenshot' };
   } };
   const reservation = createBridge(backend);

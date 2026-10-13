@@ -27,7 +27,7 @@ test('HTTP MCP negotiates, forwards tools and results, and rejects untrusted req
         await new Promise(resolve => setTimeout(resolve, 15));
         return { content: [{ type: 'text', text: 'Page: https://example.com/\nTitle: Example\n- link "Next" [ref=e1]' }] };
       }
-      if (params.name === 'browser_tabs') return { content: [{ type: 'text', text: '- tab 3 [active]: Example (https://example.com/)' }] };
+      if (params.name === 'browser_tabs') return { content: [{ type: 'text', text: `${params.arguments.action === 'new' ? 'Opened tab 3.\n' : ''}- tab 3 [active]: Example (https://example.com/)` }] };
       if (params.name === 'browser_take_screenshot') return { content: [{ type: 'image', mimeType: 'image/png', data: 'cG5n' }] };
       return { content: [{ type: 'text', text: 'evidence' }], isError: params.arguments.tab === 99 };
     },

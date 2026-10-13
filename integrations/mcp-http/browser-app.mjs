@@ -1,6 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { randomUUID } from 'node:crypto';
+
+// A host can share one MCP connection across chats. Keep each panel's current
+// tab separate from that connection's implicit active tab.
+const panels = new WeakMap();
 
 export const APP_URI = 'ui://kitsuvo/browser.html';
 export const APP_MIME = 'text/html;profile=mcp-app';
@@ -9,7 +14,7 @@ const tab = { type: 'integer', minimum: 0 };
 export const appTools = [
   {
     name: 'kitsuvo_browser', title: 'Open Kitsuvo in chat',
-    description: 'Open the interactive Kitsuvo browser panel inside ChatGPT or Claude. Optionally navigate to a URL. The desktop Kitsuvo engine must run on the connected computer.',
+    description: 'Open a fresh tab in an embedded Kitsuvo browser panel. Pass tab explicitly only to attach an existing tab. Pages run in the desktop Kitsuvo engine on the connected computer.',
     inputSchema: { type: 'object', properties: { url: { type: 'string' }, tab }, additionalProperties: false },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     _meta: uiMeta,
@@ -18,8 +23,8 @@ export const appTools = [
     name: 'kitsuvo_browser_action', title: 'Use browser panel',
     description: 'Controls for the interactive browser panel.',
     inputSchema: { type: 'object', properties: {
-      action: { type: 'string', enum: ['refresh', 'report', 'navigate', 'back', 'forward', 'reload', 'new', 'close', 'select', 'click', 'hover', 'type', 'option', 'key'] },
-      tab, url: { type: 'string' }, ref: { type: 'string' }, text: { type: 'string' },
+      action: { type: 'string', enum: ['refresh', 'fit', 'report', 'navigate', 'back', 'forward', 'reload', 'new', 'close', 'select', 'click', 'hover', 'type', 'option', 'key'] },
+      tab, panelId: { type: 'string' }, url: { type: 'string' }, ref: { type: 'string' }, text: { type: 'string' },
       submit: { type: 'boolean' }, values: { type: 'array', items: { type: 'string' } }, key: { type: 'string' },
     }, required: ['action'], additionalProperties: false },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
@@ -51,14 +56,31 @@ export async function callBrowserApp(backend, name, args = {}, signal) {
   try {
     if (!args || typeof args !== 'object' || Array.isArray(args)) return fail('Expected an arguments object.');
     if (args.tab !== undefined && (!Number.isInteger(args.tab) || args.tab < 0)) return fail('Invalid tab.');
-    const target = args.tab === undefined ? {} : { tab: args.tab };
+    if (args.panelId !== undefined && (typeof args.panelId !== 'string' || !/^[0-9a-f-]{36}$/.test(args.panelId))) return fail('Invalid panel ID.');
+    let contexts = panels.get(backend);
+    if (!contexts) { contexts = new Map(); panels.set(backend, contexts); }
+    const panelId = name === 'kitsuvo_browser' ? randomUUID() : args.panelId;
+    const context = panelId && contexts.get(panelId);
+    const savedTab = context?.tab;
+    const owned = new Set(context?.owned ?? []);
+    const targetTab = args.action === 'refresh' && savedTab !== undefined ? savedTab : args.tab ?? savedTab;
+    let target = targetTab === undefined ? {} : { tab: targetTab };
     let operation;
     let report;
     if (name === 'kitsuvo_browser') {
-      if (args.url !== undefined) operation = ['browser_navigate', { ...target, url: args.url }];
+      if (args.url !== undefined && typeof args.url !== 'string') return fail('Missing url.');
+      if (args.tab === undefined) {
+        const opened = await call('browser_tabs', { action: 'new', ...(args.url === undefined ? {} : { url: args.url }) });
+        if (opened.isError) return opened;
+        const createdTab = textOf(opened).match(/^Opened tab (\d+)\./m)?.[1];
+        if (!createdTab) return fail('The browser did not identify the new panel tab.');
+        target = { tab: Number(createdTab) };
+        owned.add(target.tab);
+      } else if (args.url !== undefined) operation = ['browser_navigate', { ...target, url: args.url }];
     } else {
       const operations = {
         refresh: null,
+        fit: ['browser_resize', { ...target, off: true }],
         report: ['kitsuvo_report', target],
         navigate: ['browser_navigate', { ...target, url: args.url }],
         back: ['browser_navigate_back', target], forward: ['browser_navigate_forward', target], reload: ['browser_reload', target],
@@ -82,9 +104,29 @@ export async function callBrowserApp(backend, name, args = {}, signal) {
       const result = await call(...operation);
       if (result.isError) return result;
       if (args.action === 'report') report = textOf(result);
+      if (args.action === 'new') {
+        const createdTab = textOf(result).match(/^Opened tab (\d+)\./m)?.[1];
+        if (!createdTab) return fail('The browser did not identify the new panel tab.');
+        target = { tab: Number(createdTab) }; owned.add(target.tab);
+      }
+      if (args.action === 'close' && panelId) {
+        owned.delete(target.tab);
+        const available = await call('browser_tabs', { action: 'list' });
+        if (available.isError) return available;
+        const remaining = new Set([...textOf(available).matchAll(/^- tab (\d+)/gm)].map(m => Number(m[1])));
+        const previous = [...owned].reverse().find(id => remaining.has(id));
+        if (previous !== undefined) target = { tab: previous };
+        else {
+          const opened = await call('browser_tabs', { action: 'new' });
+          if (opened.isError) return opened;
+          const id = textOf(opened).match(/^Opened tab (\d+)\./m)?.[1];
+          if (!id) return fail('The browser did not identify the replacement panel tab.');
+          target = { tab: Number(id) }; owned.add(target.tab);
+        }
+      }
     }
     // A close/new/select can change the active tab; do not read the old tab.
-    const viewTarget = ['close', 'new', 'select'].includes(args.action) ? {} : target;
+    const viewTarget = args.action === 'close' && !panelId ? {} : target;
     const snapshot = await call('browser_snapshot', viewTarget);
     if (snapshot.isError) return snapshot;
     const tabs = await call('browser_tabs', { action: 'list' });
@@ -96,10 +138,17 @@ export async function callBrowserApp(backend, name, args = {}, signal) {
       snapshot: page,
       tabs: [...textOf(tabs).matchAll(/^- tab (\d+)( \[active\])?: (.*) \((.*)\)$/gm)]
         .map(match => ({ tab: Number(match[1]), active: Boolean(match[2]), title: match[3], url: match[4] })),
-      tab: viewTarget.tab,
+      // MCP navigation can select a background tab while the desktop's visible
+      // active tab stays unchanged. Controls must follow the observed page.
+      tab: page.match(/^Tab: (\d+)$/m) ? Number(page.match(/^Tab: (\d+)$/m)[1]) : viewTarget.tab,
+      ...(panelId ? { panelId } : {}),
       ...(report === undefined ? {} : { report }),
     };
     state.tab ??= state.tabs.find(item => item.active)?.tab;
+    if (panelId && state.tab !== undefined) {
+      owned.add(state.tab);
+      contexts.set(panelId, { tab: state.tab, owned });
+    }
     let preview;
     let previewNote;
     try {
@@ -109,7 +158,7 @@ export async function callBrowserApp(backend, name, args = {}, signal) {
     } catch {
       previewNote = 'Page previews are unavailable. Use the page text and controls below.';
     }
-    return { content: [{ type: 'text', text: `Kitsuvo browser: ${state.title}\n${state.url}` }],
+    return { content: [{ type: 'text', text: `Kitsuvo browser: ${state.title}\n${state.url}\n\n${state.snapshot}` }],
       structuredContent: state, _meta: { preview, previewNote }, isError: false };
   } catch (error) {
     return fail(error.message);

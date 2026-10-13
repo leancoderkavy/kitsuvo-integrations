@@ -3,6 +3,12 @@ import { App, applyHostStyleVariables } from '@modelcontextprotocol/ext-apps';
 const app = new App({ name: 'Kitsuvo browser', version: '0.2.3' }, {});
 const $ = id => document.getElementById(id);
 let state = {}, busy = false, connected = false, closed = false, generation = 0, hostContext = {};
+let seededPanel, restored = false;
+const storageKey = id => `kitsuvo-panel-tab:${id}`;
+function savedTab(id) {
+  try { const raw = localStorage.getItem(storageKey(id)); const tab = Number(raw); return raw !== null && Number.isInteger(tab) && tab >= 0 ? tab : undefined; }
+  catch { return undefined; }
+}
 function setBusy(value) {
   busy = value;
   $('workspace').setAttribute('aria-busy', String(value));
@@ -19,7 +25,7 @@ function button(label, action) {
 function render(result) {
   // Always clear an old preview when the new page cannot be captured.
   if (result.isError) {
-    state = {};
+    state = { tab: state.tab, panelId: state.panelId };
     $('status').textContent = textOf(result) || 'The browser refused the request.';
     $('preview').hidden = true;
     $('preview').removeAttribute('src');
@@ -35,6 +41,9 @@ function render(result) {
   }
   if (!result.structuredContent?.snapshot) return;
   state = result.structuredContent;
+  if (state.panelId && Number.isInteger(state.tab)) {
+    try { localStorage.setItem(storageKey(state.panelId), String(state.tab)); } catch { /* Some hosts disable storage. Server context still restores tabs. */ }
+  }
   $('url').value = state.url;
   $('title').textContent = state.title;
   $('snapshot').textContent = state.snapshot;
@@ -84,6 +93,7 @@ async function act(action, args = {}) {
   try {
     const result = await app.callServerTool({ name: 'kitsuvo_browser_action', arguments: {
       action, ...(state.tab === undefined ? {} : { tab: state.tab }), ...args,
+      ...(state.panelId ? { panelId: state.panelId } : {}),
     } });
     if (generation === current) render(result);
   } catch (error) {
@@ -104,7 +114,23 @@ $('fullscreen').onclick = async () => {
   }
   catch { $('status').textContent = 'Expanded view is unavailable in this client.'; }
 };
-app.ontoolresult = result => { if (closed) return; generation++; setBusy(false); render(result); };
+async function restore() {
+  if (closed || !connected || restored || !state.snapshot) return;
+  restored = true;
+  await act('refresh');
+}
+app.ontoolresult = result => {
+  if (closed) return;
+  const identity = result.structuredContent?.panelId ?? result.structuredContent?.tab;
+  // Hosts replay the original result when a chat remounts, and sometimes after
+  // live actions. Seed once, then read the actual tab; never replay stale data.
+  if (seededPanel !== undefined && identity === seededPanel) return;
+  seededPanel = identity; restored = false;
+  const tab = result.structuredContent?.panelId && savedTab(result.structuredContent.panelId);
+  generation++; setBusy(false);
+  render(tab === undefined ? result : { ...result, structuredContent: { ...result.structuredContent, tab } });
+  void restore();
+};
 app.ontoolcancelled = () => { if (closed) return; generation++; setBusy(false); render({ isError: true, content: [{ type: 'text', text: 'Browser request cancelled.' }] }); };
 function applyContext(context) {
   hostContext = { ...hostContext, ...context };
@@ -118,6 +144,8 @@ async function connect() { try {
   await app.connect(); if (closed) return; connected = true;
   const context = app.getHostContext();
   applyContext(context ?? {});
-  if (!state.snapshot) await act('refresh');
+  // Wait for the host's originating tool result so refresh cannot accidentally
+  // bind this panel to another chat's active tab.
+  await restore();
 } catch (error) { $('status').textContent = `Unable to connect: ${error.message}`; } }
 void connect();

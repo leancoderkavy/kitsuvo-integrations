@@ -1,5 +1,7 @@
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -104,9 +106,18 @@ export function createBridge(backend, { port = 8787, embed = false, createBacken
   return bridge;
 }
 
+export function nativeArguments(help, headless = false) {
+  // Older shipped builds already isolate MCP by default and do not understand
+  // the later explicit flag. Only recognize that documented legacy contract.
+  const legacy = /(?:^|\n)\s*--agent[^\n]*separate profile/.test(help) && !help.includes('--separate-profile');
+  if (legacy && headless && !help.includes('--headless')) throw new Error('This Kitsuvo build does not support headless mode. Update Kitsuvo or leave KITSUVO_HEADLESS unset.');
+  return ['mcp', ...(legacy ? [] : ['--separate-profile']), ...(headless ? ['--headless'] : [])];
+}
+
 export async function createNativeBackend(config, clientInfo = { name: 'kitsuvo-http-bridge', version: '0.2.3' }) {
+  const { stdout: help } = await promisify(execFile)(config.binary, ['--help'], { timeout: 5000, maxBuffer: 65536, windowsHide: true });
   const backend = new Client({ name: clientInfo.name, version: clientInfo.version });
-  const transport = new StdioClientTransport({ command: config.binary, args: ['mcp', '--separate-profile', ...(config.headless ? ['--headless'] : [])], stderr: 'inherit',
+  const transport = new StdioClientTransport({ command: config.binary, args: nativeArguments(help, config.headless), stderr: 'inherit',
     env: { ...getDefaultEnvironment(), ...(process.env.KITSUVO_PROFILE_DIR ? { KITSUVO_PROFILE_DIR: process.env.KITSUVO_PROFILE_DIR } : {}) },
   });
   try { await backend.connect(transport, { timeout: 30_000 }); return backend; }

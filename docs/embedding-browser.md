@@ -15,6 +15,9 @@ Screenshots update after actions or **Refresh view**. This is a remote view
 of the local engine, not a live video stream, a clickable page canvas, or an
 API for placing the native WebView inside another window. The native browser
 can open separately. Complete sign-in there when requested.
+Use **Fit preview** if a background tab has a tiny or blank preview. This
+explicitly displays the panel's tab in the isolated Kitsuvo window and restores
+its normal viewport size; it does not apply a mobile device identity.
 
 ## For an existing MCP Apps host
 
@@ -27,6 +30,59 @@ for connection configurations and platform limits.
 
 The panel uses the [MCP Apps protocol](https://github.com/modelcontextprotocol/ext-apps).
 Host support for interactive UI is separate from support for MCP tools.
+
+## ChatGPT, Claude, Cursor, and T3 Code setup
+
+Use the **App bridge**, not `kitsuvo mcp` alone, to get the embedded view.
+After extracting the integration archive, run `npm ci --ignore-scripts` in
+`integrations/mcp-http`. The setup helper prints configuration for review;
+it does not edit your client settings or remove other servers.
+
+```sh
+node setup.mjs --host cursor --binary /Applications/Kitsuvo.app/Contents/MacOS/kitsuvo
+node setup.mjs --host claude --binary /Applications/Kitsuvo.app/Contents/MacOS/kitsuvo
+node setup.mjs --host t3code --provider codex --binary /Applications/Kitsuvo.app/Contents/MacOS/kitsuvo
+node setup.mjs --host chatgpt
+```
+
+On Windows, pass the installed executable, for example
+`--binary "C:\Program Files\Kitsuvo\kitsuvo.exe"`. The helper uses the
+absolute Node and bridge paths from the computer where it runs. Optional
+`--node`, `--bridge`, and `--profile` accept absolute paths, including paths
+with spaces. An explicit profile directory separates this connection from
+other assistants; do not share one profile between independent users.
+
+| Host | Where to connect | Embedded view |
+| --- | --- | --- |
+| ChatGPT | Custom MCP app with OAuth at the printed HTTPS URL; keep the local cloud connector running with `node connect.mjs --app` and approve the client | MCP Apps panel; the native browser runs on the connector's computer |
+| Claude Desktop | Merge the printed JSON into Claude Desktop's MCP configuration and restart | MCP Apps panel; Claude Code itself can use text tools |
+| Claude web | Remote OAuth connector, with the local connector in `--app` mode | Interactive connector panel when enabled for the conversation |
+| Cursor | Merge the printed JSON into `.cursor/mcp.json` or `~/.cursor/mcp.json`, then restart | MCP Apps panel in chat on supported Cursor versions |
+| T3 Code | Merge the printed TOML into the Codex configuration used by the selected provider on the T3 server | MCP Apps panel when that T3 build and provider expose MCP Apps operations |
+
+For T3 Code's Claude provider, `--host t3code --provider claude` prints JSON
+for that provider's project `.mcp.json`. Use the provider's configured Claude
+directory and enable the server there. This config provides tools; whether
+it also renders the panel depends on the selected provider. T3's UI support
+does not imply every provider exposes the necessary resource/tool operations.
+For Codex, use the provider's configured `CODEX_HOME` rather than assuming it
+is your local default. A remote T3 server needs Node, Kitsuvo, and the extracted
+bridge on that server; local desktop paths are not remote paths.
+
+In each host, enable Kitsuvo and ask **“Open Kitsuvo in chat at
+https://example.com”**. Check that `kitsuvo_browser` appears in its tools.
+If only `browser_navigate` and other native tools appear, the connection uses
+the native server instead of the App bridge. If the host cannot render UI,
+the same call returns page text and element refs for continued automation.
+
+Host contracts checked October 12, 2026:
+[ChatGPT MCP Apps](https://developers.openai.com/plugins/build/chatgpt-ui),
+[Claude interactive connectors](https://support.claude.com/en/articles/13454812-use-interactive-connectors-in-claude),
+[Cursor MCP Apps](https://prod.cursor.com/help/customization/mcp), and
+[T3 Code's MCP App resource/tool bridge](https://github.com/pingdotgg/t3code/blob/main/apps/server/src/mcpApps/McpAppRequests.ts).
+These contracts establish an integration route; they are not proof of a live
+installation in your accounts. Test a harmless page, a panel interaction, Stop,
+and disconnect in the actual host before claiming host qualification.
 
 ## Try the local application example
 
@@ -54,6 +110,11 @@ The example routes exist only with `--embed`; ordinary `npm start` and
 panel tools, rejects non-JSON and oversized arguments, and shares the MCP
 bridge's serialized operations. The server binds to loopback and checks Host
 and Origin. It supplies no wildcard CORS or anonymous public hosting mode.
+
+The bridge probes the installed executable's help before connecting. Newer
+builds receive `mcp --separate-profile`; recognized older builds with a documented
+isolated agent default receive `mcp`. Headless mode is rejected when that older
+build does not support it. Unknown builds keep the explicit isolation flag.
 
 ## Mount in your application
 

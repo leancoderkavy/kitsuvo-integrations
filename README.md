@@ -85,15 +85,20 @@ The plugin includes setup, browsing, detection-evidence, and responsive skills.
 Its native MCP connection uses a separate browser profile. It requires the
 installed desktop browser; it does not install that executable.
 
-## Browser inside ChatGPT or Claude
+## Browser inside ChatGPT, Claude, Cursor, or T3 Code
 
 The MCP App bridge provides an interactive browser panel with navigation,
-tabs, page controls, detection evidence and Windows previews. Pages still run
+tabs, page controls, detection evidence and Windows/macOS previews. Pages still run
 in Kitsuvo on your computer. For Claude Desktop, launch
 `node integrations/mcp-http/server.mjs --stdio` after installing that directory's
 dependencies. For cloud hosts, use an authenticated tunnel or the cloud
 connector's `--app` mode. See [panel setup](docs/marketplace-integrations.md)
 and [cloud setup](integrations/mcp-cloud/README.md).
+
+Use `node integrations/mcp-http/setup.mjs --host cursor --binary /absolute/path/to/kitsuvo`
+to print a local visual-panel configuration. Hosts `claude`, `t3code`, and
+`chatgpt` have their own setup routes; see [host setup](docs/embedding-browser.md).
+T3 Code's embedded UI depends on the selected provider and build.
 
 Other applications can mount the same panel with the typed
 `@kitsuvo/mcp-http/embed` host SDK and an authorized MCP client. Try
