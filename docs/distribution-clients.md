@@ -61,7 +61,7 @@ Do not fabricate `.app.json` registered IDs; attach the actual portal-generated
 mapping if the target host requires it.
 
 On your own Windows or Mac computer, install Kitsuvo and Node.js 22+, extract
-`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.9.zip`, then:
+`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.10.zip`, then:
 
 ```sh
 cd integrations/mcp-cloud

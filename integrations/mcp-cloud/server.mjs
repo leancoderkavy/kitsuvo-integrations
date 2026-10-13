@@ -147,6 +147,10 @@ export function createRelay({ origin, stateFile }) {
   }
   const app = express();
   app.disable('x-powered-by');
+  // Fly's edge proxy is exactly one hop in front of us and appends the client IP to
+  // X-Forwarded-For. Trust only that hop (never `true`, which is spoofable) so the
+  // SDK's express-rate-limit buckets per client instead of per proxy IP (KAV-159).
+  app.set('trust proxy', 1);
   app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'kitsuvo-mcp-cloud', version: '0.1.0' }));
   app.use((req, res, next) => {
     if (req.headers.host !== issuer.host || (req.headers.origin && req.headers.origin !== issuer.origin)) return res.status(403).end('Untrusted Host or Origin.');
@@ -193,6 +197,7 @@ export function createRelay({ origin, stateFile }) {
 
   });
   const http = createServer(app);
+  http.app = app;
   const ws = new WebSocketServer({ noServer: true, maxPayload: 8 * 1024 * 1024 });
   const enrollments = new Map();
   http.on('upgrade', (req, socket, head) => {
