@@ -18,13 +18,15 @@
       <button data-action="reload" aria-label="Reload page" disabled>↻</button>
       <form id="navigate"><input id="url" aria-label="Web address" placeholder="Enter a web address" autocomplete="off" disabled><button class="primary" disabled>Go</button></form>
     </div>
-    <div class="toolbar"><select id="tabs" aria-label="Browser tab" disabled></select><button data-action="new" disabled>New tab</button><button data-action="close" disabled>Close tab</button><button data-action="refresh" disabled>Refresh view</button><button data-action="fit" title="Show this tab in the isolated Kitsuvo window and fit it for a page preview" disabled>Fit preview</button></div>
     <div id="title"></div>
     <img id="preview" alt="Current page preview. Use the page controls below to interact." hidden>
     <p id="previewNote"></p>
-    <div class="toolbar"><button data-key="PageUp" disabled>Scroll up</button><button data-key="PageDown" disabled>Scroll down</button><button data-action="report" disabled>Check page evidence</button></div>
+    <details id="browserTools"><summary>Browser tools</summary>
+      <div class="toolbar"><select id="tabs" aria-label="Browser tab" disabled></select><button data-action="new" disabled>New tab</button><button data-action="close" disabled>Close tab</button></div>
+      <div class="toolbar"><button data-action="refresh" disabled>Refresh view</button><button data-action="fit" title="Show this tab in the isolated Kitsuvo window and fit it for a page preview" disabled>Fit preview</button><button data-key="PageUp" disabled>Scroll up</button><button data-key="PageDown" disabled>Scroll down</button><button data-action="report" disabled>Check page evidence</button></div>
+    </details>
     <details id="reportPanel" hidden><summary>Detection evidence</summary><pre id="report"></pre></details>
-    <details open><summary>Page controls</summary><div id="elements"></div></details>
+    <details id="pageControls"><summary>Page controls</summary><div id="elements"></div></details>
     <details><summary>Page text</summary><pre id="snapshot"></pre></details>
   </div>
   <p id="status" role="status" aria-live="polite">Connecting to your browser…</p>

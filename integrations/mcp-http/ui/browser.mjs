@@ -59,6 +59,8 @@ function render(result) {
   $('preview').hidden = !preview;
   if (preview?.mimeType === 'image/png') $('preview').src = `data:image/png;base64,${preview.data}`;
   else $('preview').removeAttribute('src');
+  // Keep the page in focus; expose the interaction fallback when no image is available.
+  if (!preview) $('pageControls').open = true;
   $('previewNote').textContent = result._meta?.previewNote ?? 'Preview of your desktop browser. Use the controls below to interact.';
   $('elements').replaceChildren();
   // Page content is untrusted: construct DOM nodes, never insert page HTML.
