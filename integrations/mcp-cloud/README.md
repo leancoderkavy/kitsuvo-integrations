@@ -9,7 +9,7 @@ profile on the connecting computer.
 
 Install Kitsuvo and put `kitsuvo` on PATH. Use Node.js 22 or newer:
 
-Download and extract the [integration package](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.7.zip).
+Download and extract the [integration package](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.8.zip).
 Open a terminal in its `integrations/mcp-cloud` folder before running the commands
 below. If the browser is not on PATH, set `KITSUVO_BINARY` to its absolute executable
 path. Web hosts need the App-mode commands in the next section for the in-chat panel.

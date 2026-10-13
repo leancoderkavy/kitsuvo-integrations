@@ -19,6 +19,13 @@ Install Kitsuvo from https://kitsuvo.com on Windows or macOS and place `kitsuvo`
 
 The local server runs in Claude Code and Cowork. It does not run on Claude web or mobile. On macOS use page snapshots and resizing; screenshots are Windows-only.
 
+After adding `leancoderkavy/kitsuvo-integrations` as a marketplace, install in
+Claude Code 2.1.275 or later with:
+
+```text
+/plugin install kitsuvo --marketplace leancoderkavy/kitsuvo-integrations
+```
+
 ## Data handling
 
 Browser automation uses a separate local profile by default. It refuses sensitive sign-in pages and password fields. No sensitive-profile opt-ins are included in this package.

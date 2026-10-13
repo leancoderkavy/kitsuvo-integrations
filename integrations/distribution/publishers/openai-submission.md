@@ -7,6 +7,9 @@ Use the remote `kitsuvo-cloud` package for a hosted conversation, or the local
 Both portable manifests include website, support, privacy and terms links,
 square 256px composer/listing icons, five positive and three negative review
 cases under `extensions.com.openai.review`, and an explicit commerce declaration.
+The cloud package declares OAuth with Dynamic Client Registration, the relay's
+resource identifier, and the `browser` scope under the namespaced MCP auth
+extension. It contains no client secret or registered client identifier.
 Review cases describe expected behavior; they are not a claim that all cases
 passed in ChatGPT or that review is approved.
 
@@ -28,6 +31,17 @@ passed in ChatGPT or that review is approved.
 6. Run the eight declared cases in the actual host, finish automated checks,
    submit the draft, and publish only after approval. Uploaded packages, scans,
    submitted review and a live directory listing are distinct states.
+
+## Known authentication blocker
+
+The relay currently advertises only the `browser` scope and `/userinfo` returns
+an opaque subject. It does not advertise `openid` and `email`, or return an
+email with `email_verified: true`. OpenAI requires that identity when workspace
+email/domain restrictions apply. Do not invent those claims in package
+metadata; implement and test a real identity source before enabling that gate.
+
+The portal also requires an accessible walkthrough recording and private
+reviewer access. Neither belongs in this repository until it is real.
 
 [Official submission requirements](https://developers.openai.com/plugins/deploy/submission)
 are the authority for the current dashboard flow.

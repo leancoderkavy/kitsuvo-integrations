@@ -7,7 +7,7 @@
     "url": "https://github.com/leancoderkavy/kitsuvo-integrations",
     "source": "github"
   },
-  "version": "0.2.6",
+  "version": "0.2.7",
   "remotes": [
     {
       "type": "streamable-http",

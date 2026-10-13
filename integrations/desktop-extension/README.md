@@ -1,6 +1,6 @@
 # Kitsuvo desktop extension
 
-Download kitsuvo-desktop-0.2.6.mcpb from https://kitsuvo.com/integrations.
+Download kitsuvo-desktop-0.2.7.mcpb from https://kitsuvo.com/integrations.
 In Claude Desktop open Settings → Extensions → Advanced settings → Install Extension.
 Choose the bundle, then configure the installed Kitsuvo executable. On macOS use
 /Applications/Kitsuvo.app/Contents/MacOS/kitsuvo; Windows users choose their installed kitsuvo.exe.

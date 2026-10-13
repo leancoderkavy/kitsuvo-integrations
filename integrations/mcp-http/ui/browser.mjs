@@ -14,13 +14,25 @@ function setBusy(value) {
   $('workspace').setAttribute('aria-busy', String(value));
   document.querySelectorAll('button,input,select').forEach(node => { node.disabled = value || !connected; });
   $('fullscreen').hidden = !hostContext.availableDisplayModes?.includes(hostContext.displayMode === 'fullscreen' ? 'inline' : 'fullscreen');
-  $('fullscreen').textContent = hostContext.displayMode === 'fullscreen' ? 'Collapse' : 'Expand';
+  $('fullscreen').textContent = hostContext.displayMode === 'fullscreen' ? 'Return to chat' : 'Open full browser';
 }
 const textOf = result => (result.content ?? []).filter(item => item.type === 'text').map(item => item.text).join('\n');
-function button(label, action) {
+function button(label, accessibleName, action) {
   const node = document.createElement('button');
-  node.type = 'button'; node.textContent = label; node.onclick = action;
+  node.type = 'button'; node.textContent = label; node.setAttribute('aria-label', accessibleName); node.onclick = action;
   return node;
+}
+function pageHost(url) {
+  try { return new URL(url).host; } catch { return url; }
+}
+function evidenceSummary(report) {
+  if (!report) return '';
+  try {
+    const value = JSON.parse(report);
+    const verdict = value.verdict_label ?? value.verdict ?? value.gate?.replaceAll('_', ' ');
+    const score = Number.isFinite(value.score) ? `Score ${value.score}` : '';
+    return [score, verdict, value.builder].filter(Boolean).join(' · ');
+  } catch { return report.split('\n').find(Boolean)?.slice(0, 240) ?? ''; }
 }
 function render(result) {
   // Always clear an old preview when the new page cannot be captured.
@@ -32,8 +44,11 @@ function render(result) {
     $('elements').replaceChildren();
     $('snapshot').textContent = '';
     $('report').textContent = '';
-    $('reportPanel').hidden = true;
+    $('reportBlock').hidden = true;
+    $('evidence').hidden = true;
+    $('evidenceSummary').textContent = '';
     $('title').textContent = '';
+    $('pageMeta').textContent = '';
     $('url').value = '';
     $('tabs').replaceChildren();
     $('previewNote').textContent = '';
@@ -46,10 +61,12 @@ function render(result) {
   }
   $('url').value = state.url;
   $('title').textContent = state.title;
+  $('pageMeta').textContent = [pageHost(state.url), 'Separate agent profile'].filter(Boolean).join(' · ');
   $('snapshot').textContent = state.snapshot;
   $('report').textContent = state.report ?? '';
-  $('reportPanel').hidden = !state.report;
-  $('reportPanel').open = Boolean(state.report);
+  $('reportBlock').hidden = !state.report;
+  $('evidence').hidden = !state.report;
+  $('evidenceSummary').textContent = evidenceSummary(state.report);
   $('tabs').replaceChildren(...state.tabs.map(tab => {
     const option = document.createElement('option');
     option.value = tab.tab; option.textContent = `${tab.tab}: ${tab.title}`; option.selected = tab.tab === state.tab;
@@ -59,9 +76,9 @@ function render(result) {
   $('preview').hidden = !preview;
   if (preview?.mimeType === 'image/png') $('preview').src = `data:image/png;base64,${preview.data}`;
   else $('preview').removeAttribute('src');
-  // Keep the page in focus; expose the interaction fallback when no image is available.
-  if (!preview) $('pageControls').open = true;
-  $('previewNote').textContent = result._meta?.previewNote ?? 'Preview of your desktop browser. Use the controls below to interact.';
+  // Keep the page in focus; expose the single interaction fallback when no image is available.
+  if (!preview) $('inspector').open = true;
+  $('previewNote').textContent = result._meta?.previewNote ?? 'Live preview from the separate Kitsuvo agent profile.';
   $('elements').replaceChildren();
   // Page content is untrusted: construct DOM nodes, never insert page HTML.
   for (const line of state.snapshot.split('\n')) {
@@ -69,23 +86,26 @@ function render(result) {
     if (!match) continue;
     const [, role, ref] = match;
     const row = document.createElement('div'); row.className = 'element';
-    const label = document.createElement('span'); label.textContent = line.trim().replace(/\s*\[ref=e\d+\]/, '');
+    const label = document.createElement('span'); label.textContent = line.trim().replace(/^-\s+/, '').replace(/\s*\[ref=e\d+\]/, '');
+    const target = label.textContent;
     row.append(label);
-    row.append(button('Click', () => act('click', { ref })), button('Hover', () => act('hover', { ref })));
+    row.append(button('Click', `Click ${target}`, () => act('click', { ref })), button('Hover', `Hover over ${target}`, () => act('hover', { ref })));
     if (['textbox', 'searchbox', 'spinbutton', 'combobox'].includes(role)) {
       const input = document.createElement('input'); input.setAttribute('aria-label', `Value for ${label.textContent}`);
       if (role === 'combobox') {
-        row.append(input, button('Select', () => act('option', { ref, values: [input.value] })));
+        row.append(input, button('Select', `Select value for ${target}`, () => act('option', { ref, values: [input.value] })));
       } else {
-        row.append(input, button('Type', () => act('type', { ref, text: input.value })),
-          button('Submit', () => act('type', { ref, text: input.value, submit: true })));
+        row.append(input, button('Type', `Type in ${target}`, () => act('type', { ref, text: input.value })),
+          button('Submit', `Submit ${target}`, () => act('type', { ref, text: input.value, submit: true })));
         input.onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); void act('type', { ref, text: input.value, submit: true }); } };
       }
     }
     $('elements').append(row);
   }
-  if (!$('elements').children.length) $('elements').textContent = 'No page controls available. Check page text, or sign in directly in the Kitsuvo window if needed.';
+  if (!$('elements').children.length) $('elements').textContent = 'No page controls available. Review the raw page text, or sign in directly in the Kitsuvo window if needed.';
   $('status').textContent = 'Browser ready';
+  $('connection').textContent = 'Connected';
+  $('connection').setAttribute('data-ready', 'true');
   setBusy(busy);
 }
 async function act(action, args = {}) {
@@ -141,7 +161,7 @@ function applyContext(context) {
   setBusy(busy);
 }
 app.onhostcontextchanged = applyContext;
-app.onteardown = async () => { closed = true; connected = false; generation++; setBusy(false); return {}; };
+app.onteardown = async () => { closed = true; connected = false; generation++; $('connection').textContent = 'Disconnected'; $('connection').setAttribute('data-ready', 'false'); setBusy(false); return {}; };
 async function connect() { try {
   await app.connect(); if (closed) return; connected = true;
   const context = app.getHostContext();

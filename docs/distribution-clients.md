@@ -1,6 +1,6 @@
 # Kitsuvo MCP clients and distribution
 
-Version 0.2.6. Install Kitsuvo on Windows or macOS first. The local server is
+Version 0.2.7. Install Kitsuvo on Windows or macOS first. The local server is
 `kitsuvo mcp`; Mac 0.2.14 local MCP reuses the normal signed-in profile by default. Add `--separate-profile` for a separate persistent profile. Sensitive pages remain protected.
 The client receives requested page text, screenshots and reports. No API key
 is needed for local automation. These installation sources do not establish
@@ -35,7 +35,7 @@ For skills too, install `kitsuvo@kitsuvo-browser` from the public
 
 ### Claude Desktop extension
 
-Download `https://kitsuvo.com/downloads/kitsuvo-desktop-0.2.6.mcpb`.
+Download `https://kitsuvo.com/downloads/kitsuvo-desktop-0.2.7.mcpb`.
 In Claude Desktop choose Settings → Extensions → Advanced settings → Install
 Extension. Configure the Kitsuvo executable. The bundle uses the client's Node
 runtime, has no external npm dependencies and does not install the browser.
@@ -45,13 +45,13 @@ main browsing profile. Revoke it by disabling/removing the desktop extension.
 ## Remote clients and cloud plugin
 
 Endpoint: `https://kitsuvo-mcp-relay.fly.dev/mcp`. OAuth is required. Download
-`https://kitsuvo.com/downloads/kitsuvo-cloud-plugin-0.2.6.zip` for the remote
+`https://kitsuvo.com/downloads/kitsuvo-cloud-plugin-0.2.7.zip` for the remote
 plugin. A package is installation metadata, not a registered publisher app ID.
 Do not fabricate `.app.json` registered IDs; attach the actual portal-generated
 mapping if the target host requires it.
 
 On your own Windows or Mac computer, install Kitsuvo and Node.js 22+, extract
-`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.7.zip`, then:
+`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.8.zip`, then:
 
 ```sh
 cd integrations/mcp-cloud
@@ -83,6 +83,12 @@ claude plugin install kitsuvo-cloud@kitsuvo-browser
 The local and remote variants expose the same browser tool names. Enable only
 the intended variant in a conversation to avoid duplicate tool catalogs.
 
+LM Studio 0.3.17 or later also supports a one-click remote install. Start and
+approve your local Kitsuvo cloud connector first, then use
+[Add Kitsuvo to LM Studio](lmstudio://add_mcp?name=kitsuvo&config=eyJ1cmwiOiJodHRwczovL2tpdHN1dm8tbWNwLXJlbGF5LmZseS5kZXYvbWNwIn0%3D).
+This deep link installs connection metadata; it does not install or start the
+Kitsuvo desktop browser or its connector.
+
 ## Workflow recipes
 
 These are setup recipes, not imported/tested provider templates. Complete a
@@ -109,10 +115,20 @@ real OAuth and tool call in each provider before claiming compatibility.
 | Claude plugin | Existing submission in `claude.ai/directory/manage` | Reviewer decision; do not create a duplicate |
 | Claude Desktop | `.mcpb` desktop-extension submission | Actual install/tool qualification and publisher form |
 | OpenAI | Upload reviewed remote plugin; register/scan endpoint | Verified developer identity, domain challenge, verified-email UserInfo, reviewer connection and applicable mTLS |
-| Cline | Catalog PR in `cline/marketplace`; legacy extension marketplace uses `cline/mcp-marketplace` | Validate catalog entry; qualify installation and OAuth separately. Legacy submissions require a 400px icon and actual Cline README-only installation test |
+| Cursor | Publisher application at `cursor.com/marketplace/publish` | Public repository, account review, and actual Marketplace install/tool/panel qualification |
+| GitHub Copilot / VS Code Agent Plugins | Repository marketplace using Agent Plugins 1.0; optional contribution to a curated marketplace | The portable plugin is installable from a marketplace source; default/public marketplace inclusion requires separate review and readback |
+| VS Code MCP gallery | Customization Marketplace / MCP feed | Manual configuration is ready; an accepted publisher/feed entry and gallery readback are separate |
+| Gemini CLI gallery | Dedicated extension repository or release with root `gemini-extension.json` | Tagged release, `gemini-cli-extension` repository topic, and gallery validation; current JSON remains config-only |
+| Cline | Catalog PR in `cline/marketplace`; legacy extension marketplace uses `cline/mcp-marketplace` | PR #222 is open; qualify installation and OAuth separately. Legacy submissions require a 400px icon and actual Cline README-only installation test |
 | Smithery | Publish authenticated remote server | Account access and successful end-to-end connection |
 | Glama | Remote connector listing | Account access; source listing requires open-source license |
 | Docker MCP catalog | Contribution to `docker/mcp-registry` | Appropriate remote/connector packaging and catalog review |
+
+T3 Code, Continue, LM Studio, and legacy Windsurf/Cascade currently use the
+configuration routes above. They are not treated as public marketplace
+submissions without a verified first-party publisher flow and listing readback.
+See `integrations/distribution/publishers/platform-status.md` for the dated
+submission/status ledger and exact remaining gates.
 
 Existing browser store applications must be checked before submitting updates.
 A signed/native install, accepted upload, scan result, review and public listing
@@ -133,11 +149,16 @@ read snapshot/report, test responsive sizing where supported, and check a denied
 sensitive page and disconnect behavior in an isolated test profile. Never use
 `--main-profile` or `--allow-sensitive` to make qualification pass.
 
-Official references: [Cursor](https://docs.cursor.com/context/model-context-protocol),
+Official references: [Cursor MCP](https://docs.cursor.com/context/model-context-protocol),
+[Cursor Marketplace](https://cursor.com/marketplace/publish),
 [VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers),
+[VS Code Agent Plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins),
+[GitHub Copilot plugins](https://docs.github.com/en/copilot/concepts/agents/about-plugins),
 [Gemini CLI](https://geminicli.com/docs/tools/mcp-server/),
+[Gemini CLI extensions](https://github.com/google-gemini/gemini-cli/blob/main/docs/extensions/releasing.md),
 [Continue](https://docs.continue.dev/customize/mcp-tools),
 [LM Studio](https://lmstudio.ai/docs/app/mcp),
+[LM Studio install link](https://lmstudio.ai/docs/app/mcp/deeplink),
 [Devin](https://docs.devin.ai/desktop/cascade/mcp),
 [Claude Desktop](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop),
 [MCP Registry](https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/quickstart.mdx),

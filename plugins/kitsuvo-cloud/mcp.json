@@ -3,7 +3,21 @@
   "mcpServers": {
     "kitsuvo": {
       "type": "streamable-http",
-      "url": "https://kitsuvo-mcp-relay.fly.dev/mcp"
+      "url": "https://kitsuvo-mcp-relay.fly.dev/mcp",
+      "extensions": {
+        "com.openai": {
+          "auth": {
+            "type": "oauth",
+            "client": {
+              "mode": "dcr"
+            },
+            "resource": "https://kitsuvo-mcp-relay.fly.dev/mcp",
+            "baseScopes": [
+              "browser"
+            ]
+          }
+        }
+      }
     }
   }
 }

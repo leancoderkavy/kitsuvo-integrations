@@ -1,8 +1,11 @@
-# Cline marketplace submission draft
+# Cline marketplace submission
 
-Status: prepared, not submitted. Complete Cline's required README-only or
-llms-install.md installation test before submitting. Do not assert that test
-from an SDK handshake or another client's successful setup.
+Status checked 2026-10-13: submitted as
+[cline/marketplace#222](https://github.com/cline/marketplace/pull/222), open and
+not merged. The live PR showed no reported checks. Do not open a duplicate.
+Complete Cline's README-only or llms-install.md installation test before making
+the corresponding compatibility claim. An SDK handshake or another client's
+successful setup is not a Cline host qualification.
 
 - Name: Kitsuvo
 - GitHub repository: https://github.com/leancoderkavy/kitsuvo-integrations
@@ -25,5 +28,7 @@ snapshot/report results, sensitive-page refusal, and disconnect behavior.
 Confirm no main-profile or sensitive-page override was added. Only then
 complete the corresponding marketplace attestation.
 
-Submit through the official
-[issue template](https://github.com/cline/mcp-marketplace/issues/new?template=mcp-server-submission.yml).
+Current catalog changes are reviewed in
+[cline/marketplace](https://github.com/cline/marketplace). The older
+`cline/mcp-marketplace` issue flow is legacy; use it only if Cline explicitly
+redirects the current submission there.
