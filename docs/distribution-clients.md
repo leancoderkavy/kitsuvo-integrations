@@ -33,6 +33,16 @@ Codex: `codex mcp add kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsu
 For skills too, install `kitsuvo@kitsuvo-browser` from the public
 `leancoderkavy/kitsuvo-integrations` marketplace.
 
+Gemini CLI can install the public repository as an extension:
+
+```sh
+gemini extensions install https://github.com/leancoderkavy/kitsuvo-integrations --ref v0.2.8
+```
+
+The extension configures `kitsuvo mcp`; it does not install the desktop browser.
+Use the manual `gemini-cli.json` route when the executable needs an absolute
+path. Restart Gemini CLI after installing or updating an extension.
+
 ### Claude Desktop extension
 
 Download `https://kitsuvo.com/downloads/kitsuvo-desktop-0.2.7.mcpb`.
@@ -118,7 +128,7 @@ real OAuth and tool call in each provider before claiming compatibility.
 | Cursor | Publisher application at `cursor.com/marketplace/publish` | Public repository, account review, and actual Marketplace install/tool/panel qualification |
 | GitHub Copilot / VS Code Agent Plugins | Repository marketplace using Agent Plugins 1.0; optional contribution to a curated marketplace | The portable plugin is installable from a marketplace source; default/public marketplace inclusion requires separate review and readback |
 | VS Code MCP gallery | Customization Marketplace / MCP feed | Manual configuration is ready; an accepted publisher/feed entry and gallery readback are separate |
-| Gemini CLI gallery | Dedicated extension repository or release with root `gemini-extension.json` | Tagged release, `gemini-cli-extension` repository topic, and gallery validation; current JSON remains config-only |
+| Gemini CLI gallery | Public repository with root `gemini-extension.json` | Versioned manifest and install validation are ready; add the `gemini-cli-extension` repository topic and `v0.2.8` tag, then wait for the daily crawler and verify public gallery readback |
 | Cline | Catalog PR in `cline/marketplace`; legacy extension marketplace uses `cline/mcp-marketplace` | PR #222 is open; qualify installation and OAuth separately. Legacy submissions require a 400px icon and actual Cline README-only installation test |
 | Smithery | Publish authenticated remote server | Account access and successful end-to-end connection |
 | Glama | Remote connector listing | Account access; source listing requires open-source license |
