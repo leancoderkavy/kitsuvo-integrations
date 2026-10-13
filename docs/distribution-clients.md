@@ -128,7 +128,7 @@ real OAuth and tool call in each provider before claiming compatibility.
 | Cursor | Publisher application at `cursor.com/marketplace/publish` | Public repository, account review, and actual Marketplace install/tool/panel qualification |
 | GitHub Copilot / VS Code Agent Plugins | Repository marketplace using Agent Plugins 1.0; optional contribution to a curated marketplace | The portable plugin is installable from a marketplace source; default/public marketplace inclusion requires separate review and readback |
 | VS Code MCP gallery | Customization Marketplace / MCP feed | Manual configuration is ready; an accepted publisher/feed entry and gallery readback are separate |
-| Gemini CLI gallery | Public repository with root `gemini-extension.json` | Versioned manifest and install validation are ready; add the `gemini-cli-extension` repository topic and `v0.2.8` tag, then wait for the daily crawler and verify public gallery readback |
+| Gemini CLI gallery | Public repository with root `gemini-extension.json` | Versioned manifest and install validation are live; the public repository has the `gemini-cli-extension` topic and `v0.2.8` tag. Wait for the daily crawler and verify public gallery readback before claiming a listing |
 | Cline | Catalog PR in `cline/marketplace`; legacy extension marketplace uses `cline/mcp-marketplace` | PR #222 is open; qualify installation and OAuth separately. Legacy submissions require a 400px icon and actual Cline README-only installation test |
 | Smithery | Publish authenticated remote server | Account access and successful end-to-end connection |
 | Glama | Remote connector listing | Account access; source listing requires open-source license |
