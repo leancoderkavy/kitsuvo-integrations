@@ -186,6 +186,22 @@ and discovery uses standard OAuth protected-resource and authorization metadata.
 WebSocket connections, queues, request sizes and authorization stores are bounded;
 SDK OAuth endpoints include rate limiting. This single-volume deployment does not provide high availability.
 
+### Optional PostHog exception reporting
+
+The relay sends no telemetry unless `KITSUVO_POSTHOG_KEY` is set. Configure that
+value as a Fly secret for PostHog project 657811; never put it in `fly.toml`, a
+container image, source code, or client configuration. `POSTHOG_HOST` is optional
+and selects a self-hosted or regional PostHog endpoint (the SDK default is used
+when absent). It may be a Fly secret or a non-secret Fly environment value.
+
+Only bounded relay failure metadata is captured: a fresh generic exception,
+allowlisted error type/code and source, and allowlisted HTTP method/route names.
+Original error messages, stacks, causes and arbitrary paths/context are discarded;
+SDK exception autocapture is disabled. Request bodies, authorization
+headers, browser/connector IDs, WebSocket messages, tool arguments and page data
+are excluded. SIGTERM/SIGINT and relay close drain the PostHog queue before the
+process exits.
+
 ## Publisher requirements
 
 This implementation establishes browser-possession consent, not verified email

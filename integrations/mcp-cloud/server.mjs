@@ -13,6 +13,7 @@ import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middlew
 import { InvalidGrantError, InvalidTokenError, InvalidScopeError, InvalidTargetError, InvalidClientMetadataError, TemporarilyUnavailableError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { ListToolsRequestSchema, CallToolRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { createPostHogTelemetry, noopTelemetry } from './posthog.mjs';
 
 const nonce = () => randomBytes(32).toString('base64url');
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -23,7 +24,7 @@ const maxRecords = 500;
 const trim = map => { for (const [key, value] of map) if (value.expiresAt <= now()) map.delete(key); };
 const display = value => JSON.stringify(value).replace(/[\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`);
 
-export function createRelay({ origin, stateFile }) {
+export function createRelay({ origin, stateFile, telemetry = noopTelemetry }) {
   const issuer = new URL(origin);
   if (issuer.username || issuer.password || issuer.search || issuer.hash || issuer.pathname !== '/' ||
       (issuer.protocol !== 'https:' && !(issuer.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(issuer.hostname)))) {
@@ -190,11 +191,16 @@ export function createRelay({ origin, stateFile }) {
         server.setRequestHandler(ReadResourceRequestSchema,(request,extra)=>browser.call('resources/read',request.params,{signal:extra.signal}));
         return server;
       },req.body);
-    } catch {
+    } catch (error) {
+      telemetry.captureException(error, { source: 'mcp-session' });
       if (!res.headersSent) res.status(502).end('Browser relay request failed.');
       else if (!res.writableEnded) res.end();
     }
 
+  });
+  app.use((error, req, res, _next) => {
+    telemetry.captureException(error, { source: 'express', method: req.method, path: req.path });
+    if (!res.headersSent) res.status(500).end('Internal server error.');
   });
   const http = createServer(app);
   http.app = app;
@@ -261,9 +267,12 @@ export function createRelay({ origin, stateFile }) {
           call.cleanup(); pending.delete(message.id);
           if (message.error) call.reject(new Error('Local browser rejected request.')); else call.resolve(message.result);
         } else socket.close(1008, 'Unknown protocol message');
-      } catch { socket.close(1008, 'Invalid protocol message'); }
+      } catch (error) {
+        telemetry.captureException(error, { source: 'websocket-message' });
+        socket.close(1008, 'Invalid protocol message');
+      }
     });
-    socket.on('error', () => {});
+    socket.on('error', error => telemetry.captureException(error, { source: 'websocket' }));
     socket.on('close', () => {
       queue.close();
       clearInterval(heartbeat); browsers.delete(id);
@@ -274,7 +283,15 @@ export function createRelay({ origin, stateFile }) {
       pending.clear();
     });
   });
-  return { http, close() { protocolSessions.close(); for (const socket of ws.clients) socket.terminate(); ws.close(); http.closeAllConnections(); return new Promise(resolve => http.close(resolve)); } };
+  return { http, close() {
+    protocolSessions.close();
+    for (const socket of ws.clients) socket.terminate();
+    ws.close();
+    http.closeAllConnections();
+    return new Promise(resolve => http.close(resolve)).then(async () => {
+      try { await telemetry.shutdown?.(); } catch {}
+    });
+  } };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -282,8 +299,21 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (!origin) throw new Error('KITSUVO_CLOUD_ORIGIN is required.');
   const port = Number(process.env.PORT || 8080);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT.');
-  const relay = createRelay({ origin, stateFile: process.env.KITSUVO_CLOUD_STATE_FILE });
+  const telemetry = createPostHogTelemetry();
+  const relay = createRelay({ origin, stateFile: process.env.KITSUVO_CLOUD_STATE_FILE, telemetry });
   relay.http.listen(port, '0.0.0.0', () => console.log(JSON.stringify({ event: 'listening', port })));
-  process.once('SIGTERM', () => { void relay.close(); });
-  process.once('SIGINT', () => { void relay.close(); });
+  let shuttingDown = false;
+  const shutdown = async exitCode => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    if (exitCode) process.exitCode = exitCode;
+    await relay.close();
+  };
+  process.once('SIGTERM', () => { void shutdown(); });
+  process.once('SIGINT', () => { void shutdown(); });
+  process.once('unhandledRejection', error => telemetry.captureException(error, { source: 'unhandled-rejection' }));
+  process.once('uncaughtException', error => {
+    telemetry.captureException(error, { source: 'uncaught-exception' });
+    void shutdown(1);
+  });
 }

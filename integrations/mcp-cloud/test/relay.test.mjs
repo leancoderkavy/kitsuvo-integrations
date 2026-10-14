@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import WebSocket from 'ws';
 
 const fetch = (url, options = {}) => globalThis.fetch(url, {...options, headers:{...options.headers, Connection:'close'}});
 async function offline(f, headers) {
@@ -18,7 +19,7 @@ async function offline(f, headers) {
   assert.equal(status,503);
 }
 
-async function fixture(t, durable = false) {
+async function fixture(t, durable = false, { telemetry } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), 'kitsuvo-relay-'));
   t.after(() => rm(directory, {recursive:true,force:true}));
   const stateFile = durable ? path.join(directory, 'state.json') : undefined;
@@ -26,7 +27,7 @@ async function fixture(t, durable = false) {
   await new Promise(resolve => reserve.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${reserve.address().port}`;
   await new Promise(resolve => reserve.close(resolve));
-  let relay = createRelay({ origin, stateFile });
+  let relay = createRelay({ origin, stateFile, telemetry });
   await new Promise(resolve => relay.http.listen(new URL(origin).port, '127.0.0.1', resolve));
   t.after(() => relay.close());
   const post = (path, values) => fetch(origin + path, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(values) });
@@ -69,9 +70,21 @@ async function fixture(t, durable = false) {
   }
   const exchange = (client, auth, overrides = {}) => post('/token', { grant_type: 'authorization_code', client_id: client.client_id, redirect_uri: client.redirect_uris[0], code: auth.code, code_verifier: auth.verifier, resource: origin + '/mcp', ...overrides });
   return { get relay() { return relay; }, origin, post, browser, client, authorize, exchange, stateFile,
-    async restart() { await relay.close(); relay = createRelay({origin, stateFile}); await new Promise(resolve => relay.http.listen(new URL(origin).port, '127.0.0.1', resolve)); }
+    async restart() { await relay.close(); relay = createRelay({origin, stateFile, telemetry}); await new Promise(resolve => relay.http.listen(new URL(origin).port, '127.0.0.1', resolve)); }
   };
 }
+
+test('invalid WebSocket protocol messages are reported through injected telemetry', async t => {
+  const reported = [];
+  const f = await fixture(t, false, { telemetry: { captureException(error, context) { reported.push({ error, context }); } } });
+  const socket = new WebSocket(f.origin.replace('http:', 'ws:') + '/connect');
+  await once(socket, 'open');
+  socket.send('{not json');
+  await once(socket, 'close');
+  assert.equal(reported.length, 1);
+  assert.equal(reported[0].context.source, 'websocket-message');
+  assert.ok(reported[0].error instanceof Error);
+});
 
 test('OAuth PKCE, resource binding, replay, rotation and revocation fail closed', { timeout: 20000 }, async t => {
   const f = await fixture(t), browser = await f.browser('owner'), client = await f.client(), other = await f.client();
