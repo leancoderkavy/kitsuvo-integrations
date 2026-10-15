@@ -53,7 +53,7 @@ Directory approval is separate from these install sources.
 | Another stdio MCP client | `{"mcpServers":{"kitsuvo":{"command":"kitsuvo","args":["mcp"]}}}` | [Other clients](docs/quickstart/mcp-clients.md) |
 | ChatGPT or a cloud client, with a tunnel | `cd integrations/mcp-http && npm ci --ignore-scripts && npm start` | [HTTP bridge](docs/quickstart/http-bridge.md) |
 | A cloud client, no tunnel | Start the connector in `integrations/mcp-cloud` | [Cloud relay](docs/quickstart/cloud-relay.md) |
-| The browser you already use | Load `extensions/chromium` unpacked, or `extensions/firefox` temporarily | [Extension preview](docs/quickstart/browser-extension.md) |
+| The browser you already use | Install Kitsuvo from the Chrome Web Store or Edge Add-ons; manual previews remain available | [Extension setup](docs/quickstart/browser-extension.md) |
 
 Every row except the extension needs Kitsuvo installed with `kitsuvo` on PATH.
 If it is not on PATH, use the executable's absolute path as `command` and keep
@@ -83,8 +83,11 @@ codex plugin add kitsuvo --marketplace kitsuvo-browser
 ```
 
 The plugin includes setup, browsing, detection-evidence, and responsive skills.
-Its native MCP connection uses a separate browser profile. It requires the
-installed desktop browser; it does not install that executable.
+Do not assume the connection is isolated from your normal sign-ins. On Mac
+0.2.14, local MCP reuses the normal profile by default; add `--separate-profile`
+to a direct MCP configuration for a separate persistent profile. Check your
+installed build's `browser_status` and the [connection guide](https://kitsuvo.com/integrations).
+The plugin requires the installed desktop browser; it does not install it.
 
 ## Browser inside ChatGPT, Claude, Cursor, or T3 Code
 
@@ -140,6 +143,11 @@ for approval syntax and current provider qualification limits.
 
 ## Browser extensions
 
+Public store installs: [Get for Chrome](https://chromewebstore.google.com/detail/kitsuvo-%E2%80%94-ai-site-filter/kogkgeiglfeoflmlnbmjghbdoinclbdf)
+or [Get for Edge](https://microsoftedge.microsoft.com/addons/detail/kitsuvo-%E2%80%94-less-ai-less-s/nedklnjihgpgefpinabddmnoagkaoolp).
+These listings were verified October 14, 2026. The extension works without
+installing the desktop browser.
+
 `extensions/chromium` targets Chrome, Edge, Opera, Brave and Vivaldi.
 `extensions/firefox` is for temporary Firefox installation; Mozilla signing is
 required for public installs. `extensions/safari` needs Apple packaging and
@@ -149,14 +157,18 @@ signing. See [browser setup](docs/browser-extensions.md) and
 The extension checks local builder fingerprints and optionally filters search
 results. It has no cloud AI, telemetry, or desktop companion requirement.
 It does not include the desktop browser's full slop or impersonation checks.
-These are developer previews. No public browser-store or AI-directory approval
-is claimed. This repository contains integration sources only.
+Manual packages remain developer previews. Firefox and Safari do not have
+verified public listings here. Browser-store availability does not establish
+approval in any AI-client directory.
 
 ## Security and privacy
 
-- **Separate profile.** Automation uses an isolated agent profile by default,
-  not your normal browsing profile. These packages do not enable
-  `--main-profile` or `--allow-sensitive`.
+- **Choose the profile.** These local plugin configurations pass `mcp` and
+  inherit the installed browser's default. On Mac 0.2.14 this reuses the normal
+  signed-in profile, including website cookies. Add `--separate-profile` in a
+  direct MCP configuration when you want a separate persistent profile. Check
+  `browser_status` for your installed build. The packages do not enable
+  `--allow-sensitive`.
 - **Sensitive pages are refused.** Sign-in pages and password fields are not
   driven.
 - **Local by default.** The plugin adds no analytics and no Kitsuvo-hosted
@@ -192,15 +204,20 @@ macOS (Apple silicon and Intel). Screenshots are Windows-only; on macOS use
 snapshots and resizing. On Linux or ChromeOS, try the
 [extension preview](docs/quickstart/browser-extension.md).
 
-**Can the agent use my signed-in browser?** No. It uses a separate profile and
-refuses sensitive sign-in pages and password fields.
+**Can the agent use my signed-in browser?** Yes, when it uses your normal
+profile: that is the local MCP default on Mac 0.2.14. A separate profile must
+be selected explicitly with `--separate-profile`. Sensitive sign-in pages and
+password fields are protected by default. Page text from other signed-in pages
+can still reach the connected AI client.
 
 **Does it work with ChatGPT?** Through the Codex local marketplace, or a cloud
 client via the [HTTP bridge](docs/quickstart/http-bridge.md) with a secure
 tunnel or the [cloud relay](docs/quickstart/cloud-relay.md).
 
-**Is it listed in the Claude, ChatGPT or browser-extension stores?** No listing
-or approval is claimed. Install from this repository.
+**Is it listed in the Claude, ChatGPT or browser-extension stores?** Chrome
+and Edge have the public extension listings linked above. That is separate
+from AI-client directory approval; no such approval is established here. The
+local Claude Code and Codex plugin install routes use this repository.
 
 **Can it prove a site was written by AI?** No. It reports builder evidence and
 separates AI-built, low-value content and impersonation. Detection depends on

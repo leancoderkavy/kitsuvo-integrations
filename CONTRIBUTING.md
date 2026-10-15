@@ -46,7 +46,11 @@ manifests must keep that tone:
   [docs/marketplace-integrations.md](docs/marketplace-integrations.md) for what
   is and is not established.
 - Do not enable `--main-profile` or `--allow-sensitive` in any shipped
-  configuration. Automation uses a separate profile and refuses sign-in pages.
+  configuration. Do not describe an omitted profile flag as proof of isolation:
+  local MCP inherits the installed browser's default, which reuses the normal
+  signed-in profile on Mac 0.2.14. Document explicit `--separate-profile` use
+  when appropriate and check `browser_status` for the installed build. Sensitive
+  pages and password fields remain protected by default.
 - Never put tokens in URLs, arguments, examples or commit messages.
 
 ## Running the checks locally

@@ -1,4 +1,4 @@
-# Browser extension preview
+# Browser extension setup
 
 Checks the current page for known AI-builder fingerprints, generator tags and
 builder hosting, and can optionally hide builder-hosted results on Google,
@@ -6,8 +6,14 @@ Bing and DuckDuckGo. Everything runs in the extension: no account, API key,
 cloud model, telemetry or desktop app. It is a focused subset of the desktop
 detector and does not include slop or impersonation checks.
 
-These are developer previews. No store listing is claimed; install them
-unpacked.
+Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/kitsuvo-%E2%80%94-ai-site-filter/kogkgeiglfeoflmlnbmjghbdoinclbdf)
+or [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/kitsuvo-%E2%80%94-less-ai-less-s/nedklnjihgpgefpinabddmnoagkaoolp).
+Both public listings were verified October 14, 2026. Choose the store for your
+browser, then open a normal website and select **Scan this page** from Kitsuvo's
+toolbar popup. No desktop companion is needed.
+
+The instructions below cover manual developer previews. Firefox signing and
+Safari packaging remain separate from the Chrome and Edge store releases.
 
 ## Chrome, Edge, Opera, Brave, Vivaldi
 
