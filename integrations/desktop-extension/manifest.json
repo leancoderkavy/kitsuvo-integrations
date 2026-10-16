@@ -1,7 +1,7 @@
 {
   "manifest_version": "0.3",
   "name": "kitsuvo",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "display_name": "Kitsuvo",
   "description": "Browse and inspect websites using your installed Kitsuvo browser.",
   "long_description": "Requires Kitsuvo installed on Windows or macOS. Uses a separate automation profile and refuses sensitive pages by default. Page content returned through MCP is visible to your connected AI client. No cloud relay is enabled by this extension.",

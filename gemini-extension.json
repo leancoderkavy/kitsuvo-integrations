@@ -1,6 +1,6 @@
 {
   "name": "kitsuvo-integrations",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Connect Gemini CLI to the installed Kitsuvo browser for browsing, detection evidence, and responsive checks.",
   "mcpServers": {
     "kitsuvo": {

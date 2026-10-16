@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { request } from 'node:http';
+import { request, createServer } from 'node:http';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { createBridge, readConfig } from '../server.mjs';
@@ -12,6 +12,27 @@ test('port configuration rejects invalid values', () => {
   }
   assert.equal(readConfig({ KITSUVO_BINARY: 'C:/Program Files/Kitsuvo/kitsuvo.exe' }).binary,
     'C:/Program Files/Kitsuvo/kitsuvo.exe');
+});
+
+test('design discovery, schema and structured errors survive the HTTP bridge', async t => {
+  const data = {schema_version:1,ok:false,code:'NOT_FOUND',error:'No target',hint:'Query again'};
+  const definition = {name:'browser_design',description:'Read design measurements',inputSchema:{type:'object',properties:{op:{type:'string'}}},outputSchema:{type:'object',required:['schema_version','ok'],properties:{schema_version:{type:'integer'},ok:{type:'boolean'}}}};
+  const success = {schema_version:1,ok:true,units:'CSS px',coordinate_space:'viewport',rect:{x:10,y:20,width:100,height:50}};
+  const backend = {listTools:async()=>({tools:[definition]}),callTool:async params=>{const value=params.arguments.selector==='#missing'?data:success;return {content:[{type:'text',text:JSON.stringify(value)}],structuredContent:value,isError:!value.ok}}};
+  const reservation = createServer();
+  await new Promise(resolve=>reservation.listen(0,'127.0.0.1',resolve));
+  const port=reservation.address().port;await new Promise(resolve=>reservation.close(resolve));
+  const bridge=createBridge(backend,{port});await new Promise(resolve=>bridge.listen(port,'127.0.0.1',resolve));
+  t.after(()=>{bridge.closeAllConnections();bridge.close()});
+  const client=new Client({name:'model-agnostic-design-test',version:'1'});t.after(()=>client.close());
+  await client.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`)));
+  const tool=(await client.listTools()).tools.find(tool=>tool.name==='browser_design');
+  assert.deepEqual(tool.outputSchema,definition.outputSchema);
+  const response=await client.callTool({name:'browser_design',arguments:{op:'inspect',selector:'#missing'}});
+  assert.equal(response.isError,true);assert.deepEqual(response.structuredContent,data);
+  assert.deepEqual(JSON.parse(response.content[0].text),data);
+  const read=await client.callTool({name:'browser_design',arguments:{op:'inspect',selector:'#card'}});
+  assert.equal(read.isError,false);assert.deepEqual(read.structuredContent,success);
 });
 
 test('HTTP MCP negotiates, forwards tools and results, and rejects untrusted requests', async t => {
