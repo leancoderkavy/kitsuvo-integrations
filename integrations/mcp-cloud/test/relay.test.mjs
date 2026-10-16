@@ -180,6 +180,7 @@ test('unsafe relay URLs, redirects, hosts, origins and scopes are rejected', { t
     assert.equal(card.authentication.required, true);
     assert.deepEqual(card.authentication.schemes, ['oauth2']);
     assert.ok(card.tools.some(tool => tool.name === 'browser_snapshot'));
+    assert.ok(card.tools.some(tool => tool.name === 'browser_run_script' && tool.annotations.readOnlyHint === false));
     assert.ok(card.tools.every(tool => typeof tool.name === 'string' && tool.inputSchema.type === 'object'));
     assert.deepEqual(Object.keys(card).sort(), ['authentication','serverInfo','tools']);
   }

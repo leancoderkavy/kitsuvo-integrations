@@ -611,6 +611,59 @@
         "readOnlyHint": true,
         "openWorldHint": true
       }
+    },
+    {
+      "name": "browser_run_script",
+      "title": "Run a page interaction script",
+      "description": "Run an async JavaScript function body in the selected page. Parameters: browser and args. Helpers: await browser.click(css), type(css,text,{clear}), select(css,values), hover(css), waitFor(css) returning an element ref, sleep(ms); browser.snapshot(), check(), signal. Unique visible CSS matches traverse open shadow DOM and same-origin frames. Return JSON. Helpers use synthetic DOM input; use regular browser tools for trusted native input. Stops helper sequences on navigation, timeout or cancellation. Arbitrary JS is not sandboxed or forcibly stopped; use helpers and check() in loops, never unbounded loops. No automatic retries or rollback. Result contains ok, value/error and actions_attempted, with a final snapshot by default.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "args": {
+            "description": "JSON data passed separately from script code"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "script": {
+            "maxLength": 65536,
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "timeout_ms": {
+            "default": 30000,
+            "maximum": 60000,
+            "minimum": 100,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "script"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
     }
   ]
 }

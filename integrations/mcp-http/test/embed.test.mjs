@@ -40,6 +40,7 @@ test('opt-in embed routes serve a bounded panel bridge and preserve local reques
   assert.equal(resource.contents[0].uri, APP_URI);
   assert.match(resource.contents[0].text, /Content-Security-Policy/);
   assert.equal((await post({ name: 'browser_evaluate', arguments: { expression: 'document.cookie' } })).status, 403);
+  assert.equal((await post({ name: 'browser_run_script', arguments: { script: 'return document.cookie' } })).status, 403);
   assert.equal(calls.length, 0);
   assert.equal((await post({ name: 'kitsuvo_browser' }, { Origin: 'https://evil.example' })).status, 403);
   const foreignHost = await new Promise((resolve, reject) => {
