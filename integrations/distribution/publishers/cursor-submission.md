@@ -6,17 +6,16 @@ MCP servers and Agent Plugins for inclusion.
 
 - Name: Kitsuvo
 - Website: https://kitsuvo.com
-- Repository: https://github.com/leancoderkavy/kitsuvo-integrations
 - Portable Agent Plugin: `plugins/kitsuvo`
 - Remote MCP endpoint: https://kitsuvo-mcp-relay.fly.dev/mcp
 - Privacy: https://kitsuvo.com/privacy
 - Terms: https://kitsuvo.com/terms
-- Support: https://github.com/leancoderkavy/kitsuvo-integrations/issues
+- Support: mailto:hello@kitsuvo.com
 
 ## Publisher completion steps
 
-1. Sign in at https://cursor.com/marketplace/publish and apply with the public
-   repository. Point reviewers at `plugins/kitsuvo` if the form accepts a
+1. Sign in at https://cursor.com/marketplace/publish and apply with the website and downloadable
+   integration archive. Point reviewers at `plugins/kitsuvo` if the form accepts a
    repository subdirectory; otherwise publish a dedicated release repository
    whose root is the portable plugin.
 2. Prefer the local Agent Plugin for desktop Cursor because it starts the
@@ -28,7 +27,7 @@ MCP servers and Agent Plugins for inclusion.
 4. Record the Cursor version, OS, install source, discovered tools, and whether
    the MCP Apps panel rendered. A successful JSON configuration test does not
    establish Marketplace installation or panel support.
-5. Submit only after the public repository and download URLs contain the exact
+5. Submit only after the download URLs contain the exact
    reviewed version. Preserve the existing listing rather than creating a
    duplicate if Cursor assigns one during review.
 

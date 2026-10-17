@@ -102,13 +102,7 @@ claude plugin marketplace add .
 claude plugin install kitsuvo@kitsuvo-browser
 ```
 
-The integration marketplace is public. The native application repository
-remains private; the marketplace includes only the reviewed integration sources:
-
-```sh
-claude plugin marketplace add leancoderkavy/kitsuvo-integrations
-claude plugin install kitsuvo@kitsuvo-browser
-```
+The integrations repository is private. Use the downloaded archive for local installation.
 
 For development: `claude --plugin-dir ./plugins/kitsuvo`. For MCP alone:
 `claude mcp add --scope user kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile`. Claude Desktop can merge the
@@ -129,7 +123,7 @@ codex plugin marketplace add .
 codex plugin add kitsuvo --marketplace kitsuvo-browser
 ```
 
-Add the public marketplace with the commands above, then install **Kitsuvo**
+Add the downloaded marketplace with the commands above, then install **Kitsuvo**
 from that marketplace in a host with local plugin support. A public ChatGPT
 directory listing has not been verified. Restart the host after package changes. The repository's
 `.agents/plugins/marketplace.json` points at the portable `plugins/kitsuvo`
@@ -365,7 +359,7 @@ Listing name: **Kitsuvo**. Short description: **Filter likely AI-built websites 
 Full description and sample prompts are in `plugin.json`.
 Website: <https://kitsuvo.com>. Privacy: <https://kitsuvo.com/privacy>.
 Terms: <https://kitsuvo.com/terms>. Support:
-<https://github.com/leancoderkavy/kitsuvo-integrations/issues>.
+<mailto:hello@kitsuvo.com>.
 
 The repository catalogs support local/private installation. They do not mean
 the plugin is approved in either public directory. Claude's directory uses

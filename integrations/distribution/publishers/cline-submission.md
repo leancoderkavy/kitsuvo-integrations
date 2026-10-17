@@ -8,8 +8,7 @@ the corresponding compatibility claim. An SDK handshake or another client's
 successful setup is not a Cline host qualification.
 
 - Name: Kitsuvo
-- GitHub repository: https://github.com/leancoderkavy/kitsuvo-integrations
-- Installation instructions: https://github.com/leancoderkavy/kitsuvo-integrations/blob/main/llms-install.md
+- Installation instructions: https://kitsuvo.com/integrations
 - Logo (400×400 PNG): https://kitsuvo.com/downloads/mcp/icon-400.png
 - Author: leancoderkavy
 - License: Kitsuvo Integration License (proprietary; do not select an open-source license)

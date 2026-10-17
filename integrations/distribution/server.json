@@ -3,10 +3,6 @@
   "name": "io.github.leancoderkavy/kitsuvo",
   "title": "Kitsuvo",
   "description": "Browse and inspect sites in your own Kitsuvo browser through an opt-in authenticated relay.",
-  "repository": {
-    "url": "https://github.com/leancoderkavy/kitsuvo-integrations",
-    "source": "github"
-  },
   "version": "0.2.8",
   "remotes": [
     {

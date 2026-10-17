@@ -30,18 +30,14 @@ normally use `/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo`.
 
 Claude Code: `claude mcp add --scope user kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile`.
 Codex: `codex mcp add kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile`.
-For skills too, install `kitsuvo@kitsuvo-browser` from the public
-`leancoderkavy/kitsuvo-integrations` marketplace.
-
-Gemini CLI can install the public repository as an extension:
+For skills too, download and extract the [integrations archive](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.12.zip), then run the marketplace commands from the extracted folder:
 
 ```sh
-gemini extensions install https://github.com/leancoderkavy/kitsuvo-integrations --ref v0.2.8
+claude plugin marketplace add .
+claude plugin install kitsuvo@kitsuvo-browser
 ```
 
-The extension configures `kitsuvo mcp`; it does not install the desktop browser.
-Use the manual `gemini-cli.json` route when the executable needs an absolute
-path. Restart Gemini CLI after installing or updating an extension.
+For Gemini CLI, use the manual `gemini-cli.json` configuration above with the installed executable path. Restart the client and verify its connection.
 
 ### Claude Desktop extension
 
@@ -83,10 +79,10 @@ access to their own isolated browser. Closing the connector revokes access.
 The relay has ephemeral state; restarts require reconnection/reauthorization.
 A sleeping or disconnected user computer cannot fulfill browser workflows.
 
-For Claude Code's remote variant:
+For Claude Code's remote variant, run from the extracted integrations archive:
 
 ```sh
-claude plugin marketplace add leancoderkavy/kitsuvo-integrations
+claude plugin marketplace add .
 claude plugin install kitsuvo-cloud@kitsuvo-browser
 ```
 
