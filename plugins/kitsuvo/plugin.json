@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "kitsuvo",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Less AI. Less slop. Filter likely AI-built websites and inspect local evidence. Optional MCP tools let you browse, read and act with visible controls, in your normal signed-in profile or a separate profile you choose.",
   "author": {
     "name": "Kitsuvo",

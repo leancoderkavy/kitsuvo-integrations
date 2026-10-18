@@ -49,7 +49,7 @@ Directory approval is separate from these install sources.
 | Claude Code (MCP only) | `claude mcp add kitsuvo -- kitsuvo mcp` | [Claude Code](docs/quickstart/claude-code.md#mcp-server-only) |
 | Codex (plugin) | `codex plugin marketplace add leancoderkavy/kitsuvo-integrations` then `codex plugin add kitsuvo --marketplace kitsuvo-browser` | [Codex](docs/quickstart/codex.md) |
 | Codex (MCP only) | `codex mcp add kitsuvo -- kitsuvo mcp` | [Codex](docs/quickstart/codex.md#mcp-server-only) |
-| Gemini CLI extension | `gemini extensions install https://github.com/leancoderkavy/kitsuvo-integrations --ref v0.2.8` | [Other clients](docs/quickstart/mcp-clients.md) |
+| Gemini CLI extension | `gemini extensions install https://github.com/leancoderkavy/kitsuvo-integrations --ref v0.2.9` | [Other clients](docs/quickstart/mcp-clients.md) |
 | Another stdio MCP client | `{"mcpServers":{"kitsuvo":{"command":"kitsuvo","args":["mcp"]}}}` | [Other clients](docs/quickstart/mcp-clients.md) |
 | ChatGPT or a cloud client, with a tunnel | `cd integrations/mcp-http && npm ci --ignore-scripts && npm start` | [HTTP bridge](docs/quickstart/http-bridge.md) |
 | A cloud client, no tunnel | Start the connector in `integrations/mcp-cloud` | [Cloud relay](docs/quickstart/cloud-relay.md) |
