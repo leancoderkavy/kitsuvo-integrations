@@ -28,7 +28,7 @@ test('marketplace entries resolve to the same package and bundled brand assets e
   assert.equal(native.license, 'LicenseRef-Kitsuvo-Integration');
   assert.match((await read(`${path}/LICENSE`)).toString(), /personal purposes/);
   assert.equal(native.repository, portable.repository);
-  assert.match(native.supportUrl, /kitsuvo-integrations\/issues$/);
+  assert.equal(native.supportUrl, 'https://kitsuvo.com/integrations');
   const metadata = portable.extensions['com.openai'];
   assert.ok(metadata.interface.displayName.length <= 30);
   assert.ok(metadata.interface.shortDescription.length <= 30);

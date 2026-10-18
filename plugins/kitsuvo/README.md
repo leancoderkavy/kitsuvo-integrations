@@ -19,11 +19,12 @@ Install Kitsuvo from https://kitsuvo.com on Windows or macOS and place `kitsuvo`
 
 The local server runs in Claude Code and Cowork. It does not run on Claude web or mobile. On macOS use page snapshots and resizing; screenshots are Windows-only.
 
-After adding `leancoderkavy/kitsuvo-integrations` as a marketplace, install in
+Download and extract the integrations archive from https://kitsuvo.com/integrations.
+Run `claude plugin marketplace add .` from the extracted folder, then install in
 Claude Code 2.1.275 or later with:
 
 ```text
-/plugin install kitsuvo --marketplace leancoderkavy/kitsuvo-integrations
+/plugin install kitsuvo --marketplace kitsuvo-browser
 ```
 
 ## Data handling
@@ -36,7 +37,7 @@ Navigation contacts the websites the user opens. User-requested interactions can
 
 Privacy: https://kitsuvo.com/privacy
 Terms: https://kitsuvo.com/terms
-Support: https://github.com/leancoderkavy/kitsuvo-integrations/issues
+Support: mailto:hello@kitsuvo.com
 
 ## Reviewer walkthrough
 

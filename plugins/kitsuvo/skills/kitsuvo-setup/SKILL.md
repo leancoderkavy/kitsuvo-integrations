@@ -9,7 +9,7 @@ Check whether Kitsuvo's `browser_tabs` tool is available (hosts may namespace it
 
 If tools are missing, enable the installed plugin and start a new conversation. If the executable cannot be found, put the installed Kitsuvo executable on PATH or replace `command` in the client's MCP configuration with its absolute path; keep `args: ["mcp"]`. Restart the client. Do not download or run an unrelated binary.
 
-Cloud clients cannot execute a local stdio server directly. Use the opt-in authenticated relay or bridge and Secure MCP Tunnel setup in the [integration guide](https://github.com/leancoderkavy/kitsuvo-integrations/blob/main/docs/marketplace-integrations.md). Do not invent a server URL or a registered app ID.
+Cloud clients cannot execute a local stdio server directly. Use the opt-in authenticated relay or bridge and Secure MCP Tunnel setup in the [integration guide](https://kitsuvo.com/integrations). Do not invent a server URL or a registered app ID.
 
 When ready, offer a first task: open a user-selected page and read its Kitsuvo report. Do not enable `--main-profile` or `--allow-sensitive` as a setup shortcut.
 

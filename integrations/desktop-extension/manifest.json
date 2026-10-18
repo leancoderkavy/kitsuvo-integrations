@@ -9,13 +9,9 @@
     "name": "Kitsuvo",
     "url": "https://kitsuvo.com"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/leancoderkavy/kitsuvo-integrations"
-  },
   "homepage": "https://kitsuvo.com",
   "documentation": "https://kitsuvo.com/integrations",
-  "support": "https://github.com/leancoderkavy/kitsuvo-integrations/issues",
+  "support": "https://kitsuvo.com/integrations",
   "icon": "icon-256.png",
   "license": "LicenseRef-Kitsuvo-Integration",
   "privacy_policies": [
