@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { request, createServer } from 'node:http';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { createBridge, readConfig } from '../server.mjs';
+import { createBridge, readConfig, nativeEnvironment } from '../server.mjs';
 import { APP_URI, APP_MIME, appTools } from '../browser-app.mjs';
 
 test('port configuration rejects invalid values', () => {
@@ -62,7 +62,7 @@ test('HTTP MCP negotiates, forwards tools and results, and rejects untrusted req
   await new Promise(resolve => bridge.listen(port, '127.0.0.1', resolve));
   t.after(() => { bridge.closeAllConnections(); bridge.close(); });
   const url = new URL(`http://127.0.0.1:${port}/mcp`);
-  const client = new Client({ name: 'test', version: '1.0.0' });
+  const client = new Client({ name: 'test', title: 'Test Agent', version: '1.0.0' });
   t.after(() => client.close());
   await client.connect(new StreamableHTTPClientTransport(url));
   assert.deepEqual((await client.listTools()).tools, [tool, ...appTools]);
@@ -78,6 +78,7 @@ test('HTTP MCP negotiates, forwards tools and results, and rejects untrusted req
   assert.equal(calls[0].name,'kitsuvo_report');
   assert.deepEqual(calls[0].arguments,{tab:3});
   assert.ok(calls[0]._meta['kitsuvo/deadlineMs'] > 0 && calls[0]._meta['kitsuvo/deadlineMs'] <= 180000);
+  assert.equal(calls[0]._meta['kitsuvo/client'], 'Test Agent', 'the shared native connection learns the upstream client');
   assert.equal((await client.callTool({ name: 'kitsuvo_report', arguments: { tab: 99 } })).isError, true);
   calls.length = 0;
   const panel = client.callTool({ name: 'kitsuvo_browser', arguments: {} });
@@ -85,6 +86,7 @@ test('HTTP MCP negotiates, forwards tools and results, and rejects untrusted req
   const [panelResult] = await Promise.all([panel, native]);
   assert.equal(panelResult.structuredContent.tab, 3);
   assert.equal(panelResult._meta.preview.data, 'cG5n');
+  assert.ok(calls.every(call => call._meta?.['kitsuvo/client'] === 'Test Agent'), 'panel calls name the upstream client too');
   const names = calls.map(call => call.name);
   const start = names.indexOf('browser_snapshot');
   assert.deepEqual(names.slice(start, start + 3), ['browser_snapshot', 'browser_tabs', 'browser_take_screenshot'],
@@ -103,6 +105,13 @@ test('HTTP MCP negotiates, forwards tools and results, and rejects untrusted req
   assert.equal((await fetch(new URL('/wrong', url))).status, 404);
 });
 
+
+test('native environment keeps the Codex thread for session links', () => {
+  const env = nativeEnvironment({ CODEX_THREAD_ID: 'thread-1', KITSUVO_PROFILE_DIR: '/profile', SECRET_TOKEN: 'no' });
+  assert.equal(env.CODEX_THREAD_ID, 'thread-1');
+  assert.equal(env.KITSUVO_PROFILE_DIR, '/profile');
+  assert.equal(env.SECRET_TOKEN, undefined);
+});
 
 test('headless configuration is explicit and disabled by default', () => {
   assert.equal(readConfig({}).headless, false);

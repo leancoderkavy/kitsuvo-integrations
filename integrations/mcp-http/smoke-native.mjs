@@ -54,9 +54,9 @@ try {
   await new Promise(resolve => reservation.close(resolve));
   bridge = createBridge(native, { port, embed: true, createBackend: info => createNativeBackend({ binary: process.env.KITSUVO_BINARY || 'kitsuvo', headless }, info) });
   await new Promise(resolve => bridge.listen(port, '127.0.0.1', resolve));
-  httpClient = new Client({ name: 'kitsuvo-http-qualification', version: '1.0.0' });
+  httpClient = new Client({ name: 'kitsuvo-http-qualification', title: 'HTTP qualification agent', version: '1.0.0' });
   const httpTransport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`));
-  parallelClient = new Client({ name: 'kitsuvo-parallel-qualification', version: '1.0.0' });
+  parallelClient = new Client({ name: 'kitsuvo-parallel-qualification', title: 'Parallel qualification agent', version: '1.0.0' });
   const parallelTransport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`));
   await Promise.all([httpClient.connect(httpTransport), parallelClient.connect(parallelTransport)]);
   assert.notEqual(httpTransport.sessionId, parallelTransport.sessionId);
@@ -72,6 +72,12 @@ try {
   ]);
   const tabOf = page => Number(page.content[0].text.match(/Tab: (\d+)/)[1]);
   assert.notEqual(tabOf(parallelPages[0]), tabOf(parallelPages[1]));
+  for (const [client, title] of [[httpClient, 'HTTP qualification agent'], [parallelClient, 'Parallel qualification agent']]) {
+    // Status observes the most recent controller; it does not claim control.
+    await call(client, 'browser_snapshot');
+    const status = JSON.parse((await call(client, 'browser_status')).content[0].text);
+    assert.equal(status.controller.client, title, 'the native controller receives the upstream title');
+  }
   let slowFinished = false;
   const slow = call(httpClient, 'browser_evaluate', { expression: 'new Promise(resolve => { const marker = document.createElement("p"); marker.textContent = "HTTP slow started"; document.body.append(marker); setTimeout(() => resolve("slow done"), 2000); })' })
     .then(value => { slowFinished = true; return value; });
@@ -94,10 +100,14 @@ try {
   const panel = await call(httpClient, 'kitsuvo_browser', { url: base });
   assert.match(JSON.stringify(panel.structuredContent), /Browser qualification/);
   assert.equal(panel.structuredContent.tabs.length > 0, true);
+  const panelTab = panel.structuredContent.tab;
+  assert.ok(Number.isInteger(panelTab));
+  assert.notEqual(panelTab, tabOf(parallelPages[0]), 'a new panel owns its own tab');
   await parallelTransport.terminateSession();
   await parallelClient.close();
   // Deleting one native connection must leave the other tab context usable.
-  assert.equal(tabOf(await call(httpClient, 'browser_snapshot')), tabOf(parallelPages[0]));
+  assert.equal(tabOf(await call(httpClient, 'browser_snapshot')), panelTab);
+  assert.equal(tabOf(await call(httpClient, 'browser_snapshot', { tab: tabOf(parallelPages[0]) })), tabOf(parallelPages[0]));
   const endpoint = `http://127.0.0.1:${port}`;
   const embedPost = (value, headers = {}) => fetch(endpoint + '/embed/action', { method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(value) });

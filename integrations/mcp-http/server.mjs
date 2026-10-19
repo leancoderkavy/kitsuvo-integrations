@@ -33,6 +33,13 @@ export function createAppServer(backend, serialize = (operation, options) => ope
       instructions: `${backend.getInstructions?.() ?? ''}\nCall kitsuvo_browser to display the interactive browser inside chat. Native tools remain available for automation.` },
   );
   const tools = () => cachedCatalogue(backend);
+  // Stdio and shared HTTP bridges reuse one native connection, which only saw
+  // the bridge's own initialize. Name the upstream client on every call.
+  const caller = () => {
+    const info = server.getClientVersion();
+    const name = [info?.title, info?.name].find(value => typeof value === 'string' && value.trim());
+    return name ? { 'kitsuvo/client': name.trim().slice(0, 120) } : {};
+  };
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     const result = await tools();
     return { ...result, tools: [...result.tools, ...appTools] };
@@ -48,8 +55,8 @@ export function createAppServer(backend, serialize = (operation, options) => ope
   });
   server.setRequestHandler(CallToolRequestSchema, (request, extra) => serialize((signal, remainingMs = () => 180000) =>
     appTools.some(tool => tool.name === request.params.name)
-      ? callBrowserApp(backend, request.params.name, request.params.arguments, signal)
-      : backend.callTool({...request.params,_meta:{...request.params._meta,'kitsuvo/deadlineMs':remainingMs()}}, undefined, { timeout: remainingMs(), signal }),
+      ? callBrowserApp(backend, request.params.name, request.params.arguments, signal, caller())
+      : backend.callTool({...request.params,_meta:{...request.params._meta,...caller(),'kitsuvo/deadlineMs':remainingMs()}}, undefined, { timeout: remainingMs(), signal }),
     { signal: extra.signal },
   ));
   return server;
@@ -117,12 +124,20 @@ export function nativeArguments(help, headless = false) {
   return ['mcp', ...(legacy ? [] : ['--separate-profile']), ...(headless ? ['--headless'] : [])];
 }
 
+// The SDK's default environment drops host variables. Kitsuvo derives the
+// session link from CODEX_THREAD_ID, so pass that through with the profile.
+export function nativeEnvironment(env = process.env) {
+  const passed = ['KITSUVO_PROFILE_DIR', 'CODEX_THREAD_ID'].filter(key => env[key]);
+  return { ...getDefaultEnvironment(), ...Object.fromEntries(passed.map(key => [key, env[key]])) };
+}
+
 export async function createNativeBackend(config, clientInfo = { name: 'kitsuvo-http-bridge', version: '0.2.3' }) {
   const { stdout: help } = await promisify(execFile)(config.binary, ['--help'], { timeout: 5000, maxBuffer: 65536, windowsHide: true });
-  const backend = new Client({ name: clientInfo.name, version: clientInfo.version });
+  // Keep the title: Kitsuvo's agent bar prefers it over the package name.
+  const title = typeof clientInfo.title === 'string' && clientInfo.title.trim() ? { title: clientInfo.title } : {};
+  const backend = new Client({ name: clientInfo.name || 'kitsuvo-http-bridge', version: clientInfo.version || '0', ...title });
   const transport = new StdioClientTransport({ command: config.binary, args: nativeArguments(help, config.headless), stderr: 'inherit',
-    env: { ...getDefaultEnvironment(), ...(process.env.KITSUVO_PROFILE_DIR ? { KITSUVO_PROFILE_DIR: process.env.KITSUVO_PROFILE_DIR } : {}) },
-  });
+    env: nativeEnvironment() });
   try {
     await backend.connect(transport, { timeout: 30_000 });
     if (process.env.KITSUVO_PANEL_STATE_FILE) backend._kitsuvoPanelRecovery = await panelStore(process.env.KITSUVO_PANEL_STATE_FILE, process.env.KITSUVO_PROFILE_DIR);
