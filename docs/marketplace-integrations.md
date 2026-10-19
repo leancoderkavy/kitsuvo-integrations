@@ -90,7 +90,7 @@ Keep `args: ["mcp"]`. Plugin installation does not install the native browser.
 An installed plugin is cached by its host; edit/reinstall the plugin copy or
 configure a separate native MCP connection when using a custom executable path.
 
-Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.16.zip`.
+Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.17.zip`.
 It contains the local marketplace manifests, branded plugin, four skills, and
 loopback HTTP MCP bridge with its locked dependencies and tests. Commands below
 run from the extracted directory or an authorized repository checkout.
@@ -416,8 +416,7 @@ npm test
 After connecting, list tools, open a harmless page, read its snapshot and
 report, and switch responsive mode on and off. Check a denied sensitive page
 and a missing executable. On both platforms validate snapshots, resizing,
-viewport screenshots, and asynchronous evaluation. Full-page screenshots remain
-Windows-only. Call `kitsuvo_browser` to verify navigation, tabs, harmless
+viewport screenshots, bounded full-page capture, and asynchronous evaluation. Call `kitsuvo_browser` to verify navigation, tabs, harmless
 form submission and page evidence in the panel. Before a public submission, test the installed package in
 both clients using the publisher's registered connection.
 
