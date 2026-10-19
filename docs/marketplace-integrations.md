@@ -12,8 +12,8 @@ needed for local browser automation or local detection.
 [Client setup and distribution](distribution-clients.md) includes Cursor, VS Code,
 Gemini CLI, Cline, Continue, LM Studio, Devin and workflow recipes for n8n,
 Zapier and Dify. The Claude Desktop bundle is
-`https://kitsuvo.com/downloads/kitsuvo-desktop-0.2.9.mcpb`. The remote plugin
-variant is `https://kitsuvo.com/downloads/kitsuvo-cloud-plugin-0.2.9.zip`.
+`https://kitsuvo.com/downloads/kitsuvo-desktop-0.2.10.mcpb`. The remote plugin
+variant is `https://kitsuvo.com/downloads/kitsuvo-cloud-plugin-0.2.10.zip`.
 Each requires the user’s own installed browser; neither implies directory approval.
 
 ## Point a chat at an already open window
@@ -90,7 +90,7 @@ Keep `args: ["mcp"]`. Plugin installation does not install the native browser.
 An installed plugin is cached by its host; edit/reinstall the plugin copy or
 configure a separate native MCP connection when using a custom executable path.
 
-Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.13.zip`.
+Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.14.zip`.
 It contains the local marketplace manifests, branded plugin, four skills, and
 loopback HTTP MCP bridge with its locked dependencies and tests. Commands below
 run from the extracted directory or an authorized repository checkout.
@@ -453,3 +453,37 @@ on Mac 0.2.14 this uses the normal signed-in profile. The plugin also requires
 commands and confirm `kitsuvo --help` works in that terminal. This does not set
 PATH for desktop apps launched from the Dock. The browser's Add button or exported marketplace uses the actual
 absolute executable path. Use one Kitsuvo connection per conversation.
+
+## Display branding and host caches
+
+Product display names are **Kitsuvo** and listing artwork is the official mask
+in `assets/icon-256.png`. Lowercase `kitsuvo`, `kitsuvo-cloud`, and
+`kitsuvo-browser` remain stable package/server/marketplace identifiers.
+Cursor/Grok Bot manifests provide `displayName` and `logo` with a dedicated
+`.cursor-plugin/marketplace.json`, following the
+[Cursor/Grok Bot manifest schema](https://github.com/cursor/plugins/blob/main/schemas/plugin.schema.json).
+Claude-compatible manifests and marketplace
+entries provide `displayName`;
+OpenAI interfaces provide `interface.displayName`, `logo` and `composerIcon`.
+Native stdio, the local App bridge and the cloud relay advertise the same title
+and an embedded PNG through MCP `serverInfo.icons`. IDE clients use that MCP
+identity when supported; a client that displays configuration keys may still
+show the lowercase server identifier. Gemini CLI does not have a separate
+supported display-name/icon field in our extension manifest.
+
+Grok Bot's installed team-plugin detail page was checked on October 18, 2026:
+it still showed the older imported `kitsuvo` listing and fallback letter icon.
+The exposed detail page offered Uninstall, without an edit/refresh control.
+Its team catalog must ingest the updated package and respect its display
+metadata before the installed UI can be verified. Updating source or ZIPs does
+not establish that this catalog has refreshed. The `spawn kitsuvo ENOENT`
+connection error is separate from branding and is not repaired by this change.
+
+Cross-platform branding audit: Windows/macOS packaging, iOS/iPadOS display
+names, Android labels, browser-extension manifests, OpenAI local/cloud plugin
+interfaces and Claude Desktop already carry the capitalized product name and
+mask artwork. This change fills Cursor/Grok Bot and Claude-compatible display names, MCP identity
+icons and registry artwork. Shared protocol and archive checks run on macOS;
+Windows execution and refreshed installed/published host listings remain
+pending. Mobile app rebuilds are not needed for these desktop/plugin metadata
+changes. No new permissions, remote access or profile behavior are introduced.

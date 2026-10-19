@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,6 +28,12 @@ test('local stdio entry point serves native tools and the same inline app', { ti
   await client.connect(new StdioClientTransport({ command: process.execPath,
     args: [fileURLToPath(new URL('../server.mjs', import.meta.url)), '--stdio'],
     cwd: directory, env: { KITSUVO_BINARY: process.execPath }, stderr: 'inherit' }));
+  const identity = client.getServerVersion();
+  assert.equal(identity.name, 'kitsuvo');
+  assert.equal(identity.title, 'Kitsuvo');
+  assert.equal(identity.icons[0].mimeType, 'image/png');
+  assert.deepEqual(Buffer.from(identity.icons[0].src.split(',')[1], 'base64'),
+    await readFile(new URL('../icon-256.png', import.meta.url)));
   const tools = (await client.listTools()).tools;
   assert.ok(tools.some(tool => tool.name === 'browser_snapshot'));
   assert.equal(tools.find(tool => tool.name === 'kitsuvo_browser')._meta.ui.resourceUri, APP_URI);

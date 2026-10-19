@@ -120,7 +120,11 @@ test('MCP tools and App resources route only to the consenting browser; disconne
   const sdk = await Promise.all(tokens.map(async token => {
     const client = new Client({ name: 'fixture', version: '1' });
     const transport = new StreamableHTTPClientTransport(new URL(f.origin + '/mcp'), { requestInit: { headers: { Authorization: 'Bearer ' + token.access_token } } });
-    await client.connect(transport); t.after(() => client.close()); return client;
+    await client.connect(transport); t.after(() => client.close());
+    assert.equal(client.getServerVersion().title, 'Kitsuvo');
+    assert.equal(client.getServerVersion().icons[0].mimeType, 'image/png');
+    assert.match(client.getServerVersion().icons[0].src, /^data:image\/png;base64,iVBOR/);
+    return client;
   }));
   assert.equal((await sdk[0].listTools()).tools[0].description, 'browser-a');
   assert.equal((await sdk[1].callTool({ name: 'fixture', arguments: {} })).content[0].text, 'browser-b');

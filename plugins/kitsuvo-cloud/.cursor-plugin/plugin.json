@@ -1,0 +1,20 @@
+{
+  "name": "kitsuvo-cloud",
+  "displayName": "Kitsuvo",
+  "version": "0.2.10",
+  "description": "Browse and inspect sites in your own Kitsuvo browser through the opt-in authenticated cloud connector.",
+  "homepage": "https://kitsuvo.com",
+  "license": "LicenseRef-Kitsuvo-Integration",
+  "keywords": [
+    "browser",
+    "automation",
+    "ai-built",
+    "evidence",
+    "responsive"
+  ],
+  "author": {
+    "name": "Kitsuvo"
+  },
+  "logo": "assets/icon-256.png",
+  "mcpServers": "./mcp.json"
+}

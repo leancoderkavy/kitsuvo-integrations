@@ -3,11 +3,20 @@
   "name": "io.github.leancoderkavy/kitsuvo",
   "title": "Kitsuvo",
   "description": "Browse and inspect sites in your own Kitsuvo browser through an opt-in authenticated relay.",
-  "version": "0.2.8",
+  "version": "0.2.10",
   "remotes": [
     {
       "type": "streamable-http",
       "url": "https://kitsuvo-mcp-relay.fly.dev/mcp"
+    }
+  ],
+  "icons": [
+    {
+      "src": "https://kitsuvo.com/assets/icon-256.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "256x256"
+      ]
     }
   ]
 }

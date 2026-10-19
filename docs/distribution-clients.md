@@ -30,7 +30,7 @@ normally use `/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo`.
 
 Claude Code: `claude mcp add --scope user kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile`.
 Codex: `codex mcp add kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile`.
-For skills too, download and extract the [integrations archive](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.13.zip), then run the marketplace commands from the extracted folder:
+For skills too, download and extract the [integrations archive](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.14.zip), then run the marketplace commands from the extracted folder:
 
 ```sh
 claude plugin marketplace add .
@@ -41,7 +41,7 @@ For Gemini CLI, use the manual `gemini-cli.json` configuration above with the in
 
 ### Claude Desktop extension
 
-Download `https://kitsuvo.com/downloads/kitsuvo-desktop-0.2.9.mcpb`.
+Download `https://kitsuvo.com/downloads/kitsuvo-desktop-0.2.10.mcpb`.
 In Claude Desktop choose Settings → Extensions → Advanced settings → Install
 Extension. Configure the Kitsuvo executable. The bundle uses the client's Node
 runtime, has no external npm dependencies and does not install the browser.
@@ -51,13 +51,13 @@ main browsing profile. Revoke it by disabling/removing the desktop extension.
 ## Remote clients and cloud plugin
 
 Endpoint: `https://kitsuvo-mcp-relay.fly.dev/mcp`. OAuth is required. Download
-`https://kitsuvo.com/downloads/kitsuvo-cloud-plugin-0.2.9.zip` for the remote
+`https://kitsuvo.com/downloads/kitsuvo-cloud-plugin-0.2.10.zip` for the remote
 plugin. A package is installation metadata, not a registered publisher app ID.
 Do not fabricate `.app.json` registered IDs; attach the actual portal-generated
 mapping if the target host requires it.
 
 On your own Windows or Mac computer, install Kitsuvo and Node.js 22+, extract
-`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.13.zip`, then:
+`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.14.zip`, then:
 
 ```sh
 cd integrations/mcp-cloud

@@ -181,7 +181,7 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry }) {
     if (!browsers.has(browserId)) return res.status(503).end('Your browser is disconnected.');
     try {
       await protocolSessions.handle(req,res,req.auth.clientId+':'+browserId,()=>{
-        const server = new Server({name:'kitsuvo',version:'0.1.0'},{capabilities:{tools:{},resources:{}}});
+        const server = new Server({name:'kitsuvo',title:'Kitsuvo',version:'0.1.0',icons:[{src:`data:image/png;base64,${readFileSync(new URL('./icon-256.png',import.meta.url)).toString('base64')}`,mimeType:'image/png',sizes:['256x256']}]},{capabilities:{tools:{},resources:{}}});
         server.setRequestHandler(ListToolsRequestSchema,async (_,extra)=>{
           const result=await browser.call('tools/list',undefined,{signal:extra.signal});
           return {...result,tools:result.tools.map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:scope}],_meta:{...tool._meta,securitySchemes:[{type:'oauth2',scopes:scope}]}}))};

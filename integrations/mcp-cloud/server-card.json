@@ -1,7 +1,17 @@
 {
   "serverInfo": {
     "name": "Kitsuvo",
-    "version": "0.2.7"
+    "version": "0.2.7",
+    "title": "Kitsuvo",
+    "icons": [
+      {
+        "src": "https://kitsuvo.com/assets/icon-256.png",
+        "mimeType": "image/png",
+        "sizes": [
+          "256x256"
+        ]
+      }
+    ]
   },
   "authentication": {
     "required": true,

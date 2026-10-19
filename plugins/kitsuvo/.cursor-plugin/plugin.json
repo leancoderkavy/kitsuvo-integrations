@@ -1,0 +1,20 @@
+{
+  "name": "kitsuvo",
+  "displayName": "Kitsuvo",
+  "version": "0.2.10",
+  "description": "Less AI. Less slop. Filter likely AI-built websites and inspect local evidence. Optional MCP tools let you browse, read and act with visible controls, in your normal signed-in profile or a separate profile you choose.",
+  "homepage": "https://kitsuvo.com",
+  "license": "LicenseRef-Kitsuvo-Integration",
+  "keywords": [
+    "browser",
+    "automation",
+    "ai-built",
+    "evidence",
+    "responsive"
+  ],
+  "author": {
+    "name": "Kitsuvo"
+  },
+  "logo": "assets/icon-256.png",
+  "mcpServers": "./mcp.json"
+}

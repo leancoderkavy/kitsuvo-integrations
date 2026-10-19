@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -26,7 +27,8 @@ function cachedCatalogue(backend) {
 
 export function createAppServer(backend, serialize = (operation, options) => operation(options?.signal)) {
   const server = new Server(
-    { name: 'kitsuvo', title: 'Kitsuvo browser', version: '0.2.3' },
+    { name: 'kitsuvo', title: 'Kitsuvo', version: '0.2.3',
+      icons: [{ src: `data:image/png;base64,${readFileSync(new URL('./icon-256.png', import.meta.url)).toString('base64')}`, mimeType: 'image/png', sizes: ['256x256'] }] },
     { capabilities: { tools: {}, resources: {} },
       instructions: `${backend.getInstructions?.() ?? ''}\nCall kitsuvo_browser to display the interactive browser inside chat. Native tools remain available for automation.` },
   );

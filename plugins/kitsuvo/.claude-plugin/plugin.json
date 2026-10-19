@@ -1,6 +1,7 @@
 {
   "name": "kitsuvo",
-  "version": "0.2.9",
+  "displayName": "Kitsuvo",
+  "version": "0.2.10",
   "description": "Less AI. Less slop. Filter likely AI-built websites and inspect local evidence. Optional MCP tools let you browse, read and act with visible controls, in your normal signed-in profile or a separate profile you choose.",
   "author": {
     "name": "Kitsuvo",
