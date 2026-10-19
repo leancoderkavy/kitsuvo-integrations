@@ -10,7 +10,7 @@ cannot use this integration directly.
 The embedded panel provides navigation, tabs, page text, detection evidence,
 and controls for clicking, hovering, typing, submitting, and selecting.
 Windows and macOS provide viewport screenshots, page text, and controls.
-Full-page screenshots remain available only on Windows.
+Full-page screenshots use bounded native capture on Windows and viewport tiles on macOS.
 Screenshots update after actions or **Refresh view**. This is a remote view
 of the local engine, not a live video stream, a clickable page canvas, or an
 API for placing the native WebView inside another window. The native browser

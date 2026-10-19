@@ -43,9 +43,13 @@ See [MCP integration setup](marketplace-integrations.md) for cloud connection
 and embedding options.
 
 `browser_take_screenshot` returns just the PNG. macOS uses public WebKit
-snapshot APIs and supports viewport capture; `full_page: true` returns an
-explicit unsupported error. Windows uses WebView2 and also supports full-page
-capture. Sign-in and password protections remain in effect.
+snapshot APIs for viewport images. `full_page: true` uses bounded viewport tiles
+on Mac and a bounded WebView2 capture on Windows. Mac capture briefly scrolls
+the page, hides repeated fixed/sticky overlays after the first tile, and restores
+temporary styles and scroll on success or failure. Captures are limited to
+16 megapixels; Mac also limits documents to 8192 CSS pixels per axis and 64
+tiles. Lazy-loaded content that changes page dimensions causes an explicit
+retry error. Sign-in and password protections remain in effect.
 
 The browser process remains available after the MCP connection ends, as with
 existing agent mode. Quit the browser process when finished; do not share its

@@ -90,7 +90,7 @@ Keep `args: ["mcp"]`. Plugin installation does not install the native browser.
 An installed plugin is cached by its host; edit/reinstall the plugin copy or
 configure a separate native MCP connection when using a custom executable path.
 
-Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.14.zip`.
+Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.15.zip`.
 It contains the local marketplace manifests, branded plugin, four skills, and
 loopback HTTP MCP bridge with its locked dependencies and tests. Commands below
 run from the extracted directory or an authorized repository checkout.
@@ -330,7 +330,7 @@ directory approval are not established by this test.
 
 Use the [rendered setup guide](https://kitsuvo.com/integrations#capabilities)
 for current installer versions and platform availability. Mac captures the
-viewport when browser_status reports support; full-page capture is Windows-only.
+viewport when browser_status reports support; full-page capture is supported on both (bounded tiles on Mac).
 Phone apps are not publicly listed yet.
 
 
