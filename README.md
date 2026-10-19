@@ -28,6 +28,7 @@ previews. The browser itself is a separate download.
 | Skill | Ask | What happens |
 |---|---|---|
 | `kitsuvo-setup` | "Set up Kitsuvo" | Checks the connection and explains a missing executable |
+| `kitsuvo-codex` | "Browse inside Codex with Kitsuvo evidence" | Uses Codex’s live renderer and offline Kitsuvo analysis on request; no screenshot forwarding or automatic blocking |
 | `kitsuvo-browse` | "Open example.com and read the page" | Navigates, reads page text and snapshots, clicks and types on accessible elements |
 | `kitsuvo-evidence` | "Why was this site flagged as AI-built?" | Reads Kitsuvo's report: score, identified builder, strongest signals, separate AI-built, slop and impersonation verdicts |
 | `kitsuvo-responsive` | "Check this at phone and desktop sizes" | Resizes the page to device sizes and reports layout problems |
@@ -237,7 +238,7 @@ issue. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 | Path | What it is |
 |---|---|
-| `plugins/kitsuvo` | Plugin, MCP configuration and the four skills |
+| `plugins/kitsuvo` | Plugin, MCP configuration and browser skills |
 | `.claude-plugin`, `.agents/plugins` | Claude and Codex marketplace manifests |
 | `integrations/mcp-http` | Local Streamable HTTP bridge |
 | `integrations/mcp-cloud` | OAuth relay and local connector |

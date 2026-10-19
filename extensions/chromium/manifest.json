@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Kitsuvo \u2014 AI site filter",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Local AI-builder evidence and optional search filtering.",
   "homepage_url": "https://kitsuvo.com/extensions",
   "icons": {
@@ -34,5 +34,8 @@
     "service_worker": "background.js"
   },
   "minimum_chrome_version": "120",
+  "optional_permissions": [
+    "declarativeNetRequest"
+  ],
   "incognito": "not_allowed"
 }

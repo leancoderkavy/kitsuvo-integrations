@@ -3,6 +3,11 @@ name: kitsuvo-evidence
 description: Inspect Kitsuvo's evidence for AI-built pages, slop, or brand impersonation when the user asks how a site was made or why the browser flagged it.
 ---
 
+When the user requests live browsing inside Codex, use the sibling
+[kitsuvo-codex skill](../kitsuvo-codex/SKILL.md) and keep browsing in Codex’s
+renderer. The native-browser workflow below applies to Kitsuvo browser targets;
+do not silently open another engine for a Codex live tab’s analysis.
+
 Before browser work, call `browser_session` with your provider (`Codex` or `Claude`), actual session ID, short task title, and real session URL when available. Codex can derive its link from the thread ID. Never invent a Claude session URL; omit it if the host does not expose one. This lets the user see who is using the browser and return to the chat.
 
 Open the requested site with Kitsuvo's `browser_navigate`, then call `kitsuvo_report` for that tab. Kitsuvo analyzes rendered pages; do not substitute fetched HTML or a guessed verdict. If `pending` is true, wait briefly with `browser_wait_for` and request the report again. If it remains unavailable, report its `note` or `skipped` reason.

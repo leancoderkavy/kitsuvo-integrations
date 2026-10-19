@@ -7,7 +7,8 @@ optionally filters search results by builder hosting. It is independent of the
 desktop browser; no native messaging host, AI account, or API key is needed.
 
 It does not port the desktop's design/copy analysis, slop and impersonation
-checks, cloud verdicts, calibrated models, corrections, or page-navigation gates.
+checks, cloud verdicts, calibrated models, corrections, or the desktop’s page-analysis navigation gates. Chromium build 0.1.8 adds a
+separate opt-in gate for known builder-hosting domains only.
 Hosting alone is circumstantial, and the interface says so.
 
 ## Build and test
@@ -83,7 +84,20 @@ on the user's behalf. Keyboard, reduced-motion, and narrow layouts are supported
 
 Default permissions are `activeTab`, `scripting`, and `storage`. Persistent
 search-host access is optional and removed when the filter is disabled.
-No cookies, history, native messaging, web requests, remote executable code,
+Chromium 0.1.8 also declares optional `declarativeNetRequest` permission for the
+**Block known AI-builder sites** switch. It is off by default and asks for the
+permission when enabled. Its one dynamic rule blocks only HTTP(S) `main_frame`
+requests on the reviewed strong builder-host domains; it does not inspect request
+content or block resources and embedded frames. Rules persist across tabs, worker
+suspension and browser sessions. Turning it off removes the rule and releases the
+permission; external revocation resets the preference. Search filtering and its
+exact-host always-show choices remain separate. A blocked site uses the browser’s
+blocked-request page; switch blocking off and reload to visit it. Firefox and
+Safari builds do not expose this Chromium-only switch. Custom-domain analysis
+does not automatically become a navigation rule. Codex runtime support still
+requires loading and testing the extension in Codex itself.
+
+No cookies, history, native messaging, web-request listeners, remote executable code,
 or cloud connections are requested. Stored preferences include filter and guide settings and exact hostnames you choose to always show. Paths, query strings, page content and reports are not saved.
 Page scans skip sign-in provider hosts, password-field pages, and private tabs.
 Scan copies strip input values and editable content before local analysis.

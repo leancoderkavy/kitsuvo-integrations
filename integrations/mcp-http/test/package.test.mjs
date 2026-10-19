@@ -38,7 +38,7 @@ test('marketplace entries resolve to the same package and bundled brand assets e
     assert.deepEqual(await read(`${path}/${icon}`), await brand(name));
   }
   const skills = await readdir(new URL(`${path}/skills/`, root));
-  assert.equal(skills.length, 4);
+  assert.deepEqual(skills.sort(), ['kitsuvo-browse', 'kitsuvo-codex', 'kitsuvo-evidence', 'kitsuvo-responsive', 'kitsuvo-setup']);
   for (const skill of skills) {
     assert.match((await read(`${path}/skills/${skill}/SKILL.md`)).toString(), /^---\r?\nname: /);
     assert.deepEqual(await read(`${path}/skills/${skill}/assets/icon-256.png`), await brand('icon-256.png'));

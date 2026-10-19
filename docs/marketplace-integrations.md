@@ -90,7 +90,7 @@ Keep `args: ["mcp"]`. Plugin installation does not install the native browser.
 An installed plugin is cached by its host; edit/reinstall the plugin copy or
 configure a separate native MCP connection when using a custom executable path.
 
-Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.15.zip`.
+Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.16.zip`.
 It contains the local marketplace manifests, branded plugin, four skills, and
 loopback HTTP MCP bridge with its locked dependencies and tests. Commands below
 run from the extracted directory or an authorized repository checkout.
@@ -425,6 +425,20 @@ Formats follow [OpenAI plugin packaging](https://developers.openai.com/plugins/b
 and [Claude marketplace packaging](https://code.claude.com/docs/en/plugin-marketplaces).
 
 ## Headless browser sessions
+
+### Direct browsing in Codex's browser panel
+
+Open the actual website URL in Codex’s built-in browser and use the
+[`kitsuvo-codex` skill](../plugins/kitsuvo/skills/kitsuvo-codex/SKILL.md)
+for Kitsuvo analysis of the selected live tab. Codex renders and handles page
+input directly; Kitsuvo’s offline scanner supplies evidence from a sanitized
+DOM capture. This workflow does not use a screenshot canvas or another native
+browser. Analysis runs on request; automatic blocking and search-result hiding
+require host integration that is not implemented here. Native profiles and
+settings remain separate.
+
+The [experimental remote host](../integrations/codex-browser/README.md) remains
+available for testing, with its documented animation and input limitations.
 
 Use `kitsuvo mcp --headless` for a hidden native browser with an isolated profile.
 `browser_view` returns a viewport image and element refs inline in MCP chats.

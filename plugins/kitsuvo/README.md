@@ -12,6 +12,10 @@ This plugin connects your AI client to Kitsuvo. Kitsuvo helps you inspect AI-bui
 - Open websites, read page text, and interact with accessible elements.
 - Inspect AI-builder, slop, and impersonation evidence without treating provenance as proof of harm.
 - Compare responsive layouts.
+- Browse directly in Codex’s live renderer with the `kitsuvo-codex` skill and
+  request local Kitsuvo evidence for the selected page. This mode does not
+  require a screenshot host. Automatic filtering and native-profile features
+  are not installed into Codex by this skill.
 
 ## Requirements and supported clients
 

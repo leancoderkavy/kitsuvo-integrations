@@ -3,6 +3,11 @@ name: kitsuvo-browse
 description: Navigate websites, read pages, and interact with page elements through the Kitsuvo desktop browser when the user requests browser work.
 ---
 
+When the user requests live browsing inside Codex, use the sibling
+[kitsuvo-codex skill](../kitsuvo-codex/SKILL.md) and keep browsing in Codex’s
+renderer. The native-browser workflow below applies to Kitsuvo browser targets;
+do not silently open another engine for a Codex live tab’s analysis.
+
 When the user supplies a connection prompt or browser target, first call `browser_attach` with that exact `browser` value. Include `browser` on every subsequent tool call in that conversation, including `browser_session`, status, controller, tabs and cleanup. Use the selected window and profile; focus changes must not retarget the chat. If the target is closed, stopped or unavailable, explain the error and ask the user to copy a fresh prompt. Do not launch a replacement or fall back to untargeted tools. If `browser_attach` is missing, explain that the browser/MCP process needs updating and restarting before attachment can work.
 
 Before browser work, call `browser_session` with your provider (`Codex` or `Claude`), actual session ID, short task title, and real session URL when available. Codex can derive its link from the thread ID. Never invent a Claude session URL; omit it if the host does not expose one. This lets the user see who is using the browser and return to the chat.
