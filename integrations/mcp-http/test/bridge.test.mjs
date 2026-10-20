@@ -1,9 +1,10 @@
+import { authenticatedBridge as createBridge, authenticatedFetch as fetch } from './auth-fixture.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { request, createServer } from 'node:http';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { createBridge, readConfig, nativeEnvironment } from '../server.mjs';
+import { AuthenticatedTransport as StreamableHTTPClientTransport } from './auth-fixture.mjs';
+import { readConfig, nativeEnvironment } from '../server.mjs';
 import { APP_URI, APP_MIME, appTools } from '../browser-app.mjs';
 
 test('port configuration rejects invalid values', () => {

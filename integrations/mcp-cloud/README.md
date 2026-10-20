@@ -146,6 +146,17 @@ WebSocket/HTTP header, never a URL or diagnostic output. The relay keeps its has
 refuses a duplicate active connector, and restores the same approved browser
 identity after disconnect. New clients still require explicit approval.
 
+An unknown connector remains in memory for at most ten minutes. Its identity
+is persisted only after a valid WebSocket handshake and explicit OAuth approval.
+Pending connectors have separate capacity and a 20-attempts-per-15-minute source
+budget; approved reconnects use a separate 120-attempt budget and reserved
+capacity, including a separate rate-bucket pool. IPv6 sources share a /56 bucket.
+Failed handshakes cannot create durable identity records. On restart, legacy
+orphan identities without an unexpired approved grant are discarded. Direct
+listeners ignore forwarded IP headers. The supplied Fly configuration sets
+`KITSUVO_TRUST_PROXY_HOPS=1`; use that setting only behind an edge proxy which
+appends the real source IP and prevents direct public access to the listener.
+
 The service also keeps a private, bounded `panels.json` recovery file containing
 panel IDs and their last page URLs in this isolated profile. After a native
 browser/connector restart, **Refresh view** reopens each panel in its own fresh

@@ -92,6 +92,7 @@ Install Node.js 22 or newer and Kitsuvo, then run:
 ```sh
 cd integrations/mcp-http
 npm ci --ignore-scripts
+export KITSUVO_MCP_TOKEN="$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64url'))")"
 npm run embed
 ```
 
@@ -99,7 +100,13 @@ Set `KITSUVO_BINARY` to the installed executable's absolute path if Kitsuvo
 is not on PATH. `KITSUVO_PROFILE_DIR` selects an independent agent profile;
 `KITSUVO_MCP_PORT` changes the default port 8787.
 
-Open `http://127.0.0.1:8787/embed` and press **Connect local browser**.
+Open `http://127.0.0.1:8787/embed`, enter the same private token in the password
+field, and press **Connect local browser**. The example retains the token only
+in memory while connected; it never puts it in a URL or browser storage.
+Use the PowerShell token assignment in [HTTP setup](marketplace-integrations.md)
+on Windows. HTTP and embedded resource/action requests require
+`Authorization: Bearer <KITSUVO_MCP_TOKEN>` even on loopback. Native stdio does
+not need this additional HTTP credential.
 The first connected panel shows a nonmodal guide. **Got it**, **Skip**, or
 Escape while focused in the guide dismisses it. **Browser guide** replays it.
 Only the versioned dismissal flag is stored in the host's local storage.

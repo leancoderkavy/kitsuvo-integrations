@@ -5,6 +5,8 @@ import { durableStore } from './durable-store.mjs';
 import { operationQueue } from './operation-queue.mjs';
 import { createSessions } from './protocol-sessions.mjs';
 import { createServer } from 'node:http';
+import { isIP } from 'node:net';
+import { ipKeyGenerator } from 'express-rate-limit';
 import { randomBytes, createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -24,7 +26,8 @@ const maxRecords = 500;
 const trim = map => { for (const [key, value] of map) if (value.expiresAt <= now()) map.delete(key); };
 const display = value => JSON.stringify(value).replace(/[\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`);
 
-export function createRelay({ origin, stateFile, telemetry = noopTelemetry }) {
+export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trustedProxyHops = 0 }) {
+  if (![0, 1].includes(trustedProxyHops)) throw new Error('Configure zero or one trusted proxy hop.');
   const issuer = new URL(origin);
   if (issuer.username || issuer.password || issuer.search || issuer.hash || issuer.pathname !== '/' ||
       (issuer.protocol !== 'https:' && !(issuer.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(issuer.hostname)))) {
@@ -33,7 +36,15 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry }) {
   const resource = new URL('/mcp', issuer);
   const store = durableStore(stateFile, issuer.origin);
   const { clients, tokens, identities } = store;
+  // Earlier versions persisted unapproved handshakes. Only an unexpired grant
+  // justifies restoring a disconnected identity; orphan records get no priority.
+  let pruned=false;
+  for(const [key,identity] of identities){
+    if(identity.expiresAt<=now() || ![...tokens.values()].some(token=>token.browserId===identity.browserId && token.expiresAt>now())){identities.delete(key);pruned=true;}
+  }
+  if(pruned)store.save();
   const requests = new Map(), codes = new Map(), browsers = new Map();
+  const pendingIdentities = new Map();
   const durable = id => [...identities.values()].some(item => item.browserId === id && item.expiresAt > now());
   const persist = () => store.save();
   function bounded(map, key, value) {
@@ -148,10 +159,9 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry }) {
   }
   const app = express();
   app.disable('x-powered-by');
-  // Fly's edge proxy is exactly one hop in front of us and appends the client IP to
-  // X-Forwarded-For. Trust only that hop (never `true`, which is spoofable) so the
-  // SDK's express-rate-limit buckets per client instead of per proxy IP (KAV-159).
-  app.set('trust proxy', 1);
+  // Direct listeners ignore forwarding headers. Fly explicitly enables one
+  // trusted edge hop; HTTP and WebSocket admission both use its rightmost IP.
+  app.set('trust proxy', trustedProxyHops);
   app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'kitsuvo-mcp-cloud', version: '0.1.0' }));
   app.use((req, res, next) => {
     if (req.headers.host !== issuer.host || (req.headers.origin && req.headers.origin !== issuer.origin)) return res.status(403).end('Untrusted Host or Origin.');
@@ -205,38 +215,53 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry }) {
   const http = createServer(app);
   http.app = app;
   const ws = new WebSocketServer({ noServer: true, maxPayload: 8 * 1024 * 1024 });
-  const enrollments = new Map();
+  const enrollmentBuckets = new Map(), reconnectBuckets = new Map();
   http.on('upgrade', (req, socket, head) => {
-    if (req.url !== '/connect' || req.headers.host !== issuer.host || req.headers.origin || browsers.size >= 50) {
+    if (req.url !== '/connect' || req.headers.host !== issuer.host || req.headers.origin) {
       socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return;
     }
-    trim(enrollments);
-    const address = req.socket.remoteAddress;
-    const attempts = enrollments.get(address) || { count: 0, expiresAt: now() + 900 };
-    if (attempts.count >= 20 || (!enrollments.has(address) && enrollments.size >= maxRecords)) {
-      socket.end('HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\n\r\n'); return;
-    }
-    attempts.count += 1; enrollments.set(address, attempts);
-    let identity;
+    trim(enrollmentBuckets);trim(reconnectBuckets);
+    // Match Express's one-hop policy: only the rightmost forwarded address was
+    // appended by the trusted edge. Direct deployments never trust this header.
+    const forwarded = req.headers['x-forwarded-for'];
+    const address = trustedProxyHops === 1 && typeof forwarded === 'string'
+      ? forwarded.split(',').at(-1).trim() : req.socket.remoteAddress;
+    if (!isIP(address || '')) { socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n'); return; }
+    let identity, identityKey;
     const credential = req.headers['x-kitsuvo-connector-key'];
     if (credential !== undefined) {
       if (!stateFile || typeof credential !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(credential)) { socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return; }
       try {
         store.check();
         for (const [key, item] of identities) if (item.expiresAt <= now() && !browsers.has(item.browserId)) identities.delete(key);
-        const key = digest(credential);
-        identity = identities.get(key);
-        if (!identity) { identity = { browserId: nonce(), expiresAt: now() + 90 * 86400 }; bounded(identities, key, identity); persist(); }
-        if (browsers.has(identity.browserId)) { socket.end('HTTP/1.1 409 Conflict\r\nConnection: close\r\n\r\n'); return; }
+        identityKey = digest(credential);
+        identity = identities.get(identityKey);
+        if (identity && browsers.has(identity.browserId) || pendingIdentities.has(identityKey)) { socket.end('HTTP/1.1 409 Conflict\r\nConnection: close\r\n\r\n'); return; }
       } catch { socket.end('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n'); return; }
     }
-    ws.handleUpgrade(req, socket, head, connection => ws.emit('connection', connection, identity));
+    // Known connectors have a separate reconnect budget. Anonymous onboarding
+    // cannot consume their slots or throttle them through its smaller budget.
+    const established = Boolean(identity), enrollments=established?reconnectBuckets:enrollmentBuckets, bucket=ipKeyGenerator(address);
+    const attempts = enrollments.get(bucket) || { count: 0, expiresAt: now() + 900 };
+    const pendingCount = [...browsers.values()].filter(b => !b.established).length;
+    const establishedCount = browsers.size - pendingCount;
+    if (attempts.count >= (established ? 120 : 20) || (!enrollments.has(bucket) && enrollments.size >= maxRecords)
+      || (established ? establishedCount >= 50 : pendingCount >= 20)) {
+      socket.end('HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\n\r\n'); return;
+    }
+    attempts.count += 1; enrollments.set(bucket, attempts);
+    // No identity is persisted before a valid handshake AND explicit approval.
+    ws.handleUpgrade(req, socket, head, connection => {
+      const candidate = identity || (identityKey ? { browserId: nonce(), expiresAt: now() + ttl } : undefined);
+      if (identityKey && !established) pendingIdentities.set(identityKey, candidate);
+      ws.emit('connection', connection, candidate, identityKey, established);
+    });
   });
-  ws.on('connection', (socket, identity) => {
+  ws.on('connection', (socket, identity, identityKey, established) => {
     const id = identity?.browserId || nonce(), pending = new Map();
     const queue = operationQueue(); let alive = true;
     const send = value => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(value)); };
-    const browser = { call(method, params, options) {
+    const browser = { established, call(method, params, options) {
       return queue.run((signal,remainingMs) => new Promise((resolve, reject) => {
         if (socket.readyState !== WebSocket.OPEN) return reject(new Error('Disconnected'));
         const callId = nonce();
@@ -246,7 +271,10 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry }) {
         send({ type: 'call', id: callId, method, params, deadlineMs:remainingMs() });
       }), options);
     } };
-    browsers.set(id, browser); send({ type: 'connected', durable: Boolean(identity) });
+    browsers.set(id, browser); send({ type: 'connected', durable: established });
+    // Abandoned enrollment is short-lived, even if a client keeps answering pings.
+    const enrollmentTimer = established ? undefined : setTimeout(() => socket.close(1008, 'Enrollment expired'), ttl * 1000);
+    enrollmentTimer?.unref();
     socket.on('pong', () => { alive = true; });
     const heartbeat = setInterval(() => { if (!alive) return socket.terminate(); alive = false; socket.ping(); }, 30000);
     heartbeat.unref();
@@ -260,6 +288,16 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry }) {
           const request = requests.get(message.id);
           if (!request || request.browserId) return send({ type: 'rejected', message: 'Approval expired or already used.' });
           if (message.type === 'review') return send({ type: 'review', id: request.id, clientName: clients.get(request.clientId)?.client.client_name || 'Unnamed client', redirectUri: request.params.redirectUri, scope });
+          if (identity && !browser.established) {
+            if ([...browsers.values()].filter(b => b.established).length >= 50) return send({ type: 'rejected', id: message.id, message: 'Connector capacity reached. Retry later.' });
+            identity.expiresAt = now() + 90 * 86400;
+            bounded(identities, identityKey, identity);
+            try { persist(); } catch (error) { identities.delete(identityKey); throw error; }
+            browser.established = true; pendingIdentities.delete(identityKey); clearTimeout(enrollmentTimer);
+            send({ type: 'connected', durable: true });
+          } else if (!browser.established) {
+            browser.established = true; clearTimeout(enrollmentTimer);
+          }
           request.browserId = id; send({ type: 'approved' });
         } else if (message.type === 'result') {
           const call = pending.get(message.id);
@@ -275,8 +313,10 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry }) {
     socket.on('error', error => telemetry.captureException(error, { source: 'websocket' }));
     socket.on('close', () => {
       queue.close();
+      clearTimeout(enrollmentTimer);
+      if (identityKey) pendingIdentities.delete(identityKey);
       clearInterval(heartbeat); browsers.delete(id);
-      if (!identity) { protocolSessions.removeOwner(id); for (const [key, item] of tokens) if (item.browserId === id) tokens.delete(key); }
+      if (!durable(id)) { protocolSessions.removeOwner(id); for (const [key, item] of tokens) if (item.browserId === id) tokens.delete(key); }
       for (const [key, item] of codes) if (item.browserId === id) codes.delete(key);
       for (const [key, item] of requests) if (item.browserId === id) requests.delete(key);
       for (const call of pending.values()) { call.cleanup(); call.reject(new Error('Disconnected')); }
@@ -300,7 +340,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const port = Number(process.env.PORT || 8080);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT.');
   const telemetry = createPostHogTelemetry();
-  const relay = createRelay({ origin, stateFile: process.env.KITSUVO_CLOUD_STATE_FILE, telemetry });
+  const relay = createRelay({ origin, stateFile: process.env.KITSUVO_CLOUD_STATE_FILE, telemetry, trustedProxyHops: Number(process.env.KITSUVO_TRUST_PROXY_HOPS || 0) });
   relay.http.listen(port, '0.0.0.0', () => console.log(JSON.stringify({ event: 'listening', port })));
   let shuttingDown = false;
   const shutdown = async exitCode => {

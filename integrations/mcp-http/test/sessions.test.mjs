@@ -1,10 +1,11 @@
+import { authenticatedBridge as createBridge, authenticatedFetch as fetch } from './auth-fixture.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createServer } from 'node:http';
 import { setTimeout as delay } from 'node:timers/promises';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { createBridge } from '../server.mjs';
+import { AuthenticatedTransport as StreamableHTTPClientTransport } from './auth-fixture.mjs';
+
 import { operationQueue } from '../sessions.mjs';
 
 const deferred = () => {

@@ -90,7 +90,7 @@ Keep `args: ["mcp"]`. Plugin installation does not install the native browser.
 An installed plugin is cached by its host; edit/reinstall the plugin copy or
 configure a separate native MCP connection when using a custom executable path.
 
-Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.19.zip`.
+Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.20.zip`.
 It contains the local marketplace manifests, branded plugin, four skills, and
 loopback HTTP MCP bridge with its locked dependencies and tests. Commands below
 run from the extracted directory or an authorized repository checkout.
@@ -259,6 +259,7 @@ associated with the target ChatGPT workspace.
 ```sh
 cd integrations/mcp-http
 npm ci --ignore-scripts
+export KITSUVO_MCP_TOKEN="$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64url'))")"
 npm start
 ```
 
@@ -267,8 +268,18 @@ before starting. On PowerShell:
 
 ```powershell
 $env:KITSUVO_BINARY = 'C:\path\to\kitsuvo\target\release\kitsuvo.exe'
+$env:KITSUVO_MCP_TOKEN = node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64url'))"
 npm start
 ```
+
+Protect this 256-bit token and configure your MCP client or tunnel destination
+to send `Authorization: Bearer <KITSUVO_MCP_TOKEN>` on every request, including
+session continuation and deletion. For the JavaScript MCP SDK, pass it in
+`requestInit.headers.Authorization` when constructing the HTTP transport.
+The bridge refuses to start without a valid token. Rotate it by restarting
+the bridge and updating authorized clients. Keep it out of URLs, logs and
+shared configuration. A tunnel must support this destination header; otherwise
+use the authenticated cloud connector or local stdio integration.
 
 `KITSUVO_MCP_PORT` optionally changes the default port 8787. Configure the
 tunnel's MCP destination as `http://127.0.0.1:8787/mcp`, following its current
@@ -282,7 +293,8 @@ headers. The tunnel must preserve or rewrite the destination Host to the
 loopback address. There is no public unauthenticated deployment mode, OAuth
 implementation, or wildcard CORS. Do not expose this port with an anonymous
 public forwarding service. The secure tunnel handles remote identity and
-access; the browser control token never appears in the plugin package.
+access; the separate bridge token authenticates access to the local HTTP
+listener. Neither credential appears in the plugin package.
 
 One bridge connects to one agent profile. Independent HTTP MCP sessions keep
 their own selected tabs and execute concurrently in the same native browser.

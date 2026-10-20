@@ -1,6 +1,9 @@
 // Qualify the installed native executable and the HTTP adapter without an AI
 // model or a user's browsing profile. Close only this run's disposable browser.
 import assert from 'node:assert/strict';
+import {randomBytes} from 'node:crypto';
+const bridgeToken=randomBytes(32).toString('base64url');
+const bridgeHeaders={Authorization:'Bearer '+bridgeToken};
 import { createServer, request } from 'node:http';
 import { mkdtemp, readFile, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -52,12 +55,12 @@ try {
   await new Promise(resolve => reservation.listen(0, '127.0.0.1', resolve));
   const port = reservation.address().port;
   await new Promise(resolve => reservation.close(resolve));
-  bridge = createBridge(native, { port, embed: true, createBackend: info => createNativeBackend({ binary: process.env.KITSUVO_BINARY || 'kitsuvo', headless }, info) });
+  bridge = createBridge(native, { token:bridgeToken, port, embed: true, createBackend: info => createNativeBackend({ binary: process.env.KITSUVO_BINARY || 'kitsuvo', headless }, info) });
   await new Promise(resolve => bridge.listen(port, '127.0.0.1', resolve));
   httpClient = new Client({ name: 'kitsuvo-http-qualification', title: 'HTTP qualification agent', version: '1.0.0' });
-  const httpTransport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`));
+  const httpTransport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`),{requestInit:{headers:bridgeHeaders}});
   parallelClient = new Client({ name: 'kitsuvo-parallel-qualification', title: 'Parallel qualification agent', version: '1.0.0' });
-  const parallelTransport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`));
+  const parallelTransport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`),{requestInit:{headers:bridgeHeaders}});
   await Promise.all([httpClient.connect(httpTransport), parallelClient.connect(parallelTransport)]);
   assert.notEqual(httpTransport.sessionId, parallelTransport.sessionId);
   const bridgedTools = (await httpClient.listTools()).tools;
@@ -110,7 +113,7 @@ try {
   assert.equal(tabOf(await call(httpClient, 'browser_snapshot', { tab: tabOf(parallelPages[0]) })), tabOf(parallelPages[0]));
   const endpoint = `http://127.0.0.1:${port}`;
   const embedPost = (value, headers = {}) => fetch(endpoint + '/embed/action', { method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(value) });
+    headers: { ...bridgeHeaders, 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(value) });
   assert.equal((await embedPost({ name: 'kitsuvo_browser' }, { Origin: 'https://untrusted.example' })).status, 403);
   assert.equal((await embedPost({ name: 'browser_evaluate', arguments: { expression: 'document.cookie' } })).status, 403);
   const foreignHost = await new Promise((resolve, reject) => {

@@ -25,7 +25,8 @@ the cloud relay and its connector, the Rust MCP connector client and the browser
 extension sources. Reports are especially useful for:
 
 - the local bridge accepting a request it should refuse (it is meant to bind
-  only to `127.0.0.1` and reject foreign `Host` and `Origin` headers);
+  only to `127.0.0.1`, require its private bearer credential, and reject foreign
+  `Host` and `Origin` headers);
 - the plugin, skills or MCP server driving a sign-in page, a password field or
   the user's main profile when they are meant to be refused;
 - the cloud relay or connector skipping its consent step, leaking a token or

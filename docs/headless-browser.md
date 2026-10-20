@@ -59,5 +59,7 @@ For the local HTTP bridge or the cloud connector, set `KITSUVO_HEADLESS=1`
 before running
 `node integrations/mcp-http/server.mjs` or
 `node integrations/mcp-cloud/connect.mjs`. The cloud connector retains its
-existing explicit connection and client authorization steps. To verify a local build with an offline
+existing explicit connection and client authorization steps. HTTP mode also
+requires `KITSUVO_MCP_TOKEN` and a matching bearer header as described in
+[HTTP bridge setup](marketplace-integrations.md). To verify a local build with an offline
 fixture, run `python3 scripts/smoke_headless.py /absolute/path/to/kitsuvo`.
