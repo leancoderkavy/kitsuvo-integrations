@@ -122,7 +122,12 @@ async function act(action, args = {}) {
     if (generation === current) render({ isError: true, content: [{ type: 'text', text: error.message }] });
   } finally { if (generation === current) setBusy(false); }
 }
-$('navigate').onsubmit = event => { event.preventDefault(); void act('navigate', { url: $('url').value }); };
+const navigate = () => { void act('navigate', { url: $('url').value }); };
+// Embedded hosts deliberately omit allow-forms. Trigger RPC directly so the
+// sandbox can keep blocking native form submission and document navigation.
+$('go').onclick = navigate;
+$('url').onkeydown = event => { if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); navigate(); } };
+$('navigate').onsubmit = event => { event.preventDefault(); navigate(); };
 $('tabs').onchange = () => act('select', { tab: Number($('tabs').value) });
 document.querySelectorAll('[data-action]').forEach(node => { node.onclick = () => act(node.dataset.action); });
 document.querySelectorAll('[data-key]').forEach(node => { node.onclick = () => act('key', { key: node.dataset.key }); });

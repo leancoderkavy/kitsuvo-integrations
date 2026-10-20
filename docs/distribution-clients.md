@@ -30,7 +30,7 @@ normally use `/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo`.
 
 Claude Code: `claude mcp add --scope user kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile`.
 Codex: `codex mcp add kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile`.
-For skills too, download and extract the [integrations archive](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.20.zip), then run the marketplace commands from the extracted folder:
+For skills too, download and extract the [integrations archive](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.21.zip), then run the marketplace commands from the extracted folder:
 
 ```sh
 claude plugin marketplace add .
@@ -57,7 +57,7 @@ Do not fabricate `.app.json` registered IDs; attach the actual portal-generated
 mapping if the target host requires it.
 
 On your own Windows or Mac computer, install Kitsuvo and Node.js 22+, extract
-`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.20.zip`, then:
+`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.21.zip`, then:
 
 ```sh
 cd integrations/mcp-cloud
