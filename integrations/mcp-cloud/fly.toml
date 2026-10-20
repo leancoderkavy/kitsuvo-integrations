@@ -8,6 +8,7 @@ primary_region = "sjc"
   # Public domain ownership proof; this is not an access credential.
   KITSUVO_GLAMA_CLAIM = "glama_claim_UuRwblFfcPPz4uB0lwDXcK90s93EifuR"
   KITSUVO_CLOUD_STATE_FILE = "/data/authorization.json"
+  KITSUVO_TRUST_PROXY_HOPS = "1"
   PORT = "8080"
   KITSUVO_CLOUD_ORIGIN = "https://kitsuvo-mcp-relay.fly.dev"
 

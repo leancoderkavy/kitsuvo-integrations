@@ -19,7 +19,7 @@ async function offline(f, headers) {
   assert.equal(status,503);
 }
 
-async function fixture(t, durable = false, { telemetry } = {}) {
+async function fixture(t, durable = false, { telemetry, trustedProxyHops=0 } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), 'kitsuvo-relay-'));
   t.after(() => rm(directory, {recursive:true,force:true}));
   const stateFile = durable ? path.join(directory, 'state.json') : undefined;
@@ -27,7 +27,7 @@ async function fixture(t, durable = false, { telemetry } = {}) {
   await new Promise(resolve => reserve.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${reserve.address().port}`;
   await new Promise(resolve => reserve.close(resolve));
-  let relay = createRelay({ origin, stateFile, telemetry });
+  let relay = createRelay({ origin, stateFile, telemetry, trustedProxyHops });
   await new Promise(resolve => relay.http.listen(new URL(origin).port, '127.0.0.1', resolve));
   t.after(() => relay.close());
   const post = (path, values) => fetch(origin + path, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(values) });
@@ -348,4 +348,47 @@ test('persistence failure denies authorization rather than silently losing revoc
   assert.equal((await fetch(f.origin+'/connector/revoke',{method:'POST',headers:{'X-Kitsuvo-Connector-Key':key}})).status,503);
   assert.equal((await fetch(f.origin+'/userinfo',{headers:{Authorization:'Bearer '+token.access_token}})).status,401);
   assert.throws(()=>createRelay({origin:f.origin,stateFile:f.stateFile}),/Invalid relay authorization store/);
+});
+
+test('failed upgrades and unapproved connectors reserve no durable identity records',async t=>{
+ const f=await fixture(t,true);
+ for(let i=0;i<3;i++){
+  const status=await new Promise((resolve,reject)=>{
+   const request=httpRequest(f.origin+'/connect',{headers:{Connection:'Upgrade',Upgrade:'websocket','Sec-WebSocket-Version':'13','Sec-WebSocket-Key':'invalid','X-Kitsuvo-Connector-Key':randomBytes(32).toString('base64url')}},response=>{response.resume();resolve(response.statusCode);});request.on('error',reject);request.end();
+  });assert.equal(status,400);
+ }
+ assert.equal(JSON.parse(await readFile(f.stateFile,'utf8')).identities.length,0);
+ const browser=await f.browser('pending',false,{},randomBytes(32).toString('base64url'));
+ assert.equal(JSON.parse(await readFile(f.stateFile,'utf8')).identities.length,0);
+ const client=await f.client(),auth=await f.authorize(client,browser);assert.equal((await f.exchange(client,auth)).status,200);
+ assert.equal(JSON.parse(await readFile(f.stateFile,'utf8')).identities.length,1);
+});
+
+test('an approved connector can reconnect after anonymous enrollment exhausts its source budget',async t=>{
+ const f=await fixture(t,true),key=randomBytes(32).toString('base64url'),browser=await f.browser('approved',false,{},key),client=await f.client();
+ const auth=await f.authorize(client,browser);assert.equal((await f.exchange(client,auth)).status,200);
+ const closed=once(browser.socket,'close');browser.socket.close();await closed;
+ for(let i=0;i<21;i++)await new Promise((resolve,reject)=>{
+  const request=httpRequest(f.origin+'/connect',{headers:{Connection:'Upgrade',Upgrade:'websocket','Sec-WebSocket-Version':'13','Sec-WebSocket-Key':'invalid'}},response=>{response.resume();resolve(response.statusCode);});request.on('error',reject);request.end();
+ });
+ const restored=await f.browser('restored',false,{},key);assert.equal(restored.socket.readyState,WebSocket.OPEN);
+});
+
+test('anonymous bucket capacity cannot exclude an approved reconnect from a fresh address',async t=>{
+ const f=await fixture(t,true,{trustedProxyHops:1}),key=randomBytes(32).toString('base64url'),browser=await f.browser('approved',false,{},key),client=await f.client();
+ assert.equal((await f.exchange(client,await f.authorize(client,browser))).status,200);
+ const closed=once(browser.socket,'close');browser.socket.close();await closed;
+ for(let i=0;i<500;i++)await new Promise((resolve,reject)=>{
+  const request=httpRequest(f.origin+'/connect',{headers:{Connection:'Upgrade',Upgrade:'websocket','Sec-WebSocket-Version':'13','Sec-WebSocket-Key':'invalid','X-Forwarded-For':`198.18.${Math.floor(i/250)}.${i%250+1}`}},response=>{response.resume();resolve();});request.on('error',reject);request.end();
+ });
+ const restored=await f.browser('restored',false,{},key);assert.equal(restored.socket.readyState,WebSocket.OPEN);
+});
+
+test('restart removes legacy orphan identities while retaining approved grants',async t=>{
+ const f=await fixture(t,true),key=randomBytes(32).toString('base64url'),browser=await f.browser('approved',false,{},key),client=await f.client();
+ const token=await (await f.exchange(client,await f.authorize(client,browser))).json();
+ const state=JSON.parse(await readFile(f.stateFile,'utf8'));state.identities.push(['f'.repeat(64),{browserId:randomBytes(32).toString('base64url'),expiresAt:Math.floor(Date.now()/1000)+86400}]);
+ await writeFile(f.stateFile,JSON.stringify(state));await f.restart();
+ const clean=JSON.parse(await readFile(f.stateFile,'utf8'));assert.equal(clean.identities.length,1);
+ assert.equal((await fetch(f.origin+'/userinfo',{headers:{Authorization:'Bearer '+token.access_token}})).status,200);
 });

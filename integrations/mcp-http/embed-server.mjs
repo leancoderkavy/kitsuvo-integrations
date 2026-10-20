@@ -10,12 +10,15 @@ export function embedSdk() {
 export const exampleHtml = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Embed Kitsuvo</title>
 <style>body{font:16px system-ui;margin:20px auto;max-width:1000px;padding:0 12px;color:CanvasText;background:Canvas;color-scheme:light dark}button{font:inherit;padding:10px}#browser{height:760px}#status{min-height:24px}</style></head><body>
 <h1>Kitsuvo inside your application</h1><p>This example embeds the browser panel. Pages run in the local Kitsuvo engine. Connecting shares page text and previews with this host.</p>
+<label>Local bridge credential <input id="bridge-token" type="password" autocomplete="off" spellcheck="false"></label>
 <button id="connect">Connect local browser</button><button id="disconnect" hidden>Disconnect panel</button><p id="status" role="status" aria-live="polite"></p><div id="browser"></div>
 <script type="module">import {mountKitsuvo} from '/embed/sdk.js';
 const button=document.getElementById('connect'),disconnect=document.getElementById('disconnect'),status=document.getElementById('status');let panel;
-const request=async(path,options)=>{const res=await fetch(path,options);if(!res.ok)throw new Error('Local bridge returned '+res.status);return res.json()};
-button.onclick=async()=>{button.disabled=true;status.textContent='Connecting…';try{panel=await mountKitsuvo(document.getElementById('browser'),{client:{readResource:()=>request('/embed/resource'),callTool:params=>request('/embed/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(params)})},theme:matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'});disconnect.hidden=false;button.hidden=true;status.textContent='Connected to local Kitsuvo';}catch(error){status.textContent=error.message;}finally{button.disabled=false;}};
-disconnect.onclick=async()=>{await panel?.destroy();panel=undefined;disconnect.hidden=true;button.hidden=false;status.textContent='Panel disconnected. Kitsuvo may remain open.';};
+let credential='';const input=document.getElementById('bridge-token');
+const request=async(path,options={})=>{const res=await fetch(path,{...options,headers:{...options.headers,Authorization:'Bearer '+credential}});if(!res.ok)throw new Error('Local bridge returned '+res.status);return res.json()};
+button.onclick=async()=>{button.disabled=true;status.textContent='Connecting…';credential=input.value;input.value='';try{panel=await mountKitsuvo(document.getElementById('browser'),{client:{readResource:()=>request('/embed/resource'),callTool:params=>request('/embed/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(params)})},theme:matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'});disconnect.hidden=false;button.hidden=true;status.textContent='Connected to local Kitsuvo';}catch(error){credential='';status.textContent=error.message;}finally{button.disabled=false;}};
+disconnect.onclick=async()=>{await panel?.destroy();panel=undefined;credential='';input.value='';disconnect.hidden=true;button.hidden=false;status.textContent='Panel disconnected. Kitsuvo may remain open.';};
+addEventListener('pagehide',()=>{credential='';input.value='';});
 </script></body></html>`;
 
 // Called only after createBridge has validated the loopback Host and Origin.

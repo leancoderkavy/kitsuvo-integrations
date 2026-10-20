@@ -52,7 +52,7 @@ Directory approval is separate from these install sources.
 | Codex (MCP only) | `codex mcp add kitsuvo -- kitsuvo mcp` | [Codex](docs/quickstart/codex.md#mcp-server-only) |
 | Gemini CLI extension | `gemini extensions install https://github.com/leancoderkavy/kitsuvo-integrations --ref v0.2.9` | [Other clients](docs/quickstart/mcp-clients.md) |
 | Another stdio MCP client | `{"mcpServers":{"kitsuvo":{"command":"kitsuvo","args":["mcp"]}}}` | [Other clients](docs/quickstart/mcp-clients.md) |
-| ChatGPT or a cloud client, with a tunnel | `cd integrations/mcp-http && npm ci --ignore-scripts && npm start` | [HTTP bridge](docs/quickstart/http-bridge.md) |
+| ChatGPT or a cloud client, with a tunnel | Set a private `KITSUVO_MCP_TOKEN`, then start `integrations/mcp-http` | [HTTP bridge](docs/quickstart/http-bridge.md) |
 | A cloud client, no tunnel | Start the connector in `integrations/mcp-cloud` | [Cloud relay](docs/quickstart/cloud-relay.md) |
 | The browser you already use | Install Kitsuvo from the Chrome Web Store or Edge Add-ons; manual previews remain available | [Extension setup](docs/quickstart/browser-extension.md) |
 
@@ -108,7 +108,8 @@ T3 Code's embedded UI depends on the selected provider and build.
 Other applications can mount the same panel with the typed
 `@kitsuvo/mcp-http/embed` host SDK and an authorized MCP client. Try
 `npm run embed` in `integrations/mcp-http`, then open
-`http://127.0.0.1:8787/embed`. See [embedding Kitsuvo](docs/embedding-browser.md)
+`http://127.0.0.1:8787/embed`. Set a private `KITSUVO_MCP_TOKEN` first and enter
+it in the example's password field. See [embedding Kitsuvo](docs/embedding-browser.md)
 for lifecycle, isolation and shared-profile details.
 
 ## HTTP MCP
@@ -117,11 +118,14 @@ for lifecycle, isolation and shared-profile details.
 cd integrations/mcp-http
 npm ci --ignore-scripts
 npm test
+export KITSUVO_MCP_TOKEN="$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64url'))")"
 npm start
 ```
 
 Node.js 22 or newer is required. The bridge binds only to loopback and is for a
-secure, authenticated tunnel. Public cloud-directory submission needs a stable
+secure, authenticated tunnel. Every HTTP request must carry the matching
+`Authorization: Bearer <KITSUVO_MCP_TOKEN>` header. See the setup guide for
+PowerShell. Public cloud-directory submission needs a stable
 HTTPS endpoint with authentication and a connection to each user's own browser.
 See [MCP setup](docs/marketplace-integrations.md).
 

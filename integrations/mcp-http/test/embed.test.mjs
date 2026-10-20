@@ -1,7 +1,8 @@
+import { authenticatedBridge as createBridge, authenticatedFetch as fetch } from './auth-fixture.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { request } from 'node:http';
-import { createBridge } from '../server.mjs';
+
 import { mountKitsuvo } from '../embed-host.mjs';
 import { APP_URI } from '../browser-app.mjs';
 

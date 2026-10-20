@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
+import { timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -62,17 +63,22 @@ export function createAppServer(backend, serialize = (operation, options) => ope
   return server;
 }
 
-// No public bind or arbitrary command-line arguments: the tunnel authenticates
-// remote clients, while Kitsuvo keeps its own control API token local.
+const tokenPattern = /^[A-Za-z0-9_-]{43}$/;
+function bridgeToken(value) {
+  if (!tokenPattern.test(value || '')) throw new Error('HTTP access requires KITSUVO_MCP_TOKEN: a private 32-byte base64url credential. Configure the same bearer credential in your MCP client or tunnel. Stdio does not require it.');
+  return value;
+}
 export function readConfig(env = process.env) {
   const port = Number(env.KITSUVO_MCP_PORT ?? 8787);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error('KITSUVO_MCP_PORT must be an integer between 1 and 65535.');
   }
-  return { port, binary: env.KITSUVO_BINARY || 'kitsuvo', headless: env.KITSUVO_HEADLESS === '1' };
+  if (env.KITSUVO_MCP_TOKEN !== undefined) bridgeToken(env.KITSUVO_MCP_TOKEN);
+  return { port, binary: env.KITSUVO_BINARY || 'kitsuvo', headless: env.KITSUVO_HEADLESS === '1', token: env.KITSUVO_MCP_TOKEN };
 }
 
-export function createBridge(backend, { port = 8787, embed = false, createBackend, ...sessionOptions } = {}) {
+export function createBridge(backend, { port = 8787, embed = false, token, createBackend, ...sessionOptions } = {}) {
+  const expected = Buffer.from(`Bearer ${bridgeToken(token)}`);
   const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
   const origins = new Set([...hosts].map(host => `http://${host}`));
   const protocolSessions = createSessions();
@@ -83,6 +89,16 @@ export function createBridge(backend, { port = 8787, embed = false, createBacken
     if (!hosts.has(req.headers.host) || (req.headers.origin && !origins.has(req.headers.origin))) {
       res.writeHead(403).end('Untrusted Host or Origin.');
       return;
+    }
+    // Public embed shell/SDK contain no browser state. Reading the panel resource
+    // or dispatching an action requires the same credential as MCP initialization.
+    const publicShell = embed && req.method === 'GET' && ['/embed', '/embed/sdk.js'].includes(req.url);
+    if (!publicShell) {
+      const supplied = Buffer.from(typeof req.headers.authorization === 'string' ? req.headers.authorization : '');
+      if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
+        res.writeHead(401, { 'WWW-Authenticate': 'Bearer realm="Kitsuvo local MCP"', 'Cache-Control': 'no-store' }).end('A local bridge credential is required.');
+        return;
+      }
     }
     if (embed && (req.url === '/embed' || req.url.startsWith('/embed/'))) {
       try { await serveEmbed(req, res, backend, serialize); }
@@ -148,6 +164,8 @@ export async function createNativeBackend(config, clientInfo = { name: 'kitsuvo-
 
 async function main() {
   const config = readConfig();
+  // Reject missing credentials before starting a browser/native backend.
+  if (!process.argv.includes('--stdio')) bridgeToken(config.token);
   const backend = await createNativeBackend(config);
   try {
     // Bundle once before accepting connections, so build errors fail at startup.
@@ -172,7 +190,7 @@ async function main() {
       process.exitCode = 1;
     });
     bridge.listen(config.port, '127.0.0.1', () => {
-      console.error(`Kitsuvo MCP listening at http://127.0.0.1:${config.port}/mcp (Secure MCP Tunnel only).`);
+      console.error(`Kitsuvo MCP listening at http://127.0.0.1:${config.port}/mcp (bearer authentication required, including through a tunnel).`);
       if (process.argv.includes('--embed')) console.error(`Embed example: http://127.0.0.1:${config.port}/embed`);
     });
     const stop = () => {
