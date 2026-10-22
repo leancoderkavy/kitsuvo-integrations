@@ -13,7 +13,7 @@ needed for local browser automation or local detection.
 Gemini CLI, Cline, Continue, LM Studio, Devin and workflow recipes for n8n,
 Zapier and Dify. The Claude Desktop bundle is
 `https://kitsuvo.com/downloads/kitsuvo-desktop-0.2.10.mcpb`. The remote plugin
-variant is `https://kitsuvo.com/downloads/kitsuvo-cloud-plugin-0.2.10.zip`.
+variant is `https://kitsuvo.com/downloads/kitsuvo-cloud-plugin-0.2.12.zip`.
 Each requires the user’s own installed browser; neither implies directory approval.
 
 ## Point a chat at an already open window
@@ -90,7 +90,7 @@ Keep `args: ["mcp"]`. Plugin installation does not install the native browser.
 An installed plugin is cached by its host; edit/reinstall the plugin copy or
 configure a separate native MCP connection when using a custom executable path.
 
-Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.21.zip`.
+Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.23.zip`.
 It contains the local marketplace manifests, branded plugin, four skills, and
 loopback HTTP MCP bridge with its locked dependencies and tests. Commands below
 run from the extracted directory or an authorized repository checkout.

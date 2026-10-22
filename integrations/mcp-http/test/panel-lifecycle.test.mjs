@@ -18,10 +18,22 @@ function harness(storage=new Map()) {
 test('connection waits for the originating panel, refreshes live state, and ignores stale replay',async()=>{
  const h=harness();await tick();assert.equal(h.calls.length,0);
  h.app.ontoolresult(result('https://stale.example/'));await tick();
+ assert.equal(h.calls[0].name,'kitsuvo_browser_refresh');
+ assert.equal(h.calls[0].arguments.action,undefined);
  assert.equal(h.calls[0].arguments.tab,3);assert.equal(h.calls[0].arguments.panelId,panelId);
  assert.equal(h.get('url').value,'https://live.example/');
  h.app.ontoolresult(result('https://stale.example/'));await tick();
  assert.equal(h.get('url').value,'https://live.example/');assert.equal(h.calls.length,1);
+});
+
+test('a restarted backend requires an explicit reconnect before recreating a panel tab',async()=>{
+ const h=harness();await tick();
+ h.app.ontoolresult(result('https://stale.example/'));await tick();
+ h.app.ontoolresult({isError:true,content:[{type:'text',text:'Browser restarted.'}],_meta:{recoveryRequired:true}});
+ assert.equal(h.get('reconnect').hidden,false);
+ assert.equal(h.calls.length,1,'restart does not automatically dispatch a mutation');
+ h.app.ontoolcancelled();
+ assert.equal(h.get('reconnect').hidden,true);
 });
 test('result before handshake still refreshes, and remount uses the saved changed tab',async()=>{
  const h=harness();h.app.ontoolresult(result('https://stale.example/'));await tick();

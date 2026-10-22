@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "kitsuvo-cloud",
-  "version": "0.2.10",
+  "version": "0.2.12",
   "description": "Browse and inspect sites in your own Kitsuvo browser through the opt-in authenticated cloud connector.",
   "author": {
     "name": "Kitsuvo",

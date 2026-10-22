@@ -26,6 +26,9 @@ test('restart restores each panel URL into distinct new tabs and refuses stale m
   const restarted=backend(await panelStore(file,profile));
   const denied=await callBrowserApp(restarted,'kitsuvo_browser_action',{action:'click',panelId:a.panelId,tab:a.tab,ref:'e1'});
   assert.equal(denied.isError,true); assert.equal(restarted.calls.length,0);
+  const observed=await callBrowserApp(restarted,'kitsuvo_browser_refresh',{panelId:a.panelId,tab:a.tab});
+  assert.equal(observed.isError,true); assert.equal(observed._meta.recoveryRequired,true);
+  assert.equal(restarted.calls.length,0,'read-only refresh cannot reopen a saved URL');
   // Resume B before A: numeric IDs deliberately reverse their previous meaning.
   const resumedB=(await callBrowserApp(restarted,'kitsuvo_browser_action',{action:'refresh',panelId:b.panelId,tab:b.tab})).structuredContent;
   const resumedA=(await callBrowserApp(restarted,'kitsuvo_browser_action',{action:'refresh',panelId:a.panelId,tab:a.tab})).structuredContent;

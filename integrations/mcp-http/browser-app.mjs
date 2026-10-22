@@ -20,6 +20,13 @@ export const appTools = [
     _meta: uiMeta,
   },
   {
+    name: 'kitsuvo_browser_refresh', title: 'Refresh Kitsuvo view',
+    description: 'Read the current state of an existing browser panel without opening, restoring, selecting or changing tabs.',
+    inputSchema: { type: 'object', properties: { panelId: { type: 'string' }, tab }, required: ['panelId'], additionalProperties: false },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    _meta: { ...uiMeta, ui: { resourceUri: APP_URI, visibility: ['app'] } },
+  },
+  {
     name: 'kitsuvo_browser_action', title: 'Use browser panel',
     description: 'Controls for the interactive browser panel.',
     inputSchema: { type: 'object', properties: {
@@ -57,6 +64,8 @@ export async function callBrowserApp(backend, name, args = {}, signal, meta) {
     if (!args || typeof args !== 'object' || Array.isArray(args)) return fail('Expected an arguments object.');
     if (args.tab !== undefined && (!Number.isInteger(args.tab) || args.tab < 0)) return fail('Invalid tab.');
     if (args.panelId !== undefined && (typeof args.panelId !== 'string' || !/^[0-9a-f-]{36}$/.test(args.panelId))) return fail('Invalid panel ID.');
+    const readOnlyRefresh = name === 'kitsuvo_browser_refresh';
+    if (readOnlyRefresh) args = { ...args, action: 'refresh' };
     let contexts = panels.get(backend);
     if (!contexts) { contexts = new Map(); panels.set(backend, contexts); }
     const panelId = name === 'kitsuvo_browser' ? randomUUID() : args.panelId;
@@ -68,6 +77,12 @@ export async function callBrowserApp(backend, name, args = {}, signal, meta) {
     let operation;
     let report;
     const recovery = !context && panelId && backend._kitsuvoPanelRecovery?.get(panelId);
+    // Hosts such as T3 approve app tools using their annotations. An automatic
+    // view refresh must never create a tab, even after the backend restarts.
+    if (readOnlyRefresh && !context) {
+      return { ...fail(recovery ? 'Browser restarted. Reconnect browser to restore this panel.' : 'This browser panel is no longer connected. Open Kitsuvo in chat again.'),
+        _meta: { recoveryRequired: Boolean(recovery) } };
+    }
     if (name !== 'kitsuvo_browser' && recovery) {
       // Recover only a refresh, never replay an old click/type/submit against
       // reused native IDs or stale element references after a process restart.

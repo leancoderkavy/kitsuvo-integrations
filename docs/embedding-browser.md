@@ -65,6 +65,12 @@ for that provider's project `.mcp.json`. Use the provider's configured Claude
 directory and enable the server there. This config provides tools; whether
 it also renders the panel depends on the selected provider. T3's UI support
 does not imply every provider exposes the necessary resource/tool operations.
+In T3's Codex provider, the panel observes its existing tab through the app-only,
+read-only `kitsuvo_browser_refresh` tool. Opening the panel does not require a
+second approval just to refresh its view. Navigation, typing, clicks and tab
+changes still use `kitsuvo_browser_action` and the host's normal approval flow.
+After a bridge restart, **Reconnect browser** explicitly restores a saved panel;
+an automatic refresh never reopens a saved URL or creates a replacement tab.
 For Codex, use the provider's configured `CODEX_HOME` rather than assuming it
 is your local default. A remote T3 server needs Node, Kitsuvo, and the extracted
 bridge on that server; local desktop paths are not remote paths.
@@ -185,8 +191,8 @@ requesting cross-origin access to the example endpoints.
 
 The SDK creates an opaque iframe with `sandbox="allow-scripts"`, no referrer,
 and no same-origin, popup, or top-navigation privileges. Its bridge checks the
-message source and forwards only `kitsuvo_browser` and
-`kitsuvo_browser_action`. It does not forward arbitrary native tools such as
+message source and forwards only `kitsuvo_browser`, `kitsuvo_browser_refresh`
+and `kitsuvo_browser_action`. It does not forward arbitrary native tools such as
 JavaScript evaluation, resources, or prompts. The bundled panel has a content
 security policy that blocks network connections and nested frames; web pages
 execute in the native engine. Untrusted page labels are rendered as text.

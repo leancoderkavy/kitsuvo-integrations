@@ -58,6 +58,9 @@ test('opt-in embed routes serve a bounded panel bridge and preserve local reques
   assert.equal(result.structuredContent.title, 'Example');
   assert.equal(result.structuredContent.tab, 3);
   assert.ok(result._meta.previewNote);
+  const observed=await (await post({name:'kitsuvo_browser_refresh',arguments:{panelId:result.structuredContent.panelId}})).json();
+  assert.equal(observed.isError,false);
+  assert.equal(observed.structuredContent.tab,3);
   const disabledReservation = createBridge(backend);
   await new Promise(resolve => disabledReservation.listen(0, '127.0.0.1', resolve));
   const disabledPort = disabledReservation.address().port;

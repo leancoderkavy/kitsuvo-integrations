@@ -106,6 +106,9 @@ try {
   const panelTab = panel.structuredContent.tab;
   assert.ok(Number.isInteger(panelTab));
   assert.notEqual(panelTab, tabOf(parallelPages[0]), 'a new panel owns its own tab');
+  const observedPanel = await call(httpClient, 'kitsuvo_browser_refresh', { panelId: panel.structuredContent.panelId, tab: tabOf(parallelPages[0]) });
+  assert.equal(observedPanel.structuredContent.tab, panelTab, 'read-only panel refresh stays on its owned tab');
+  assert.match(observedPanel.structuredContent.snapshot, /Browser qualification/);
   await parallelTransport.terminateSession();
   await parallelClient.close();
   // Deleting one native connection must leave the other tab context usable.

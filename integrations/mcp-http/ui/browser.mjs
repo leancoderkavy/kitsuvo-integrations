@@ -52,10 +52,12 @@ function render(result) {
     $('url').value = '';
     $('tabs').replaceChildren();
     $('previewNote').textContent = '';
+    $('reconnect').hidden = !result._meta?.recoveryRequired;
     return;
   }
   if (!result.structuredContent?.snapshot) return;
   state = result.structuredContent;
+  $('reconnect').hidden = true;
   if (state.panelId && Number.isInteger(state.tab)) {
     try { localStorage.setItem(storageKey(state.panelId), String(state.tab)); } catch { /* Some hosts disable storage. Server context still restores tabs. */ }
   }
@@ -113,8 +115,9 @@ async function act(action, args = {}) {
   setBusy(true); $('status').textContent = 'Updating browser…';
   const current = ++generation;
   try {
-    const result = await app.callServerTool({ name: 'kitsuvo_browser_action', arguments: {
-      action, ...(state.tab === undefined ? {} : { tab: state.tab }), ...args,
+    const result = await app.callServerTool({ name: action === 'refresh' ? 'kitsuvo_browser_refresh' : 'kitsuvo_browser_action', arguments: {
+      ...(action === 'refresh' ? {} : { action: action === 'reconnect' ? 'refresh' : action }),
+      ...(state.tab === undefined ? {} : { tab: state.tab }), ...args,
       ...(state.panelId ? { panelId: state.panelId } : {}),
     } });
     if (generation === current) render(result);

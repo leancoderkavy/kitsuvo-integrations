@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { callBrowserApp } from '../browser-app.mjs';
+import { appTools, callBrowserApp } from '../browser-app.mjs';
 
 const text = value => ({ content: [{ type: 'text', text: value }] });
 function backend({ screenshot = true, denied = false } = {}) {
@@ -57,6 +57,26 @@ test('new panels sharing a connection allocate distinct tabs and refresh their o
   const closed = (await callBrowserApp(native,'kitsuvo_browser_action',{action:'close',tab:nextTab.tab,panelId:a.panelId})).structuredContent;
   assert.equal(closed.tab,a.tab); assert.equal(closed.url,'https://a.example/latest');
   assert.equal(pages.get(b.tab),'https://b.example/');
+});
+
+test('app-only observation refresh cannot navigate, select or create tabs', async () => {
+  const tool = appTools.find(tool => tool.name === 'kitsuvo_browser_refresh');
+  assert.equal(tool.annotations.readOnlyHint, true);
+  assert.equal(tool.annotations.destructiveHint, false);
+  assert.deepEqual(tool._meta.ui.visibility, ['app']);
+  const native = backend();
+  const panel = (await callBrowserApp(native, 'kitsuvo_browser', {})).structuredContent;
+  native.calls.length = 0;
+  const result = await callBrowserApp(native, 'kitsuvo_browser_refresh', {
+    panelId: panel.panelId, tab: 999, action: 'navigate', url: 'https://unexpected.example/',
+  });
+  assert.equal(result.isError, false);
+  assert.equal(result.structuredContent.tab, panel.tab);
+  assert.deepEqual(native.calls.map(call => call.name), ['browser_snapshot', 'browser_tabs', 'browser_take_screenshot']);
+  assert.equal(native.calls[0].arguments.tab, panel.tab);
+  native.calls.length = 0;
+  assert.equal((await callBrowserApp(native, 'kitsuvo_browser_refresh', { tab: panel.tab })).isError, true);
+  assert.equal(native.calls.length, 0);
 });
 
 test('macOS keeps usable page controls when screenshots are unavailable', async () => {

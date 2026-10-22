@@ -51,7 +51,7 @@ export async function serveEmbed(req, res, backend, serialize) {
   let params;
   try { params = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
   catch { send(400, 'text/plain', 'Invalid JSON.'); return; }
-  if (!params || !['kitsuvo_browser', 'kitsuvo_browser_action'].includes(params.name)) {
+  if (!params || !['kitsuvo_browser', 'kitsuvo_browser_refresh', 'kitsuvo_browser_action'].includes(params.name)) {
     send(403, 'text/plain', 'Only browser panel tools are available.'); return;
   }
   const result = await serialize(() => callBrowserApp(backend, params.name, params.arguments));

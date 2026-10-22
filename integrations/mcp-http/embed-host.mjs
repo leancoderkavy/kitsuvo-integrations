@@ -1,7 +1,7 @@
 import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge';
 
 export const BROWSER_RESOURCE_URI = 'ui://kitsuvo/browser.html';
-const TOOLS = new Set(['kitsuvo_browser', 'kitsuvo_browser_action']);
+const TOOLS = new Set(['kitsuvo_browser', 'kitsuvo_browser_refresh', 'kitsuvo_browser_action']);
 const TOUR_KEY = 'kitsuvo.embedded-browser.tour.v1';
 
 // The host supplies an already authorized MCP client. No control tokens or
@@ -77,7 +77,9 @@ export async function mountKitsuvo(container, { client, initialUrl, theme = 'lig
     guide = addGuide(container);
     return {
       iframe: frame,
-      refresh: () => tab === undefined && !panelId ? action('kitsuvo_browser', {}) : action('kitsuvo_browser_action', { action: 'refresh', ...(panelId ? { panelId } : {}), ...(tab !== undefined ? { tab } : {}) }),
+      refresh: () => tab === undefined && !panelId ? action('kitsuvo_browser', {}) : panelId
+        ? action('kitsuvo_browser_refresh', { panelId, ...(tab !== undefined ? { tab } : {}) })
+        : action('kitsuvo_browser_action', { action: 'refresh', tab }),
       navigate: url => action('kitsuvo_browser', { url }),
       update: result => disposed ? Promise.reject(new Error('Kitsuvo embed was destroyed.')) : bridge.sendToolResult(result),
       setTheme: next => {
