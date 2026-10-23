@@ -33,9 +33,9 @@ Claude Code 2.1.275 or later with:
 
 ## Data handling
 
-Browser automation uses a separate local profile by default. It refuses sensitive sign-in pages and password fields. No sensitive-profile opt-ins are included in this package.
+The packaged plugin runs `kitsuvo mcp`, which uses the normal persistent browser profile by default, including its signed-in sessions. Configure `args` as `["mcp", "--separate-profile"]` for review without personal browsing data on Windows or macOS 14 or later. Sensitive sign-in pages and password fields remain protected in either mode. No sensitive-profile opt-ins are included in this package.
 
-The server receives tool arguments, including URLs and any text the user asks it to type. It returns page text, snapshots, reports, and supported screenshots to the connected AI client. Pages can contain personal data. The native browser may retain local cookies, history, settings, and downloads until the user clears its agent profile or deletes the files. There is no Kitsuvo-hosted data service in this package and no fixed automatic deletion period.
+The server receives tool arguments, including URLs and any text the user asks it to type. It returns page text, snapshots, reports, and supported screenshots to the connected AI client. Pages can contain personal data. The native browser may retain local cookies, history, settings, and downloads until the user clears data in the configured profile. Normal-profile mode shares that data with ordinary browsing; a separate profile retains its own data. There is no Kitsuvo-hosted data service in this package and no fixed automatic deletion period.
 
 Navigation contacts the websites the user opens. User-requested interactions can send entered text to those websites. Those destinations are chosen by the user, not a fixed vendor list. The plugin's skills do not add analytics or their own cloud upload service. If the user separately enables a cloud verdict provider in the native app, bounded page evidence is handled according to that provider's settings and terms. The connected AI client's data policy governs tool results it receives.
 
