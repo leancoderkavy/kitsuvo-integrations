@@ -84,10 +84,12 @@ codex plugin add kitsuvo --marketplace kitsuvo-browser
 ```
 
 The plugin includes setup, browsing, detection-evidence, and responsive skills.
-Do not assume the connection is isolated from your normal sign-ins. On Mac
-0.2.14, local MCP reuses the normal profile by default; add `--separate-profile`
+Do not assume the connection is isolated from your normal sign-ins. On current
+Mac 0.2.30, local MCP reuses the normal profile by default; add `--separate-profile`
 to a direct MCP configuration for a separate persistent profile. Check your
 installed build's `browser_status` and the [connection guide](https://kitsuvo.com/integrations).
+Windows 0.2.4 predates `browser_status` and cannot satisfy the current connection
+check; no qualified replacement Windows release is currently published.
 The plugin requires the installed desktop browser; it does not install it.
 
 ## Browser inside ChatGPT, Claude, Cursor, or T3 Code
@@ -169,7 +171,7 @@ approval in any AI-client directory.
 ## Security and privacy
 
 - **Choose the profile.** These local plugin configurations pass `mcp` and
-  inherit the installed browser's default. On Mac 0.2.14 this reuses the normal
+  inherit the installed browser's default. On current Mac 0.2.30 this reuses the normal
   signed-in profile, including website cookies. Add `--separate-profile` in a
   direct MCP configuration when you want a separate persistent profile. Check
   `browser_status` for your installed build. The packages do not enable
@@ -210,7 +212,7 @@ snapshots and resizing. On Linux or ChromeOS, try the
 [extension preview](docs/quickstart/browser-extension.md).
 
 **Can the agent use my signed-in browser?** Yes, when it uses your normal
-profile: that is the local MCP default on Mac 0.2.14. A separate profile must
+profile: that is the local MCP default on current Mac 0.2.30. A separate profile must
 be selected explicitly with `--separate-profile`. Sensitive sign-in pages and
 password fields are protected by default. Page text from other signed-in pages
 can still reach the connected AI client.

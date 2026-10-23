@@ -1,7 +1,7 @@
 # Kitsuvo MCP clients and distribution
 
 Version 0.2.7. Install Kitsuvo on Windows or macOS first. The local server is
-`kitsuvo mcp`; Mac 0.2.14 local MCP reuses the normal signed-in profile by default. Add `--separate-profile` for a separate persistent profile. Sensitive pages remain protected.
+`kitsuvo mcp`; current Mac 0.2.30 local MCP reuses the normal signed-in profile by default. Add `--separate-profile` for a separate persistent profile. Sensitive pages remain protected. Windows 0.2.4 predates `browser_status` and cannot satisfy the current connection check; no qualified replacement Windows release is currently published.
 The client receives requested page text, screenshots and reports. No API key
 is needed for local automation. These installation sources do not establish
 public directory approval or tested compatibility in every client.
@@ -30,7 +30,7 @@ normally use `/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo`.
 
 Claude Code: `claude mcp add --scope user kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile`.
 Codex: `codex mcp add kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile`.
-For skills too, download and extract the [integrations archive](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.24.zip), then run the marketplace commands from the extracted folder:
+For skills too, download and extract the [integrations archive](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.26.zip), then run the marketplace commands from the extracted folder:
 
 ```sh
 claude plugin marketplace add .
@@ -59,7 +59,7 @@ Do not fabricate `.app.json` registered IDs; attach the actual portal-generated
 mapping if the target host requires it.
 
 On your own Windows or Mac computer, install Kitsuvo and Node.js 22+, extract
-`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.24.zip`, then:
+`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.26.zip`, then:
 
 ```sh
 cd integrations/mcp-cloud
@@ -178,7 +178,7 @@ Official references: [Cursor MCP](https://docs.cursor.com/context/model-context-
 [Zapier](https://help.zapier.com/hc/en-us/articles/38777069364109-Connect-remote-MCP-servers-to-Zapier-using-MCP-Client),
 [Dify](https://dify.ai/blog/v1-6-0-built-in-two-way-mcp-support).
 
-## Verified local setup (Mac 0.2.14)
+## Historical local setup evidence (Mac 0.2.14)
 
 The direct commands above use the installed Mac executable, so PATH setup is
 not required. Substitute your own installed executable on Windows and use the

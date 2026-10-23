@@ -2,8 +2,9 @@
 
 The extension runs a focused local subset of Kitsuvo's desktop detector. It
 uses the same hosting, markup-fingerprint, generator, builder-meta, and
-traditional-CMS rule tables and the same score curve. It scans on request and
-optionally filters search results by builder hosting. It is independent of the
+traditional-CMS rule tables and the same score curve. It scans on request,
+optionally hides the search engine's own AI answers, and optionally filters
+search results by builder hosting. It is independent of the
 desktop browser; no native messaging host, AI account, or API key is needed.
 
 It does not port the desktop's design/copy analysis, slop and impersonation
@@ -77,10 +78,69 @@ signals that reach the native 70 threshold are filtered; weaker hosting such
 as Replit is not hidden on hosting alone. Search-engine markup can change;
 unrecognized results remain visible.
 
-The popup's nonblocking guide appears the first time it opens, persists its
-completed/dismissed version in local extension storage, and can be replayed
-with **Help**. Close and Escape restore focus. It never scans or grants access
-on the user's behalf. Keyboard, reduced-motion, and narrow layouts are supported.
+**Hide AI answers in search** is a separate opt-in switch in the same popup,
+off by default. It shares the same optional search-site access and the same
+search-page script as the filter. When on, it hides the engine's own AI answer
+panels (Google AI Overviews and AI Mode, Bing Copilot answers, Duck.ai and
+Search Assist) and the engine's links into its AI chat, reading page markup
+only. A hidden answer gets a page banner with **Show AI answer**, which keeps
+that answer visible for the rest of the page. Hidden chat links get no banner
+and return when the switch is turned off. The search-site access is removed
+only when both search switches are off.
+
+While either search switch is on, the search page also shows a quiet status
+line in the same banner, so a search where nothing was hidden still says what
+Kitsuvo did. With nothing hidden it reads "Results checked: N. None are on
+known AI-builder domains." The check reads only each result link's hostname,
+so a builder-made site on its own custom domain is not caught; the line says
+so by naming domains. N counts only the result rows the filter actually
+examined; a link that still points at the same search engine (for example a
+Bing `/ck/a` redirect, an html.duckduckgo.com `duckduckgo.com/l/?uddg=` link
+or a DuckDuckGo ad link, which the extension does not read) is neither counted
+nor hidden, so a page of such links shows no "Results checked" line. If a
+checked result is on a known builder host but stayed visible (weaker hosting
+or an always-show choice), the line says "None were hidden." instead. With
+**Hide AI answers in search** on and no answer panel recognized, it says "No
+AI answer recognized yet."; the page is still watched, and a late panel
+Kitsuvo recognizes replaces that with the usual hidden answer text. **Hide this
+line** moves keyboard focus to the results it sat above (a temporary
+`tabindex="-1"`, removed on blur) instead of letting it fall to the page. When
+results are hidden, the existing text and buttons stay and
+the banner adds **Wrong verdict?**, which lists the hidden hosts, each with
+**Always show {host}**. That writes the same local `alwaysShowHosts` choice as
+the popup, so **Reset {host}** in the popup undoes it. No report is sent
+anywhere. The line links to `https://kitsuvo.com/extensions` (**How this
+works**, new tab, no query string, `noreferrer`). **Hide this line** stores
+`searchStatus: false`; the popup's **Show Kitsuvo status on search pages**
+checkbox brings it back and is ticked unless the line was hidden. With the
+line off, the banner is exactly the pre-status banner. Buttons that write
+storage act only on trusted user clicks, never on clicks the search page
+dispatches. The line needs `ai-panels.js` engine detection and a results
+container, so search home pages and unsupported hosts show nothing. It adds no
+permission, network request or telemetry. The desktop browser's status line
+is separate and not part of this extension change.
+
+A new install opens a welcome page (`welcome.html`) in one tab. Extension,
+browser and shared-module updates never open it. The page explains page scans,
+**Hide AI answers in search** and the search filter, and offers both search
+settings as unticked checkboxes. Each checkbox asks for the search-site access
+only inside its own click, and a declined prompt leaves the setting off. The
+page also says where the controls live later and links to
+`https://kitsuvo.com/install` without a query string, and has one line about
+the status line on search pages. It makes no network requests. Finishing,
+leaving or closing it records guide version 4, so the popup does not repeat
+the same steps. The popup's **Setup guide** footer link
+reopens it.
+
+The popup's nonblocking guide appears the first time it opens unless the
+welcome page already recorded it. It persists its completed/dismissed version
+in local extension storage, and **Help** replays all of its steps. Version 4
+has four steps: page scans, Hide AI answers, the Setup guide link and the
+status line checkbox. Someone who closed an earlier version sees only the
+newer steps once (version 2 sees steps 3 and 4). Close and Escape
+restore focus. Neither the guide nor the welcome page scans, ticks a setting
+or grants access on the user's behalf. Keyboard, reduced-motion, and narrow
+layouts are supported.
 
 Default permissions are `activeTab`, `scripting`, and `storage`. Persistent
 search-host access is optional and removed when the filter is disabled.
@@ -98,15 +158,37 @@ does not automatically become a navigation rule. Codex runtime support still
 requires loading and testing the extension in Codex itself.
 
 No cookies, history, native messaging, web-request listeners, remote executable code,
-or cloud connections are requested. Stored preferences include filter and guide settings and exact hostnames you choose to always show. Paths, query strings, page content and reports are not saved.
+or cloud connections are requested. Local extension storage holds six keys:
+`searchFilter` (search-result filter), `hideAiPanels` (Hide AI answers in
+search), `navigationBlock` (the Chromium-only Block known AI-builder sites
+switch), `alwaysShowHosts` (exact hostnames you choose to always show, from the
+popup or from **Wrong verdict?** on a search page), `searchStatus` (whether the
+status line shows on search pages; missing means on) and `tourVersion` (the
+completed or closed guide version). Paths, query strings,
+page content and reports are not saved.
 Page scans skip sign-in provider hosts, password-field pages, and private tabs.
 Scan copies strip input values and editable content before local analysis.
 
 ## Publisher access and submissions
 
-The prepared listing is `extensions/listing/store-listing.json`. Use the
-existing Kitsuvo icons in each package and the actual-UI screenshots generated
-by `node scripts/render_extension_listing.cjs`. The screenshots clearly label
+The prepared listing is `extensions/listing/store-listing.json`. It must
+describe what the source ships: every popup switch, every manifest permission
+and every local storage key. `tests/extension-listing.test.cjs` checks that,
+along with the store length limits, `data_collection` staying "None" and the
+manifest name and summary matching the listing.
+
+The store name and summary come from the manifest that
+`scripts/build_extensions.py` writes into each package. The next store upload
+must carry a `VERSION` above 0.1.10. The 0.1.11 archives meet that rule, and
+their manifest name and summary match the current listing. Any change to the
+manifest name or summary, including a renamed listing, needs a new `VERSION`
+above 0.1.11, because the 0.1.11 archives on kitsuvo.com/downloads are
+immutable. A name change also changes the Chrome Web Store URL slug; update the
+`sameAs` URL pinned in `tests/site-entity.test.cjs` only after the store shows
+the new slug.
+
+Use the existing Kitsuvo icons in each package and the actual-UI screenshots
+generated by `node scripts/render_extension_listing.cjs`. The screenshots clearly label
 the example as illustrative. Store descriptions must retain the scope and
 uncertainty language; do not call this a safety certificate or claim approval.
 

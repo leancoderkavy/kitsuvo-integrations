@@ -90,7 +90,7 @@ Keep `args: ["mcp"]`. Plugin installation does not install the native browser.
 An installed plugin is cached by its host; edit/reinstall the plugin copy or
 configure a separate native MCP connection when using a custom executable path.
 
-Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.24.zip`.
+Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.26.zip`.
 It contains the local marketplace manifests, branded plugin, four skills, and
 loopback HTTP MCP bridge with its locked dependencies and tests. Commands below
 run from the extracted directory or an authorized repository checkout.
@@ -352,7 +352,7 @@ responsive sizing, supported viewport screenshots, and `kitsuvo_report`. Detecti
 include AI-built, slop, and impersonation evidence and gate state; search-result
 reports describe hidden or labelled sites.
 
-On Mac 0.2.14, `kitsuvo mcp` reuses the normal signed-in profile by default;
+On current Mac 0.2.30, `kitsuvo mcp` reuses the normal signed-in profile by default;
 add `--separate-profile` for a separate persistent profile. Automation refuses sensitive sign-in
 pages and password fields. These packages do not enable `--main-profile` or
 `--allow-sensitive`. The user's native browser settings and network rules still
@@ -456,7 +456,7 @@ Use `kitsuvo mcp --headless` for a hidden native browser with an isolated profil
 For the existing interactive chat panel, set `KITSUVO_HEADLESS=1` when starting
 the MCP App bridge or cloud connector. See [headless setup](headless-browser.md).
 
-## Verified local setup (Mac 0.2.14)
+## Historical local setup evidence (Mac 0.2.14)
 
 The direct commands above use the installed Mac executable, so PATH setup is
 not required. Substitute your own installed executable on Windows and use the
