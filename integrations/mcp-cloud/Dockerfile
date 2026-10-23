@@ -1,4 +1,4 @@
-FROM node:24-alpine
+FROM node:24.22.1-alpine
 RUN apk add --no-cache su-exec
 WORKDIR /app
 COPY package.json package-lock.json ./
