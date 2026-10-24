@@ -600,13 +600,15 @@ test('a failed state write recovers on the next successful write', async t => {
   await rm(parent, { recursive: true }); await writeFile(parent, 'blocked');
   assert.throws(() => store.save(), /unavailable/);
   assert.throws(() => store.check(), /unavailable/);
-  assert.match(errors[0], /state_write_failed/);
+  // Node may emit its experimental MockTimers warning through console.error.
+  // Require the store event without assuming it is the first captured log line.
+  assert.match(errors.join('\n'), /"event":"state_write_failed"/);
   await rm(parent); await mkdir(parent);
   assert.throws(() => store.check(), /unavailable/, 'retries are throttled');
   t.mock.timers.tick(5000);
   store.check();
   store.save();
-  assert.match(errors.at(-1), /state_write_recovered/);
+  assert.match(errors.join('\n'), /"event":"state_write_recovered"/);
   assert.equal(JSON.parse(await readFile(file, 'utf8')).version, 1);
 });
 
