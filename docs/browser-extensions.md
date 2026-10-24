@@ -49,7 +49,8 @@ loopback fixture, and verifies that password pages are skipped.
 Only the temporary smoke package receives loopback host access to substitute
 for the toolbar's activeTab grant. Public packages do not contain that access.
 
-Firefox 157.0.1 on Windows passed 14 real-browser checks: temporary add-on
+Firefox 157.0.1 on Windows passed 14 real-browser checks (a DOM-clobbering
+scan check was added later): temporary add-on
 installation, popup and guide replay, Lovable score 78, report URL sanitization,
 password and browser-page skips, editable-content exclusion, installed detector
 sign-in exclusion, strong search-host filtering, weaker/ordinary results retained,
@@ -94,10 +95,20 @@ Kitsuvo did. With nothing hidden it reads "Results checked: N. None are on
 known AI-builder domains." The check reads only each result link's hostname,
 so a builder-made site on its own custom domain is not caught; the line says
 so by naming domains. N counts only the result rows the filter actually
-examined; a link that still points at the same search engine (for example a
-Bing `/ck/a` redirect, an html.duckduckgo.com `duckduckgo.com/l/?uddg=` link
-or a DuckDuckGo ad link, which the extension does not read) is neither counted
-nor hidden, so a page of such links shows no "Results checked" line. If a
+examined. Engine redirects are read from the link itself, as in the desktop
+finder, and never opened or fetched: Bing `/ck/a` (`u=a1` plus base64url),
+DuckDuckGo `/l/?uddg=` (html.duckduckgo.com and lite.duckduckgo.com link
+through duckduckgo.com) and Google `/url?q=`. Google's encrypted `/goto` links
+use the result's visible breadcrumb host. A link that still points at the
+search engine after that (an unreadable redirect, an engine page or a
+DuckDuckGo ad link) is neither counted nor hidden, so a page of such links
+shows no "Results checked" line. Recognized layouts are Google (including its
+lightweight `#main` layout), Bing, DuckDuckGo, html.duckduckgo.com and
+DuckDuckGo Lite, where a result's snippet and address rows hide with its title
+row. The filter reads result title links only, up to 1,000 per pass, so long
+infinite-scroll pages stay filtered. Hidden rows get the `hidden` attribute and
+an inline `display: none !important`, which an engine stylesheet or page CSP
+cannot override; Show and turning the filter off restore both exactly. If a
 checked result is on a known builder host but stayed visible (weaker hosting
 or an always-show choice), the line says "None were hidden." instead. With
 **Hide AI answers in search** on and no answer panel recognized, it says "No
@@ -198,6 +209,9 @@ strings,
 page content and reports are not saved.
 Page scans skip sign-in provider hosts, password-field pages, and private tabs.
 Scan copies strip input values and editable content before local analysis.
+Scans read the page through the DOM prototypes, so a page cannot hide its
+evidence or break the scan by clobbering `document` or form properties with
+named elements (`<img name="title">`, `<form name="querySelector">`).
 
 ## Publisher access and submissions
 

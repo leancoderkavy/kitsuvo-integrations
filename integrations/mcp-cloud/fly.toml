@@ -1,5 +1,9 @@
 app = "kitsuvo-mcp-relay"
 primary_region = "sjc"
+# The relay drains in-flight requests for up to 10 s on SIGTERM, then asks
+# connectors to reconnect and flushes authorization state before exiting.
+kill_signal = "SIGTERM"
+kill_timeout = "20s"
 
 [build]
   dockerfile = "Dockerfile"

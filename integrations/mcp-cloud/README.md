@@ -28,7 +28,25 @@ and OAuth. The authorization page provides a one-time request code. Type
 URI, then type `APPROVE`. Refresh the authorization page to finish linking.
 Approval authorizes navigation, tab management, clicking, typing, page JavaScript
 and reading snapshots, reports and supported screenshots in this isolated agent profile.
-The native server's sensitive-page restrictions remain enabled.
+The connector starts `kitsuvo mcp --separate-profile`, so the relay never reaches
+your normal signed-in profile; that needs Windows or macOS 14 or later. Older
+Kitsuvo builds without the flag already isolate MCP. The native server's
+sensitive-page restrictions remain enabled.
+
+**macOS 13 (Ventura) and earlier are not supported for cloud access.** Those
+releases cannot keep a separate browser data store, so an isolated profile is
+impossible and the connector would otherwise expose your normal signed-in
+browser. The terminal connector and `service.mjs install`/`run` stop before
+connecting and print:
+
+> Kitsuvo cloud access needs macOS 14 (Sonoma) or later. […] Nothing was
+> connected. Update macOS to use cloud access, or use local MCP on this Mac
+> instead […]
+
+To fix it, update macOS to 14 or later. Until then, use local MCP
+(`kitsuvo mcp`), which runs on your Mac only and, by default, uses your normal
+signed-in profile. No relay is involved. There is no override that sends the
+signed-in profile through the relay.
 
 ### Interactive browser panel in ChatGPT or Claude
 
@@ -91,6 +109,11 @@ or relay restarts. While it is offline, browser calls return temporary unavailab
 (503), without invalidating authorization. Access tokens last ten minutes; rotated
 refresh tokens last one day for temporary connectors and 90 days for installed
 background connectors. Refresh extends the latter expiry, with old tokens invalidated.
+Presenting a spent authorization code or an already-rotated refresh token is
+treated as theft: every token from that grant is revoked and the client must
+re-authorize. Each browser keeps at most 8 grants and each client at most 4;
+issuing another revokes that browser's or client's least recently refreshed
+grant. When the store is full, grants of offline connectors are evicted first.
 The browser window may remain open after stopping the connector.
 
 ## Automatic startup on macOS and Windows
@@ -151,6 +174,32 @@ is persisted only after a valid WebSocket handshake and explicit OAuth approval.
 Pending connectors have separate capacity and a 20-attempts-per-15-minute source
 budget; approved reconnects use a separate 120-attempt budget and reserved
 capacity, including a separate rate-bucket pool. IPv6 sources share a /56 bucket.
+
+| Limit | Global | Per source |
+| --- | --- | --- |
+| Installed (keyed) connectors online | 50 | 5 |
+| Temporary (anonymous) connectors approved | 25 | 3 |
+| Pending (unapproved) connectors, 10 minutes each | 60 | 3 |
+| Unapproved client registrations (one day each) | 500 | 10 |
+| Pending authorization requests (10 minutes each) | 500 | 10 |
+| Token records | 5000 | — |
+| MCP sessions (15 minutes idle each) | 500 | 16 per browser, 64 per connector network |
+
+Temporary connectors cannot consume installed capacity, and both caps are also
+checked when a connector approves its first client. A browser's new MCP session
+beyond its 16 replaces that browser's least recently used session. Sessions are
+also counted per connector network (the browser connector's IPv4 address or IPv6
+/56, not the MCP client's address, because hosted chat apps share egress
+addresses): a network's session beyond its 64 replaces that network's least
+recently used one. When all 500 are in use, a new session evicts the least
+recently used session of the network holding the most, instead of refusing
+everyone else. Client
+registration metadata is limited to 4 KiB, so a full registry always fits the
+4 MiB authorization store and the relay can restart. Before approval a connector
+may only send WebSocket messages up to 16 KiB; approved connectors may send up
+to 8 MiB. A failed state write keeps authorization closed until a later full
+write succeeds (retried at most every five seconds), and is logged as
+`state_write_failed`.
 Failed handshakes cannot create durable identity records. On restart, legacy
 orphan identities without an unexpired approved grant are discarded. Direct
 listeners ignore forwarded IP headers. The supplied Fly configuration sets
@@ -196,6 +245,25 @@ code rollback, since that could restore revoked credentials. The endpoint is `/m
 and discovery uses standard OAuth protected-resource and authorization metadata.
 WebSocket connections, queues, request sizes and authorization stores are bounded;
 SDK OAuth endpoints include rate limiting. This single-volume deployment does not provide high availability.
+
+On SIGTERM (Fly's configured `kill_signal`, with a 20-second `kill_timeout`) the
+relay stops accepting connections, answers requests on kept-alive sockets and
+`/health` with a retryable 503, and lets in-flight MCP calls finish for up to
+10 seconds (`KITSUVO_SHUTDOWN_GRACE_MS`). It then closes connector sockets with
+code 1012 (service restart), flushes the authorization store and exits. Installed
+background connectors reconnect when their service manager restarts them;
+temporary terminal connectors end and say so. Reconnects use the per-source
+budgets above, so a reconnect storm is throttled with 429 rather than starving
+other connectors. Token and session expiry run on a monotonic clock anchored
+at startup, so an NTP step or manual clock change while running cannot expire
+and prune every grant at once. Tokens carry relative lifetimes (`expires_in`), so
+an MCP client's clock skew does not affect them.
+
+Every relay response sends `Content-Security-Policy: default-src 'none';
+frame-ancestors 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options:
+nosniff`, `Referrer-Policy: no-referrer` and, over HTTPS, HSTS. The approval page
+is deliberately plain English text (`Content-Language: en`): it has no markup,
+scripts or form, and approval happens only in your connector terminal.
 
 ### Optional PostHog exception reporting
 

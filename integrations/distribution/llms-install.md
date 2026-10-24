@@ -3,7 +3,8 @@
 Install the native browser only from https://kitsuvo.com on Windows or macOS.
 Use command kitsuvo and args ["mcp"], or the full installed executable path.
 Merge the relevant client example into existing config; preserve other servers.
-Local automation uses a separate profile. Never add --main-profile or --allow-sensitive.
+Args ["mcp"] use the normal signed-in browser profile; ["mcp", "--separate-profile"] keeps a separate one.
+Tell the user which profile you configured. Never add --allow-sensitive.
 After installation, list tools, call browser_tabs with action list, navigate to https://example.com,
 and read browser_snapshot and kitsuvo_report. Explain evidence uncertainty.
 Do not claim a successful install from a config file alone.

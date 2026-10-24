@@ -72,3 +72,15 @@ test('local revocation waits for relay acknowledgement', async () => {
     assert.deepEqual(await controlRequest(directory,{action:'revoke'}),{revoked:true});
   } finally {await control?.close();await rm(directory,{recursive:true,force:true});}
 });
+
+test('macOS 13 and earlier refuse cloud access with an actionable message, not a generic failure', async () => {
+  const { checkIsolationSupport, ConnectorError, isolationMessage } = await import('../connect.mjs');
+  for (const release of ['22.6.0', '21.1.0', '19.6.0']) assert.throws(() => checkIsolationSupport('darwin', release), error => error instanceof ConnectorError && /macOS 14/.test(error.message) && /Nothing was connected/.test(error.message));
+  for (const [platform, release] of [['darwin', '23.0.0'], ['darwin', '25.6.0'], ['win32', '10.0.22631'], ['linux', '6.8.0']]) assert.doesNotThrow(() => checkIsolationSupport(platform, release));
+  assert.match(isolationMessage, /Update macOS/); assert.match(isolationMessage, /kitsuvo mcp/);
+  // User-facing connector errors reach the terminal verbatim.
+  const { execFile } = await import('node:child_process');
+  const env = { ...process.env }; delete env.KITSUVO_CLOUD_ORIGIN;
+  const stderr = await new Promise(resolve => execFile(process.execPath, [new URL('../connect.mjs', import.meta.url).pathname], { env }, (_error, _out, err) => resolve(err)));
+  assert.match(stderr, process.platform === 'darwin' && Number.parseInt((await import('node:os')).release(), 10) < 23 ? /macOS 14/ : /Set KITSUVO_CLOUD_ORIGIN/);
+});

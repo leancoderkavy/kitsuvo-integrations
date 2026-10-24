@@ -30,3 +30,16 @@ test('timing out a non-cancellable mutation does not permit overlapping mutation
   await assert.rejects(first, /may have completed/); await second;
   assert.deepEqual(events, ['start', 'end', 'next']);
 });
+
+test('closing the queue clears the active operation deadline timer', async () => {
+  const timers = () => process.getActiveResourcesInfo().filter(name => name === 'Timeout').length;
+  const before = timers();
+  const queue = operationQueue(4, 180000);
+  let started; const began = new Promise(resolve => started = resolve);
+  const active = queue.run(() => { started(); return new Promise(() => {}); }).catch(error => error.message);
+  await began;
+  assert.ok(timers() > before);
+  queue.close();
+  assert.equal(await active, 'MCP session closed.');
+  assert.equal(timers(), before, 'no three-minute timer keeps the process alive');
+});

@@ -77,6 +77,16 @@ class ConnectorContracts(unittest.TestCase):
         return subprocess.run([str(BINARY), '--config', str(self.registry), *args],
                               env=env, capture_output=True, text=True, timeout=90)
 
+    def test_published_example_registry_loads_and_holds_no_credentials(self):
+        # The registry has no header field; a token placeholder made every load fail.
+        example = ROOT / 'integrations/connectors/example.json'
+        self.assertNotIn('Bearer', example.read_text())
+        self.registry.write_text(example.read_text())
+        result = self.run_client('list')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('kitsuvo-local', result.stdout)
+        self.assertIn('my-service', result.stdout)
+
     def test_discovery_requires_process_consent(self):
         result = self.run_client('tools', 'fixture')
         self.assertNotEqual(result.returncode, 0)
