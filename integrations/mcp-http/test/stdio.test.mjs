@@ -41,3 +41,25 @@ test('local stdio entry point serves native tools and the same inline app', { ti
   assert.ok(resource.text.includes('id="preview"'));
   assert.equal((await client.callTool({ name: 'browser_snapshot', arguments: {} })).content[0].text, 'Native result');
 });
+
+test('the HTTP bridge reports a busy port clearly and exits before launching the native browser', { timeout: 15_000 }, async t => {
+  const { createServer } = await import('node:http');
+  const { spawn } = await import('node:child_process');
+  const { once } = await import('node:events');
+  const { existsSync } = await import('node:fs');
+  const directory = await mkdtemp(join(tmpdir(), 'kitsuvo mcp port '));
+  const marker = join(directory, 'native-started');
+  await writeFile(join(directory, 'mcp'), `require('node:fs').writeFileSync(${JSON.stringify(marker)}, '1'); setTimeout(() => {}, 10000);`);
+  const occupied = createServer();
+  await new Promise(resolve => occupied.listen(0, '127.0.0.1', resolve));
+  t.after(async () => { occupied.close(); await rm(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }); });
+  const port = occupied.address().port;
+  const child = spawn(process.execPath, [fileURLToPath(new URL('../server.mjs', import.meta.url))], { cwd: directory,
+    env: { ...process.env, KITSUVO_BINARY: process.execPath, KITSUVO_MCP_PORT: String(port), KITSUVO_MCP_TOKEN: 'a'.repeat(43) } });
+  let stderr = ''; child.stderr.on('data', chunk => { stderr += chunk; });
+  const [code] = await once(child, 'exit');
+  assert.equal(code, 1);
+  assert.match(stderr, new RegExp(`Port ${port} on 127\\.0\\.0\\.1 is already in use`));
+  assert.match(stderr, /KITSUVO_MCP_PORT/);
+  assert.equal(existsSync(marker), false, 'no native browser was started');
+});

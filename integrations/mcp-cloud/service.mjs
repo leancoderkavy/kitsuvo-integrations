@@ -10,7 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { connectBrowser, browserTransportConfig } from './connect.mjs';
+import { connectBrowser, browserTransportConfig, checkIsolationSupport, ConnectorError } from './connect.mjs';
 
 const label = 'app.kitsuvo.cloud-connector';
 const taskName = 'Kitsuvo Cloud Connector';
@@ -144,6 +144,7 @@ export async function revokeConnector(directory) {
 }
 
 async function run(directory) {
+  checkIsolationSupport();
   const config = validateConfig(JSON.parse(await readFile(path.join(directory, 'config.json'), 'utf8')));
   // The service manager ensures one process. A live control endpoint also
   // prevents accidental manual duplicate startup and credential-file overwrite.
@@ -179,7 +180,8 @@ export async function main(args = process.argv.slice(2)) {
   }
   if (args[0] === 'install') {
     if (!args.includes('--approve-cloud')) throw new Error('Pass --approve-cloud only after consenting to persistent isolated browser cloud access.');
-    if (!['darwin', 'win32'].includes(process.platform)) throw new Error('Automatic startup supports macOS and Windows.');
+    if (!['darwin', 'win32'].includes(process.platform)) throw new ConnectorError('Automatic startup supports macOS and Windows.');
+    checkIsolationSupport();
     const config = validateConfig({ origin: get('--origin'), binary: get('--binary'), profile: get('--profile'), node: process.execPath, script: here, consent: 'isolated-browser-cloud-access-v1' });
     await privateFile(path.join(directory, 'config.json'), config);
     if (process.platform === 'darwin') {
@@ -201,4 +203,4 @@ export async function main(args = process.argv.slice(2)) {
   throw new Error('Use install --origin URL --binary PATH --profile PATH --approve-cloud, status, approve CODE, revoke, run, or uninstall.');
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch(() => { console.error('Cloud service request failed. Check the configuration, service status and relay availability.'); process.exitCode = 1; });
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch(error => { console.error(error instanceof ConnectorError ? error.message : 'Cloud service request failed. Check the configuration, service status and relay availability.'); process.exitCode = 1; });

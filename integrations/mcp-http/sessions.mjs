@@ -11,18 +11,22 @@ const MAX_BODY = 1 << 20;
 const reject = (res, status, message) => res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
   .end(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32000, message } }));
 
-async function bodyOf(req, res) {
+// Shared with the single-session bridge so both modes apply the same cap.
+export async function bodyOf(req, res) {
   const chunks = []; let size = 0;
   try {
     for await (const chunk of req.iterator({ destroyOnReturn: false })) {
       size += chunk.length;
-      if (size > MAX_BODY) { req.resume(); reject(res, 413, 'MCP request is too large.'); return; }
+      if (size > MAX_BODY) break;
       chunks.push(chunk);
     }
   } catch {
     if (!res.destroyed) reject(res, 400, 'Incomplete MCP request.');
     return;
   }
+  // Drain only after the iterator has detached; resuming inside the loop left
+  // the remainder unread, stalling the next request on a keep-alive socket.
+  if (size > MAX_BODY) { req.resume(); reject(res, 413, 'MCP request is too large.'); return; }
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
   catch { reject(res, 400, 'Invalid JSON.'); }
 }

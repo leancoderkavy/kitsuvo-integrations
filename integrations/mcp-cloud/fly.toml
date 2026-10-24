@@ -1,5 +1,9 @@
 app = "kitsuvo-mcp-relay"
 primary_region = "sjc"
+# The relay drains in-flight requests for up to 10 s on SIGTERM, then asks
+# connectors to reconnect and flushes authorization state before exiting.
+kill_signal = "SIGTERM"
+kill_timeout = "20s"
 
 [build]
   dockerfile = "Dockerfile"
@@ -30,6 +34,13 @@ primary_region = "sjc"
   size = "shared-cpu-1x"
   memory = "256mb"
 
+# Single machine only. Authorization state (registrations, token hashes,
+# connector identities) is one local file on this volume, and connectors hold
+# a WebSocket to whichever machine they reached. Fly volumes attach to one
+# machine, so a second machine would get its own empty state: tokens issued by
+# one would fail on the other and a revocation on one would not reach the
+# other. Do not `fly scale count` above 1 or add a second volume; deploys
+# replace the machine (the old one drains and flushes first, see kill_timeout).
 [[mounts]]
   source = "kitsuvo_cloud_state"
   destination = "/data"

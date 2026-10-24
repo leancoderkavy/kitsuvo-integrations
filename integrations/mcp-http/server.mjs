@@ -13,7 +13,7 @@ import { panelStore } from './panel-store.mjs';
 import { APP_URI, APP_MIME, appTools, browserHtml, callBrowserApp } from './browser-app.mjs';
 import { serveEmbed, embedSdk } from './embed-server.mjs';
 import { operationQueue } from './operation-queue.mjs';
-import { sessionHandler } from './sessions.mjs';
+import { sessionHandler, bodyOf } from './sessions.mjs';
 import { createSessions } from './protocol-sessions.mjs';
 
 // SDK 1.32 parses the registered schema before its own tools/call validation,
@@ -31,10 +31,13 @@ function cachedCatalogue(backend) {
   return cache.promise ||= backend.listTools().catch(error=>{cache.promise=undefined;throw error;});
 }
 
+// Read once: every MCP session used to read and re-encode the icon synchronously.
+const icons = [{ src: `data:image/png;base64,${readFileSync(new URL('./icon-256.png', import.meta.url)).toString('base64')}`, mimeType: 'image/png', sizes: ['256x256'] }];
+
 export function createAppServer(backend, serialize = (operation, options) => operation(options?.signal)) {
   const server = new Server(
     { name: 'kitsuvo', title: 'Kitsuvo', version: '0.2.3',
-      icons: [{ src: `data:image/png;base64,${readFileSync(new URL('./icon-256.png', import.meta.url)).toString('base64')}`, mimeType: 'image/png', sizes: ['256x256'] }] },
+      icons },
     { capabilities: { tools: {}, resources: {} },
       instructions: `${backend.getInstructions?.() ?? ''}\nCall kitsuvo_browser to display the interactive browser inside chat. Native tools remain available for automation.` },
   );
@@ -91,6 +94,11 @@ export function createBridge(backend, { port = 8787, embed = false, token, creat
   const serialize = (operation, options) => queue.run(operation, options);
   const sessions = createBackend && sessionHandler(createBackend, createAppServer, sessionOptions);
   const bridge = createServer(async (req, res) => {
+    // Baseline for every response, including plain-text errors: nothing may be
+    // framed, sniffed as markup or leak a referrer. The embed shell overrides CSP.
+    res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8'); res.setHeader('Content-Language', 'en');
     if (!hosts.has(req.headers.host) || (req.headers.origin && !origins.has(req.headers.origin))) {
       res.writeHead(403).end('Untrusted Host or Origin.');
       return;
@@ -122,7 +130,9 @@ export function createBridge(backend, { port = 8787, embed = false, token, creat
       await sessions.handle(req, res);
       return;
     }
-    try { await protocolSessions.handle(req,res,'local',()=>createAppServer(backend,serialize)); }
+    let body;
+    if (req.method === 'POST') { body = await bodyOf(req, res); if (res.writableEnded || res.destroyed) return; }
+    try { await protocolSessions.handle(req,res,'local',()=>createAppServer(backend,serialize),body); }
     catch(error) {
       console.error('Kitsuvo MCP request failed:',error.message);
       if (!res.headersSent) res.writeHead(500).end('MCP bridge request failed.');
@@ -167,10 +177,27 @@ export async function createNativeBackend(config, clientInfo = { name: 'kitsuvo-
   catch (error) { await backend.close(); throw error; }
 }
 
+// Listening errors name the port and the setting that changes it, instead of
+// Node's bare "listen EADDRINUSE".
+export function listenError(error, port) {
+  if (error?.code === 'EADDRINUSE') return new Error(`Port ${port} on 127.0.0.1 is already in use, probably by another Kitsuvo bridge. Stop that process, or set KITSUVO_MCP_PORT to a free port and use the same port in your MCP client.`);
+  if (error?.code === 'EACCES') return new Error(`Port ${port} on 127.0.0.1 is not available to this user. Set KITSUVO_MCP_PORT to a port above 1024.`);
+  return error;
+}
+// Checked before the native backend starts, so a busy port never launches a
+// browser only to close it again. A process that takes the port in between is
+// still reported through listenError by the bridge's own listen.
+export async function checkPort(port) {
+  const probe = createServer();
+  try { await new Promise((resolve, reject) => { probe.once('error', reject); probe.listen(port, '127.0.0.1', resolve); }); }
+  catch (error) { throw listenError(error, port); }
+  await new Promise(resolve => probe.close(resolve));
+}
+
 async function main() {
   const config = readConfig();
-  // Reject missing credentials before starting a browser/native backend.
-  if (!process.argv.includes('--stdio')) bridgeToken(config.token);
+  // Reject missing credentials and a busy port before starting a browser/native backend.
+  if (!process.argv.includes('--stdio')) { bridgeToken(config.token); await checkPort(config.port); }
   const backend = await createNativeBackend(config);
   try {
     // Bundle once before accepting connections, so build errors fail at startup.
@@ -189,7 +216,7 @@ async function main() {
     }
     const bridge = createBridge(backend, { ...config, embed: process.argv.includes('--embed'), createBackend: info => createNativeBackend(config, info) });
     bridge.on('error', async error => {
-      console.error(error.message);
+      console.error(listenError(error, config.port).message);
       await backend.close();
       await bridge.closeSessions();
       process.exitCode = 1;

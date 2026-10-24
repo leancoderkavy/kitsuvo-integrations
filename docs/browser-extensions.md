@@ -16,7 +16,8 @@ Hosting alone is circumstantial, and the interface says so.
 
 ```sh
 python scripts/build_extensions.py
-node --test tests/extensions.test.cjs tests/extensions-ui.test.cjs
+node --test tests/extensions.test.cjs tests/extensions-ui.test.cjs tests/extension-a11y-l10n.test.cjs
+node scripts/check_extension_localization.cjs
 CHROME_PATH=/path/to/Chromium node scripts/smoke_extension.cjs
 npx --yes web-ext@10.7.0 lint --source-dir dist/extensions/firefox
 python -m pip install -r scripts/extension-qa-requirements.txt
@@ -45,11 +46,19 @@ The runtime smoke was verified on Windows with Chrome for Testing
 package using CDP `Extensions.loadUnpacked` over a debugging pipe. The randomly
 generated test key pins its ID so built-in browser workers cannot satisfy the
 test. The smoke loads the real worker, injects the bundled detector into a
-loopback fixture, and verifies that password pages are skipped.
+loopback fixture, and verifies that password pages are skipped. In round 6 it
+also reads back the search registration (setting flags, unchanged on a second
+sync, removed when both settings are off); installed Chrome 155.0.8059.85 and
+Edge 155.0.4283.45 on macOS passed. The smoke package also gets the search
+sites as host access for that readback; it never opens a search page.
 Only the temporary smoke package receives loopback host access to substitute
 for the toolbar's activeTab grant. Public packages do not contain that access.
 
-Firefox 157.0.1 on Windows passed 14 real-browser checks: temporary add-on
+Firefox 157.0.1 on macOS passed 34 real-browser checks in round 6, adding the
+search registration's setting flags and Page ruler keyboard picking with
+native Firefox key events (arrows, Enter, Escape, field typing). Earlier,
+Firefox 157.0.1 on Windows passed 14 real-browser checks (a DOM-clobbering
+scan check was added later): temporary add-on
 installation, popup and guide replay, Lovable score 78, report URL sanitization,
 password and browser-page skips, editable-content exclusion, installed detector
 sign-in exclusion, strong search-host filtering, weaker/ordinary results retained,
@@ -68,11 +77,52 @@ packager (or the older converter) and compiles the embedded extension with
 Xcode. A successful unsigned build does not establish Safari runtime support,
 signing, or store approval. Real Safari device testing remains a release gate.
 
+## Accessibility and localization
+
+The popup, welcome page, Page ruler and search-page banner follow WCAG 2.2 AA.
+A control that is busy (Scan, or a setting waiting for permission) is marked
+`aria-disabled` instead of `disabled`, so keyboard focus stays on it; a click
+on it is ignored until it is done. After a scan, the status region announces
+the verdict and score; the large score number is decorative and a hidden
+"Vibe score: N" names it. **Always show** and **Reset** hand focus to the
+control that replaces them. **Help** is named by its visible text. Footer and
+standalone links are at least 24px tall. The popup opened as a tab reflows down
+to 320px; the toolbar popup itself keeps its 360px content width. Letter
+spacing is off for Arabic, Indic, Thai and CJK text, which it would break.
+
+The search banner is a labelled `aside` that carries the browser's `lang` and
+`dir`, so an Arabic browser shows a right-to-left banner on an English page.
+Its counts are polite live regions; it never takes focus on its own and
+removes its temporary `tabindex` on blur. Counts are labels ("Results hidden:
+3.", "Results checked: 10."), never "3 results", so every locale is correct for
+every number.
+
+The Page ruler gets its interface text from the popup in the popup's language
+(`__kitsuvoRulerText`, set in the extension's isolated script world before
+`ruler.js`), with `lang` and `dir`. Labels are set only as text. Opened from
+the popup, the panel takes focus; Escape closes it and returns focus to the
+page element that had it. Agent and desktop calls pass no text, keep English and
+never take focus. Elements can be picked from the keyboard as well as with a
+pointer: while picking, the arrow keys move a 2px outline (with a contrasting
+ring) through the page's visible elements (Up to the parent, Down to the first
+child, Left and Right to siblings), the status line names each element and its
+size, Enter selects it, and Escape cancels picking without closing the panel.
+Escape with no keyboard outline still closes the panel. Keys typed into a
+field, and Enter on a panel control, keep their usual meaning. The same
+`src/inject/ruler.js` serves the desktop and mobile Page ruler.
+
+`scripts/build_localizations.py --check` lists every placeholder that is
+missing, added or malformed (`{ 0}`, full-width braces) in any locale, every
+extension `tf()` call given too few values, and numbers dropped from extension
+text. `scripts/check_extension_localization.cjs` renders every surface in all
+31 locales in headless Chrome and flags text identical to English; its short
+allowlist names words that are spelled the same in that language.
+
 ## Product and privacy
 
 The toolbar popup offers **Scan this page**, the evidence report, and an
 optional search filter for Google.com, Bing, and DuckDuckGo, including its
-no-AI search page. Filtered results
+no-AI search page, and optionally Google's country sites (below). Filtered results
 have a **Show hidden results** control on the search page. Only hosting
 signals that reach the native 70 threshold are filtered; weaker hosting such
 as Replit is not hidden on hosting alone. Search-engine markup can change;
@@ -94,10 +144,97 @@ Kitsuvo did. With nothing hidden it reads "Results checked: N. None are on
 known AI-builder domains." The check reads only each result link's hostname,
 so a builder-made site on its own custom domain is not caught; the line says
 so by naming domains. N counts only the result rows the filter actually
-examined; a link that still points at the same search engine (for example a
-Bing `/ck/a` redirect, an html.duckduckgo.com `duckduckgo.com/l/?uddg=` link
-or a DuckDuckGo ad link, which the extension does not read) is neither counted
-nor hidden, so a page of such links shows no "Results checked" line. If a
+examined. Engine redirects are read from the link itself, as in the desktop
+finder, and never opened or fetched: Bing `/ck/a` (`u=a1` plus base64url),
+DuckDuckGo `/l/?uddg=` (html.duckduckgo.com and lite.duckduckgo.com link
+through duckduckgo.com) and Google `/url?q=`. Google's encrypted `/goto` links
+use the result's visible breadcrumb host. A link that still points at the
+search engine after that (an unreadable redirect, an engine page or a
+DuckDuckGo ad link) is neither counted nor hidden, so a page of such links
+shows no "Results checked" line. Recognized layouts are Google (including its
+lightweight `#main` layout), Bing, DuckDuckGo, html.duckduckgo.com and
+DuckDuckGo Lite, where a result's snippet and address rows hide with its title
+row. The filter reads result title links only. Once the page is parsed, a page
+change reads only the title links inside the nodes it added (from the mutation
+records), so there is no per-pass cap: a 1,300-result infinite scroll is
+filtered to the end, and earlier results are not read again. The search script is registered at
+`document_start` and works while the page is parsed, so AI answers and
+filtered rows are hidden before the first paint instead of after the page is
+idle (about 400 ms of visible AI answer before, under 15 ms and no paint after,
+on a streamed local fixture; `scripts/bench_extension_search.mjs`). While the
+page is still parsing, only rows with a known result class are hidden; the
+Lite and Google lightweight fallbacks wait until parsing ends, and an answer
+block that later receives results is shown again. After a quiet spell a page
+change is handled at once; bursts such as infinite scroll are handled at most
+every 120 ms, and each link's host is worked out once.
+
+The two search settings, and a hidden status line, ride along with the
+registration as one-line flag files (`search-flag-filter.js`,
+`search-flag-answers.js`, `search-flag-quiet.js`, set in the extension's
+isolated world), so the first pass at `document_start` does not wait for an
+asynchronous storage read. Storage is still read and wins: always-show hosts
+are applied and a stale flag is undone in the same task, before a paint. The
+background re-registers only when the script list or matches change; on every
+browser start it used to unregister and register again, which left a gap.
+Chromium also loads registered scripts a moment after it starts, so a search
+page restored or opened in that moment got no script at all. At browser start
+(and on install, which is how a command-line-loaded package starts) the
+background injects the same files into open search tabs and into search pages
+that change status in the next 5 seconds; the script keeps one live copy per
+page, so a page that already runs it is unchanged. On a streamed local fixture
+(`scripts/bench_extension_search.mjs`, Chromium) the first page after a
+restart went from an AI answer that was never hidden to about 400 ms visible,
+and an ordinary page went from 1 painted frame of AI answer to none.
+
+Everything the search script hides carries its earlier state in a
+`data-kitsuvo-hidden` attribute, and the banner and style carry their own
+markers. After an extension update from a version later than 0.1.13, open
+search tabs in every window get the new script, which first asks an orphaned
+copy to step aside and restores whatever an older copy hid (Firefox removes the
+old copy's code but not its DOM changes). A Chromium copy whose extension was
+updated, reloaded or disabled (its `runtime.id` is gone) restores the page on
+its next page change or when the tab becomes visible again. Pages filtered by
+0.1.13 or older keep the old copy until they are reloaded. Firefox gives a
+disabled add-on's scripts no chance to run, so a page it had filtered keeps its
+hidden rows until reload; re-enabling resumes filtering on pages loaded after
+that. Settings are only ever added between versions, never renamed, so an
+update writes nothing to storage; `tests/extension-lifecycle.test.cjs` checks
+every stored settings shape and every search registration released so far.
+
+**Also on Google (localized)** (0.1.14, founder-approved exception to the
+scope freeze on 2026-10-24) extends both search settings to Google's country
+sites. It is a separate optional grant on top of `www.google.com/search`: an
+unticked checkbox in the popup and on the welcome page, shown while a search
+setting is on, that asks for `https://www.google.<domain>/search*` for 45
+country domains only inside its own click. Its state is the grant itself, so
+it adds no storage key. Unticking it, or turning both search settings off,
+removes that access; the background registers the search script on whichever
+granted sites remain, so revoking one country in browser settings leaves the
+others working. The domains cover the 31 supported locales and the largest
+English markets: co.uk, ca, com.au, co.nz, ie, co.za, com.sg, com.ph, co.in,
+de, at, ch, fr, be, es, com.mx, com.ar, com.co, it, pt, com.br, nl, pl, ru,
+com.ua, com.tr, ro, se, com.sa, ae, com.eg, co.ma, co.il, com.pk, com.bd,
+co.id, com.my, com.vn, co.th, co.jp, co.kr, com.tw, com.hk, co.ke and co.tz.
+Persian has no Google country site and uses google.com. `GOOGLE_COUNTRY_DOMAINS`
+lists them identically in `background.js`, `popup.js` and `welcome.js`, and
+`scripts/build_extensions.py` reads it into every manifest.
+Country result pages use the google.com markup, so the filter needs no change.
+AI answers are found by heading text, which Google localizes: the heading list
+(`PANEL_TITLE`, shared character for character with the desktop finder in
+`src/serp.js`) holds the AI Overview and AI Mode labels for the supported
+locales, matched after whitespace is collapsed. As a language-independent
+fallback, an AI Mode (`udm=50`) link inside Google's results column but outside
+the mode tabs marks the answer block around it, so an AI Overview whose label
+is missing from the list is still hidden. Google's Images, News and
+Videos tabs and SafeSearch pages are the same `/search` page: with Hide AI
+answers on, the AI Mode tab hides and the other tabs stay; an image tile is
+hidden only when it has a recognized title link on a strong builder host, and
+never the grid. Mobile layouts that render titles without `h3` are left
+unfiltered rather than guessed at. The banner has no colours of its own: it
+inherits the page's text colour and uses the browser's buttons, which stay
+readable on dark result pages with or without `color-scheme`. Hidden rows get the `hidden` attribute and
+an inline `display: none !important`, which an engine stylesheet or page CSP
+cannot override; Show and turning the filter off restore both exactly. If a
 checked result is on a known builder host but stayed visible (weaker hosting
 or an always-show choice), the line says "None were hidden." instead. With
 **Hide AI answers in search** on and no answer panel recognized, it says "No
@@ -198,6 +335,9 @@ strings,
 page content and reports are not saved.
 Page scans skip sign-in provider hosts, password-field pages, and private tabs.
 Scan copies strip input values and editable content before local analysis.
+Scans read the page through the DOM prototypes, so a page cannot hide its
+evidence or break the scan by clobbering `document` or form properties with
+named elements (`<img name="title">`, `<form name="querySelector">`).
 
 ## Publisher access and submissions
 

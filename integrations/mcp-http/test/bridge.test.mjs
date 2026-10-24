@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { request, createServer } from 'node:http';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { AuthenticatedTransport as StreamableHTTPClientTransport } from './auth-fixture.mjs';
-import { readConfig, nativeEnvironment } from '../server.mjs';
+import { readConfig, nativeEnvironment, checkPort, listenError } from '../server.mjs';
 import { APP_URI, APP_MIME, appTools } from '../browser-app.mjs';
 
 test('port configuration rejects invalid values', () => {
@@ -13,6 +13,20 @@ test('port configuration rejects invalid values', () => {
   }
   assert.equal(readConfig({ KITSUVO_BINARY: 'C:/Program Files/Kitsuvo/kitsuvo.exe' }).binary,
     'C:/Program Files/Kitsuvo/kitsuvo.exe');
+});
+
+test('a busy or forbidden port is reported with the port and the setting that changes it', async t => {
+  const occupied = createServer();
+  await new Promise(resolve => occupied.listen(0, '127.0.0.1', resolve));
+  t.after(() => occupied.close());
+  const port = occupied.address().port;
+  await assert.rejects(checkPort(port), new RegExp(`Port ${port} on 127\\.0\\.0\\.1 is already in use.*KITSUVO_MCP_PORT`));
+  // The bridge's own listen (a process that took the port after the check) uses the same wording.
+  assert.match(listenError(Object.assign(new Error('listen EADDRINUSE'), { code: 'EADDRINUSE' }), 8787).message, /Port 8787 .*already in use/);
+  assert.match(listenError(Object.assign(new Error('listen EACCES'), { code: 'EACCES' }), 80).message, /above 1024/);
+  const other = new Error('other'); assert.equal(listenError(other, 1), other);
+  occupied.close(); await new Promise(resolve => occupied.once('close', resolve));
+  await checkPort(port);
 });
 
 test('design discovery, schema and structured errors survive the HTTP bridge', async t => {

@@ -90,7 +90,7 @@ Keep `args: ["mcp"]`. Plugin installation does not install the native browser.
 An installed plugin is cached by its host; edit/reinstall the plugin copy or
 configure a separate native MCP connection when using a custom executable path.
 
-Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.27.zip`.
+Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.31.zip`.
 It contains the local marketplace manifests, branded plugin, four skills, and
 loopback HTTP MCP bridge with its locked dependencies and tests. Commands below
 run from the extracted directory or an authorized repository checkout.
@@ -281,7 +281,9 @@ the bridge and updating authorized clients. Keep it out of URLs, logs and
 shared configuration. A tunnel must support this destination header; otherwise
 use the authenticated cloud connector or local stdio integration.
 
-`KITSUVO_MCP_PORT` optionally changes the default port 8787. Configure the
+`KITSUVO_MCP_PORT` optionally changes the default port 8787. If the port is
+already in use (often by another bridge), the bridge says so and exits before
+starting the browser; stop the other process or choose a free port. Configure the
 tunnel's MCP destination as `http://127.0.0.1:8787/mcp`, following its current
 workspace registration instructions. In ChatGPT Plugins, choose **Add custom
 MCP server**, **Tunnel**, select that tunnel, and use the name **Kitsuvo** with
@@ -304,6 +306,7 @@ on later requests; standard Streamable HTTP clients do this automatically.
 Delete a session with HTTP `DELETE /mcp` using that header when finished.
 
 The bridge permits up to 16 sessions and 32 pending tool operations per session.
+MCP request bodies are capped at 1 MiB in both per-session and shared modes.
 Idle sessions expire after 10 minutes; active requests are retained until their
 response closes. Expired sessions return HTTP 404 and need a new initialization.
 Startup failures, native disconnection, explicit deletion, idle expiry, and bridge shutdown close the
@@ -321,6 +324,9 @@ opts in to forwarding, and explicitly approves the requesting OAuth client in
 the terminal. PKCE-protected tokens route only to that user's connected isolated
 browser. Closing the connector revokes its grants. This is separate from the
 loopback bridge above; installing the local plugin does not enable forwarding.
+Reusing an authorization code or a rotated refresh token revokes that grant.
+Connector, grant and registration capacity is split per source address so a few
+anonymous sources cannot lock out installed connectors; see the relay README.
 See [cloud setup](https://kitsuvo.com/downloads/cloud-relay.md).
 
 For an in-chat panel through the relay, install the HTTP bridge dependencies
