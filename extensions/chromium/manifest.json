@@ -33,9 +33,9 @@
   "background": {
     "service_worker": "background.js"
   },
+  "incognito": "not_allowed",
   "minimum_chrome_version": "120",
   "optional_permissions": [
     "declarativeNetRequest"
-  ],
-  "incognito": "not_allowed"
+  ]
 }

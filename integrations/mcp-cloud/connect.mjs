@@ -2,14 +2,36 @@ import WebSocket from 'ws';
 import { operationQueue } from './operation-queue.mjs';
 import { createInterface } from 'node:readline';
 import { pathToFileURL, fileURLToPath } from 'node:url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { release as osRelease } from 'node:os';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
 
-export function browserTransportConfig(env = process.env, app = false) {
+// Cloud access is disclosed as using the isolated agent profile, but plain
+// `kitsuvo mcp` uses the normal signed-in profile. Request isolation explicitly,
+// like the HTTP bridge (keep identical to mcp-http nativeArguments). Older
+// builds isolate MCP by default and do not understand the later flag.
+export function nativeArguments(help = '', headless = false) {
+  const legacy = /(?:^|\n)\s*--agent[^\n]*separate profile/.test(help) && !help.includes('--separate-profile');
+  if (legacy && headless && !help.includes('--headless')) throw new Error('This Kitsuvo build does not support headless mode. Update Kitsuvo or leave KITSUVO_HEADLESS unset.');
+  return ['mcp', ...(legacy ? [] : ['--separate-profile']), ...(headless ? ['--headless'] : [])];
+}
+
+// Cloud clients may reach only the isolated agent profile. macOS keeps one only
+// from macOS 14 (Darwin 23); earlier releases would expose the signed-in
+// profile, so the native browser refuses and the connector must not start.
+export class ConnectorError extends Error {}
+export const isolationMessage = 'Kitsuvo cloud access needs macOS 14 (Sonoma) or later. Cloud clients may only reach Kitsuvo\'s isolated agent profile, and macOS 13 and earlier cannot keep one, so connecting would expose your normal signed-in browser. Nothing was connected. Update macOS to use cloud access, or use local MCP on this Mac instead: `kitsuvo mcp` runs on this computer only and uses your normal signed-in profile.';
+export function checkIsolationSupport(platform = process.platform, release = osRelease()) {
+  if (platform === 'darwin' && Number.parseInt(release, 10) < 23) throw new ConnectorError(isolationMessage);
+}
+
+export function browserTransportConfig(env = process.env, app = false, help = '') {
   return {
     command: app ? process.execPath : env.KITSUVO_BINARY || 'kitsuvo',
-    args: app ? [fileURLToPath(new URL('../mcp-http/server.mjs', import.meta.url)), '--stdio'] : ['mcp', ...(env.KITSUVO_HEADLESS === '1' ? ['--headless'] : [])],
+    args: app ? [fileURLToPath(new URL('../mcp-http/server.mjs', import.meta.url)), '--stdio'] : nativeArguments(help, env.KITSUVO_HEADLESS === '1'),
     stderr: 'inherit',
     env: { ...getDefaultEnvironment(),
       ...(env.KITSUVO_HEADLESS === '1' ? { KITSUVO_HEADLESS: '1' } : {}),
@@ -71,15 +93,18 @@ export function connectBrowser({ origin, backend, onMessage = () => {}, connecto
 }
 
 async function main() {
+  checkIsolationSupport();
   const origin = process.env.KITSUVO_CLOUD_ORIGIN;
-  if (!origin) throw new Error('Set KITSUVO_CLOUD_ORIGIN to the trusted relay origin.');
-  if (!process.stdin.isTTY) throw new Error('Cloud connection requires an interactive terminal for browser-access consent.');
+  if (!origin) throw new ConnectorError('Set KITSUVO_CLOUD_ORIGIN to the trusted relay origin, for example https://kitsuvo-mcp-relay.fly.dev.');
+  if (!process.stdin.isTTY) throw new ConnectorError('Cloud connection requires an interactive terminal for browser-access consent. Run it in Terminal (macOS) or PowerShell (Windows), not from a script or service.');
   const terminal = createInterface({ input: process.stdin, output: process.stderr });
   const ask = prompt => new Promise(resolve => terminal.question(prompt, resolve));
   console.error('Cloud access forwards selected tool arguments, page snapshots and reports to the relay and your authorized MCP client.\nIt uses Kitsuvo\'s isolated agent profile. Closing this connector revokes its grants.');
   if ((await ask(`Connect to ${new URL(origin).origin}? Type CONNECT: `)) !== 'CONNECT') { terminal.close(); return; }
   const backend = new Client({ name: 'kitsuvo-cloud-connector', version: '0.1.0' });
-  const native = new StdioClientTransport(browserTransportConfig(process.env, process.argv.includes('--app')));
+  const app = process.argv.includes('--app');
+  const help = app ? '' : (await promisify(execFile)(process.env.KITSUVO_BINARY || 'kitsuvo', ['--help'], { timeout: 5000, maxBuffer: 65536, windowsHide: true })).stdout;
+  const native = new StdioClientTransport(browserTransportConfig(process.env, app, help));
   let connection, stopping = false, approvalPending = false;
   const stop = async () => {
     if (stopping) return; stopping = true;
@@ -100,7 +125,11 @@ async function main() {
       } else if (message.type === 'approved') console.error('Approved. Refresh the authorization page to finish linking.');
       else if (message.type === 'rejected') console.error('Approval expired or already used. Restart linking.');
     } });
-    connection.socket.on('close', () => { console.error('Relay disconnected; browser grants revoked.'); void stop(); });
+    connection.socket.on('close', code => {
+      // 1012: the relay is restarting (deploy or maintenance), not a local fault.
+      console.error(code === 1012 ? 'The relay is restarting, so this temporary connection ended and its grants were revoked. Start the connector again in a minute and re-approve your client.' : 'Relay disconnected; browser grants revoked.');
+      void stop();
+    });
     connection.socket.on('error', () => { console.error('Relay connection failed.'); void stop(); });
     terminal.on('line', line => {
       if (approvalPending) return;
@@ -114,5 +143,6 @@ async function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch(() => { console.error('Cloud connector failed. Check the trusted relay URL and installed Kitsuvo executable.'); process.exitCode = 1; });
+  // Only messages written for users are shown; other errors may carry paths or relay detail.
+  main().catch(error => { console.error(error instanceof ConnectorError ? error.message : 'Cloud connector failed. Check the trusted relay URL and installed Kitsuvo executable.'); process.exitCode = 1; });
 }

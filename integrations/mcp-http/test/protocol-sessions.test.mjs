@@ -44,3 +44,38 @@ test('cancellation closes the original HTTP response even when its handler is st
  await fetch(url,{method:'POST',headers,body:JSON.stringify({jsonrpc:'2.0',method:'notifications/cancelled',params:{requestId:100}})});
  const response=await original;assert.match((await response.json()).error.message,/cancelled/);release();
 });
+
+test('per-source caps and heaviest-source eviction stop a few networks from starving others',async t=>{
+ const sessions=createSessions({capacity:6,sourceCapacity:3,sourceOf:owner=>owner.split('/')[0]});
+ const http=createServer((req,res)=>sessions.handle(req,res,req.headers['x-owner'],()=>new Server({name:'fixture',version:'1'},{capabilities:{}})).catch(()=>res.writeHead(500).end()));
+ await new Promise(r=>http.listen(0,'127.0.0.1',r));
+ t.after(()=>{sessions.close();http.closeAllConnections();http.close();});
+ const url=`http://127.0.0.1:${http.address().port}/mcp`,base={'Content-Type':'application/json',Accept:'application/json, text/event-stream'};
+ const init=async owner=>{const r=await fetch(url,{method:'POST',headers:{...base,'x-owner':owner},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'p',version:'1'}}})});await r.text();return r;};
+ const alive=async(owner,id)=>(await fetch(url,{method:'POST',headers:{...base,'x-owner':owner,'mcp-session-id':id,'mcp-protocol-version':'2025-06-18'},body:JSON.stringify({jsonrpc:'2.0',id:2,method:'ping'})})).status===200;
+ const open=async owner=>{const r=await init(owner);assert.equal(r.status,200,owner);return r.headers.get('mcp-session-id');};
+ const a=[];for(let i=0;i<4;i++)a.push(await open('A/'+i));
+ assert.equal(await alive('A/0',a[0]),false,'a source over its cap loses its own idlest session');
+ assert.ok(await alive('A/1',a[1]));
+ const b=[];for(let i=0;i<3;i++)b.push(await open('B/'+i));
+ // The table is full (A: 3, B: 3). A new network still gets in; one heavy
+ // network's least recently used session is evicted instead of refusing it.
+ assert.ok(await alive('A/1',a[1]));
+ const c=await open('C/0');
+ assert.ok(await alive('C/0',c));
+ const living=[...await Promise.all(a.slice(1).map((id,i)=>alive('A/'+(i+1),id))),...await Promise.all(b.map((id,i)=>alive('B/'+i,id)))].filter(Boolean).length;
+ assert.equal(living,5,'exactly one session from a heavy network was evicted');
+ assert.ok(await alive('B/0',b[0]),'the recently used network kept its touched session');
+ const d=await open('D/0');assert.ok(await alive('D/0',d));assert.ok(await alive('C/0',c),'the lightest network is never the eviction target');
+});
+
+test('without a source key, a full session table still refuses rather than evicting',async t=>{
+ const sessions=createSessions({capacity:1});
+ const http=createServer((req,res)=>sessions.handle(req,res,'x',()=>new Server({name:'fixture',version:'1'},{capabilities:{}})).catch(()=>res.writeHead(500).end()));
+ await new Promise(r=>http.listen(0,'127.0.0.1',r));
+ t.after(()=>{sessions.close();http.closeAllConnections();http.close();});
+ const body=JSON.stringify({jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'p',version:'1'}}});
+ const headers={'Content-Type':'application/json',Accept:'application/json, text/event-stream'};
+ assert.equal((await fetch(`http://127.0.0.1:${http.address().port}/mcp`,{method:'POST',headers,body})).status,200);
+ assert.equal((await fetch(`http://127.0.0.1:${http.address().port}/mcp`,{method:'POST',headers,body})).status,503);
+});

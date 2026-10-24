@@ -23,7 +23,10 @@ export function operationQueue(capacity = 32, timeoutMs = 180000) {
         const item = { operation, controller, resolve, reject, deadline:performance.now()+duration };
         const cancel = () => {
           const index = waiting.indexOf(item);
-          if (index >= 0) { waiting.splice(index,1); item.cleanup(); }
+          if (index >= 0) waiting.splice(index,1);
+          // Also for the active item: closing the queue must not leave its
+          // deadline timer (up to three minutes) holding the process open.
+          item.cleanup();
           reject(controller.signal.reason);
         };
         const abort = () => controller.abort(signal.reason);

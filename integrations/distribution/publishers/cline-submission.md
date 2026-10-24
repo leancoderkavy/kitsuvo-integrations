@@ -15,8 +15,9 @@ successful setup is not a Cline host qualification.
 - Description: Connect Cline to your installed Kitsuvo browser. Navigate pages,
   read accessibility snapshots and local detection evidence, and check responsive
   layouts. Local stdio requires no API key. Remote access requires an opt-in
-  user connector and OAuth approval. The integration uses an isolated browser
-  profile and refuses sensitive pages by default.
+  user connector and OAuth approval. Local `kitsuvo mcp` uses the normal
+  signed-in browser profile unless `--separate-profile` is added, and refuses
+  sensitive pages by default.
 
 ## Required qualification
 

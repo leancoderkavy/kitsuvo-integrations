@@ -38,6 +38,7 @@
     ],
     "persistent": false
   },
+  "incognito": "not_allowed",
   "browser_specific_settings": {
     "gecko": {
       "id": "browser-evidence@kitsuvo.com",

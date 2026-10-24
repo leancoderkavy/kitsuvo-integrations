@@ -9,10 +9,22 @@ function savedTab(id) {
   try { const raw = localStorage.getItem(storageKey(id)); const tab = Number(raw); return raw !== null && Number.isInteger(tab) && tab >= 0 ? tab : undefined; }
   catch { return undefined; }
 }
+let returnFocus;
 function setBusy(value) {
   busy = value;
+  // Disabling the focused control drops keyboard focus to <body>; return it
+  // to the same control (or the panel status) once the request settles.
+  const focused = document.activeElement;
+  if (value && focused && focused !== document.body) returnFocus = focused;
   $('workspace').setAttribute('aria-busy', String(value));
   document.querySelectorAll('button,input,select').forEach(node => { node.disabled = value || !connected; });
+  if (!value && returnFocus) {
+    const target = returnFocus; returnFocus = undefined;
+    if (document.activeElement === document.body || document.activeElement === null) {
+      if (target.isConnected && !target.disabled && !target.hidden) target.focus();
+      else { $('status').tabIndex = -1; $('status').focus(); }
+    }
+  }
   $('fullscreen').hidden = !hostContext.availableDisplayModes?.includes(hostContext.displayMode === 'fullscreen' ? 'inline' : 'fullscreen');
   $('fullscreen').textContent = hostContext.displayMode === 'fullscreen' ? 'Return to chat' : 'Open full browser';
 }

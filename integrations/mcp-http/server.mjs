@@ -13,7 +13,7 @@ import { panelStore } from './panel-store.mjs';
 import { APP_URI, APP_MIME, appTools, browserHtml, callBrowserApp } from './browser-app.mjs';
 import { serveEmbed, embedSdk } from './embed-server.mjs';
 import { operationQueue } from './operation-queue.mjs';
-import { sessionHandler } from './sessions.mjs';
+import { sessionHandler, bodyOf } from './sessions.mjs';
 import { createSessions } from './protocol-sessions.mjs';
 
 // SDK 1.32 parses the registered schema before its own tools/call validation,
@@ -91,6 +91,11 @@ export function createBridge(backend, { port = 8787, embed = false, token, creat
   const serialize = (operation, options) => queue.run(operation, options);
   const sessions = createBackend && sessionHandler(createBackend, createAppServer, sessionOptions);
   const bridge = createServer(async (req, res) => {
+    // Baseline for every response, including plain-text errors: nothing may be
+    // framed, sniffed as markup or leak a referrer. The embed shell overrides CSP.
+    res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8'); res.setHeader('Content-Language', 'en');
     if (!hosts.has(req.headers.host) || (req.headers.origin && !origins.has(req.headers.origin))) {
       res.writeHead(403).end('Untrusted Host or Origin.');
       return;
@@ -122,7 +127,9 @@ export function createBridge(backend, { port = 8787, embed = false, token, creat
       await sessions.handle(req, res);
       return;
     }
-    try { await protocolSessions.handle(req,res,'local',()=>createAppServer(backend,serialize)); }
+    let body;
+    if (req.method === 'POST') { body = await bodyOf(req, res); if (res.writableEnded || res.destroyed) return; }
+    try { await protocolSessions.handle(req,res,'local',()=>createAppServer(backend,serialize),body); }
     catch(error) {
       console.error('Kitsuvo MCP request failed:',error.message);
       if (!res.headersSent) res.writeHead(500).end('MCP bridge request failed.');

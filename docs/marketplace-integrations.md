@@ -304,6 +304,7 @@ on later requests; standard Streamable HTTP clients do this automatically.
 Delete a session with HTTP `DELETE /mcp` using that header when finished.
 
 The bridge permits up to 16 sessions and 32 pending tool operations per session.
+MCP request bodies are capped at 1 MiB in both per-session and shared modes.
 Idle sessions expire after 10 minutes; active requests are retained until their
 response closes. Expired sessions return HTTP 404 and need a new initialization.
 Startup failures, native disconnection, explicit deletion, idle expiry, and bridge shutdown close the
@@ -321,6 +322,9 @@ opts in to forwarding, and explicitly approves the requesting OAuth client in
 the terminal. PKCE-protected tokens route only to that user's connected isolated
 browser. Closing the connector revokes its grants. This is separate from the
 loopback bridge above; installing the local plugin does not enable forwarding.
+Reusing an authorization code or a rotated refresh token revokes that grant.
+Connector, grant and registration capacity is split per source address so a few
+anonymous sources cannot lock out installed connectors; see the relay README.
 See [cloud setup](https://kitsuvo.com/downloads/cloud-relay.md).
 
 For an in-chat panel through the relay, install the HTTP bridge dependencies
