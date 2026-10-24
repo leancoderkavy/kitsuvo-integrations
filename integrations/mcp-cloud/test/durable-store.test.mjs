@@ -22,6 +22,11 @@ async function directory(t) {
   return { dir, file: path.join(dir, 'state.json') };
 }
 const onDisk = async file => JSON.parse(await readFile(file, 'utf8'));
+// Polls with a deadline instead of a fixed number of short sleeps, so a loaded CI runner cannot fail a check
+// merely because a held write had not reached its gate yet.
+async function until(condition, ms = 5000) {
+  for (const deadline = Date.now() + ms; Date.now() < deadline;) { if (await condition()) return; await new Promise(resolve => setTimeout(resolve, 5)); }
+}
 
 // Wraps node:fs/promises. `log` records each step in order. `gate(step)` may
 // return a promise to hold the write at that step, or throw to crash it there.
@@ -91,7 +96,7 @@ test('an orphaned temporary file from a crash between write and rename is remove
   const writer = durableStore(file, origin, {}, { io: recorder(name => name === 'rename' ? held : undefined).io });
   writer.identities.clear();
   const pending = writer.persist();
-  for (let i = 0; i < 50 && (await readdir(dir)).length < 2; i++) await new Promise(resolve => setTimeout(resolve, 5));
+  await until(async () => (await readdir(dir)).length >= 2);
   assert.equal((await readdir(dir)).length, 2, 'the complete temporary file exists before the rename');
   const restarted = durableStore(file, origin);
   assert.equal(restarted.identities.size, 1, 'the store loads the last renamed document');
@@ -107,13 +112,17 @@ test('writes never overlap and bursts coalesce; every caller resolves only after
   const r = recorder(name => name === 'rename' && hold ? (hold = false, held) : undefined);
   const store = durableStore(file, origin, {}, { io: r.io });
   const resolved = [];
+  // Record the settlement order synchronously, then read the disk. Pushing only after an awaited readFile let two
+  // callers that share one write land in either order, which failed this test about one run in four.
+  const acknowledge = name => async () => { const entry = [name]; resolved.push(entry); entry.push((await onDisk(file)).identities.length); };
   store.identities.set(...identity('a', 'a'));
-  const first = store.persist().then(async () => resolved.push(['first', (await onDisk(file)).identities.length]));
+  const first = store.persist().then(acknowledge('first'));
   // Mutations while the first write is held at its rename share one follow-up write.
   store.identities.set(...identity('b', 'b'));
-  const second = store.persist().then(async () => resolved.push(['second', (await onDisk(file)).identities.length]));
+  const second = store.persist().then(acknowledge('second'));
   store.identities.set(...identity('c', 'c'));
-  const third = store.persist().then(async () => resolved.push(['third', (await onDisk(file)).identities.length]));
+  const third = store.persist().then(acknowledge('third'));
+  await until(() => r.names().includes('rename'));
   await new Promise(resolve => setTimeout(resolve, 20));
   assert.deepEqual(resolved, [], 'nothing is acknowledged while the write is held');
   assert.equal(r.names().filter(name => name === 'open-temp').length, 1, 'the follow-up does not start while a write runs');
@@ -130,7 +139,8 @@ test('a revocation made while an issue write is in flight is acknowledged only o
   const { file } = await directory(t);
   let release; const held = new Promise(resolve => { release = resolve; });
   let hold = true;
-  const store = durableStore(file, origin, {}, { io: recorder(name => name === 'fsync-temp' && hold ? (hold = false, held) : undefined).io });
+  const r = recorder(name => name === 'fsync-temp' && hold ? (hold = false, held) : undefined);
+  const store = durableStore(file, origin, {}, { io: r.io });
   store.identities.set(...identity('a', 'b'));
   store.tokens.set(...token('1', 'b'));
   const issued = store.persist();
@@ -138,6 +148,7 @@ test('a revocation made while an issue write is in flight is acknowledged only o
   store.tokens.delete(hex('1'));
   let acknowledged = false;
   const revoked = store.persist().then(async () => { acknowledged = true; return onDisk(file); });
+  await until(() => r.names().includes('fsync-temp'));
   await new Promise(resolve => setTimeout(resolve, 20));
   assert.equal(acknowledged, false);
   release();

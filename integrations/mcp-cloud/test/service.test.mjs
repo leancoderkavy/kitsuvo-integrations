@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, stat, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { validateConfig, launchAgent, windowsTask, startControl, controlRequest, connectorIdentity } from '../service.mjs';
 
 const config = { origin: 'https://relay.example', binary: path.resolve('kitsuvo'), profile: path.resolve('isolated-test-profile'), node: process.execPath, script: path.resolve('service.mjs'), consent: 'isolated-browser-cloud-access-v1' };
@@ -81,6 +82,10 @@ test('macOS 13 and earlier refuse cloud access with an actionable message, not a
   // User-facing connector errors reach the terminal verbatim.
   const { execFile } = await import('node:child_process');
   const env = { ...process.env }; delete env.KITSUVO_CLOUD_ORIGIN;
-  const stderr = await new Promise(resolve => execFile(process.execPath, [new URL('../connect.mjs', import.meta.url).pathname], { env }, (_error, _out, err) => resolve(err)));
+  const { error, stdout, stderr } = await new Promise(resolve => execFile(process.execPath, [fileURLToPath(new URL('../connect.mjs', import.meta.url))], { env, timeout: 5000 }, (error, stdout, stderr) => resolve({ error, stdout, stderr })));
+  const diagnostic = JSON.stringify({ code: error?.code, signal: error?.signal, killed: error?.killed, stdout, stderr });
+  assert.equal(error?.code, 1, diagnostic);
+  assert.equal(error.signal, null, diagnostic);
+  assert.equal(error.killed, false, diagnostic);
   assert.match(stderr, process.platform === 'darwin' && Number.parseInt((await import('node:os')).release(), 10) < 23 ? /macOS 14/ : /Set KITSUVO_CLOUD_ORIGIN/);
 });

@@ -1,7 +1,7 @@
 {
   "serverInfo": {
     "name": "Kitsuvo",
-    "version": "0.2.8",
+    "version": "0.2.9",
     "title": "Kitsuvo",
     "icons": [
       {
@@ -83,8 +83,8 @@
     },
     {
       "name": "browser_cleanup",
-      "title": "Clean up task tabs",
-      "description": "Call at task completion, cancellation or failure. Close only tabs created by this MCP connection and their popups. Existing tabs are preserved. keep_tabs releases result tabs from automatic disconnect cleanup. Failed closes remain available for retry. Does not erase profile data or stop the shared browser.",
+      "title": "Clean up task resources",
+      "description": "Call at task completion, cancellation or failure. On updated desktop backends, clean verified task-owned tabs across registered targets and close idle task-created instances. Retained, pinned, visible, user-adopted and other-task tabs stay open. Saved profile data is preserved. Failed cleanup remains retryable. No replacement browser is started.",
       "inputSchema": {
         "type": "object",
         "properties": {

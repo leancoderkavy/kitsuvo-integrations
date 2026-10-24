@@ -1,7 +1,7 @@
 {
   "name": "kitsuvo-cloud",
   "displayName": "Kitsuvo",
-  "version": "0.2.12",
+  "version": "0.2.13",
   "description": "Browse and inspect sites in your own Kitsuvo browser through the opt-in authenticated cloud connector.",
   "homepage": "https://kitsuvo.com",
   "license": "LicenseRef-Kitsuvo-Integration",

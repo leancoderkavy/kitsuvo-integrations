@@ -1,27 +1,31 @@
 # Kitsuvo integrations
 
-[![Kitsuvo: free browser for Mac and Windows](https://img.shields.io/badge/Kitsuvo-free%20browser%20for%20Mac%20%26%20Windows-D23F1A)](https://kitsuvo.com/?utm_source=github&utm_medium=readme&utm_campaign=integrations)
+[![Kitsuvo: free browser for Mac and Windows](https://img.shields.io/badge/Kitsuvo-free%20browser%20for%20Mac%20%26%20Windows-D23F1A)](https://kitsuvo.com)
 [![MCP: stdio and Streamable HTTP](https://img.shields.io/badge/MCP-stdio%20%26%20Streamable%20HTTP-0b6cff)](docs/quickstart/README.md)
 [![Claude Code and Codex plugin](https://img.shields.io/badge/plugin-Claude%20Code%20%26%20Codex-555555)](#claude-code)
 [![Node.js 22 or newer](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white)](integrations/mcp-http)
 [![License: Kitsuvo Integration License](https://img.shields.io/badge/license-Kitsuvo%20Integration%20License-lightgrey)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/leancoderkavy/kitsuvo-integrations)](https://github.com/leancoderkavy/kitsuvo-integrations/commits/main)
 
-**Kitsuvo integrations let Claude Code, Codex and other MCP clients drive
-[Kitsuvo](https://kitsuvo.com/?utm_source=github&utm_medium=readme&utm_campaign=integrations),
-a fast browser built for your LLM. Free for Mac and Windows: open a page, read it, and
-explain the local evidence behind its AI-built, slop and impersonation
-verdicts, or check a layout at phone, tablet and desktop sizes.**
+**Kitsuvo hides likely AI-built websites in Google, Bing and DuckDuckGo, shows the evidence, and lets you open any page anyway.**
+
+[Kitsuvo](https://kitsuvo.com) is a free browser for Mac and Windows. The
+integrations here are the secondary, optional way to use it: they let an AI
+client such as Claude Code, Codex or another MCP client drive that browser. You
+do not need them to filter search results. With them, an agent can open a page,
+read it, and explain the local evidence behind its AI-built, slop and
+impersonation verdicts, or check a layout at phone, tablet and desktop sizes.
 
 This repository holds the public installation sources: the plugin and its four
 agent skills (setup, browse, evidence, responsive), the local HTTP MCP bridge,
 the cloud relay connector, a Rust MCP client, and browser-extension developer
 previews. The browser itself is a separate download.
 
-> **Get Kitsuvo:** [kitsuvo.com](https://kitsuvo.com/?utm_source=github&utm_medium=readme&utm_campaign=integrations#get)
+> **Get Kitsuvo:** [kitsuvo.com](https://kitsuvo.com/#get)
 > for Windows (64-bit) and macOS (Apple silicon and Intel). Free, no account.
 > First-launch prompts are explained at [kitsuvo.com/install](https://kitsuvo.com/install).
-> The plugins start the installed browser; they do not install it.
+> The plugins start the installed browser; they do not install it. The filter
+> is also available as a [browser extension](#browser-extensions).
 
 ## What your agent can do
 
@@ -54,7 +58,7 @@ Directory approval is separate from these install sources.
 | Another stdio MCP client | `{"mcpServers":{"kitsuvo":{"command":"kitsuvo","args":["mcp"]}}}` | [Other clients](docs/quickstart/mcp-clients.md) |
 | ChatGPT or a cloud client, with a tunnel | Set a private `KITSUVO_MCP_TOKEN`, then start `integrations/mcp-http` | [HTTP bridge](docs/quickstart/http-bridge.md) |
 | A cloud client, no tunnel | Start the connector in `integrations/mcp-cloud` | [Cloud relay](docs/quickstart/cloud-relay.md) |
-| The browser you already use | Install Kitsuvo from the Chrome Web Store or Edge Add-ons; manual previews remain available | [Extension setup](docs/quickstart/browser-extension.md) |
+| The browser you already use | Install the extension from the Chrome Web Store, Edge Add-ons, Firefox Add-ons or the Mac App Store (Safari); manual previews remain available | [Extension setup](docs/quickstart/browser-extension.md) |
 
 Every row except the extension needs Kitsuvo installed with `kitsuvo` on PATH.
 If it is not on PATH, use the executable's absolute path as `command` and keep
@@ -85,7 +89,7 @@ codex plugin add kitsuvo --marketplace kitsuvo-browser
 
 The plugin includes setup, browsing, detection-evidence, and responsive skills.
 Do not assume the connection is isolated from your normal sign-ins. On current
-Mac 0.2.30, local MCP reuses the normal profile by default; add `--separate-profile`
+Mac 0.2.33, local MCP reuses the normal profile by default; add `--separate-profile`
 to a direct MCP configuration for a separate persistent profile. Check your
 installed build's `browser_status` and the [connection guide](https://kitsuvo.com/integrations).
 Windows 0.2.4 predates `browser_status` and cannot satisfy the current connection
@@ -150,28 +154,36 @@ for approval syntax and current provider qualification limits.
 
 ## Browser extensions
 
-Public store installs: [Get for Chrome](https://chromewebstore.google.com/detail/kitsuvo-%E2%80%94-ai-site-filter/kogkgeiglfeoflmlnbmjghbdoinclbdf)
-or [Get for Edge](https://microsoftedge.microsoft.com/addons/detail/kitsuvo-%E2%80%94-less-ai-less-s/nedklnjihgpgefpinabddmnoagkaoolp).
-These listings were verified October 14, 2026. The extension works without
+Free public store installs:
+
+| Browser | Store listing |
+|---|---|
+| Chrome | [Chrome Web Store](https://chromewebstore.google.com/detail/kitsuvo-%E2%80%94-ai-site-filter/kogkgeiglfeoflmlnbmjghbdoinclbdf) |
+| Edge | [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/kitsuvo-%E2%80%94-ai-site-filter/nedklnjihgpgefpinabddmnoagkaoolp) |
+| Firefox | [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/kitsuvo-page-evidence/) |
+| Safari on Mac | [Mac App Store](https://apps.apple.com/app/kitsuvo-browser-extension/id6821491898) |
+
+Store versions can be older than the preview ZIPs, so a change in a preview may
+not be in the store build yet. [kitsuvo.com/extensions](https://kitsuvo.com/extensions)
+has the current store links and preview ZIPs. The extension works without
 installing the desktop browser.
 
 `extensions/chromium` targets Chrome, Edge, Opera, Brave and Vivaldi.
-`extensions/firefox` is for temporary Firefox installation; Mozilla signing is
-required for public installs. `extensions/safari` needs Apple packaging and
-signing. See [browser setup](docs/browser-extensions.md) and
-[kitsuvo.com/extensions](https://kitsuvo.com/extensions?utm_source=github&utm_medium=readme&utm_campaign=integrations).
+`extensions/firefox` can be loaded temporarily for testing; use the Firefox
+Add-ons listing for a normal install. `extensions/safari` is source that needs
+Apple packaging and signing; use the Mac App Store listing to install. See
+[browser setup](docs/browser-extensions.md).
 
 The extension checks local builder fingerprints and optionally filters search
 results. It has no cloud AI, telemetry, or desktop companion requirement.
 It does not include the desktop browser's full slop or impersonation checks.
-Manual packages remain developer previews. Firefox and Safari do not have
-verified public listings here. Browser-store availability does not establish
-approval in any AI-client directory.
+Manual packages remain developer previews. Browser-store availability does not
+establish approval in any AI-client directory.
 
 ## Security and privacy
 
 - **Choose the profile.** These local plugin configurations pass `mcp` and
-  inherit the installed browser's default. On current Mac 0.2.30 this reuses the normal
+  inherit the installed browser's default. On current Mac 0.2.33 this reuses the normal
   signed-in profile, including website cookies. Add `--separate-profile` in a
   direct MCP configuration when you want a separate persistent profile. Check
   `browser_status` for your installed build. The packages do not enable
@@ -195,10 +207,10 @@ vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## FAQ
 
-**What is Kitsuvo?** A free browser for Mac and Windows that checks visited
-sites for AI-builder traces, filters likely AI-built results from Google, Bing
-and DuckDuckGo, and shows the evidence behind each score. These integrations let
-an AI agent use it.
+**What is Kitsuvo?** A free browser for Mac and Windows that hides likely
+AI-built websites in Google, Bing and DuckDuckGo, shows the evidence, and lets
+you open any page anyway. These integrations are the optional, secondary way to
+let an AI agent use it.
 
 **Do I need an account, API key or paid plan?** No. Local browsing and detection
 need none. Optional cloud AI checks in the desktop app are separate.
@@ -207,12 +219,13 @@ need none. Optional cloud AI checks in the desktop app are separate.
 first. The plugin runs `kitsuvo mcp`.
 
 **Which systems are supported?** The desktop browser is for Windows (64-bit) and
-macOS (Apple silicon and Intel). Screenshots are Windows-only; on macOS use
-snapshots and resizing. On Linux or ChromeOS, try the
+macOS (Apple silicon and Intel). Screenshot support depends on your installed
+build: request only a mode that `browser_status` reports, and use snapshots when
+image capture is unavailable. On Linux or ChromeOS, try the
 [extension preview](docs/quickstart/browser-extension.md).
 
 **Can the agent use my signed-in browser?** Yes, when it uses your normal
-profile: that is the local MCP default on current Mac 0.2.30. A separate profile must
+profile: that is the local MCP default on current Mac 0.2.33. A separate profile must
 be selected explicitly with `--separate-profile`. Sensitive sign-in pages and
 password fields are protected by default. Page text from other signed-in pages
 can still reach the connected AI client.
@@ -221,10 +234,11 @@ can still reach the connected AI client.
 client via the [HTTP bridge](docs/quickstart/http-bridge.md) with a secure
 tunnel or the [cloud relay](docs/quickstart/cloud-relay.md).
 
-**Is it listed in the Claude, ChatGPT or browser-extension stores?** Chrome
-and Edge have the public extension listings linked above. That is separate
-from AI-client directory approval; no such approval is established here. The
-local Claude Code and Codex plugin install routes use this repository.
+**Is it listed in the Claude, ChatGPT or browser-extension stores?** The
+extension has public listings on the Chrome Web Store, Edge Add-ons, Firefox
+Add-ons and the Mac App Store (Safari), linked above. That is separate from
+AI-client directory approval; no such approval is established here. The local
+Claude Code and Codex plugin install routes use this repository.
 
 **Can it prove a site was written by AI?** No. It reports builder evidence and
 separates AI-built, low-value content and impersonation. Detection depends on

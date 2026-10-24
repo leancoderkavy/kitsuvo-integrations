@@ -9,6 +9,7 @@ import { connectBrowser, browserTransportConfig, nativeArguments } from '../conn
 import { mkdtemp, mkdir, readFile, stat, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
@@ -18,7 +19,8 @@ const cardVersion = JSON.parse(await readFile(new URL('../server-card.json', imp
 const fetch = (url, options = {}) => globalThis.fetch(url, {...options, headers:{...options.headers, Connection:'close'}});
 async function offline(f, headers) {
   let status;
-  for (let i=0;i<50;i++) { status=(await fetch(f.origin+'/mcp',{headers})).status; if(status===503) return; await new Promise(r=>setTimeout(r,10)); }
+  // The relay sees a closed connector socket asynchronously; allow a loaded runner up to 5 s rather than 50 polls.
+  for (const deadline = Date.now() + 5000; Date.now() < deadline;) { status=(await fetch(f.origin+'/mcp',{headers})).status; if(status===503) return; await new Promise(r=>setTimeout(r,10)); }
   assert.equal(status,503);
 }
 
@@ -740,16 +742,50 @@ test('shutdown is bounded: a call that never finishes cannot hold the relay past
   assert.equal(await stuck, 'failed');
 });
 
-test('the relay process exits cleanly on SIGTERM after draining', { timeout: 20000 }, async t => {
+test(process.platform === 'win32' ? 'the relay process is forcibly terminated by SIGTERM on Windows' : 'the relay process exits cleanly on SIGTERM after draining', { timeout: 30000 }, async t => {
   const { spawn } = await import('node:child_process');
   const reserve = createServer(); await new Promise(r => reserve.listen(0, '127.0.0.1', r)); const port = reserve.address().port; await new Promise(r => reserve.close(r));
-  const child = spawn(process.execPath, [new URL('../server.mjs', import.meta.url).pathname], { env: { ...process.env, PORT: String(port), KITSUVO_CLOUD_ORIGIN: `http://127.0.0.1:${port}`, KITSUVO_SHUTDOWN_GRACE_MS: '500', KITSUVO_CLOUD_STATE_FILE: '', POSTHOG_API_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'] });
-  t.after(() => child.kill('SIGKILL'));
-  let out = ''; child.stdout.on('data', d => { out += d; });
-  for (let i = 0; i < 100 && !out.includes('listening'); i++) await new Promise(r => setTimeout(r, 50));
-  assert.match(out, /listening/);
-  const [code] = await Promise.all([once(child, 'exit').then(([c]) => c), Promise.resolve(child.kill('SIGTERM'))]);
-  assert.equal(code, 0); assert.match(out, /"event":"draining"/); assert.match(out, /"event":"stopped"/);
+  const child = spawn(process.execPath, [fileURLToPath(new URL('../server.mjs', import.meta.url))], { env: { ...process.env, PORT: String(port), KITSUVO_CLOUD_ORIGIN: `http://127.0.0.1:${port}`, KITSUVO_SHUTDOWN_GRACE_MS: '500', KITSUVO_CLOUD_STATE_FILE: '', POSTHOG_API_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'] });
+  let out = '', err = '', status, launchError;
+  child.stdout.on('data', d => { out = (out + d).slice(-8192); });
+  child.stderr.on('data', d => { err = (err + d).slice(-8192); });
+  child.on('error', error => { launchError = error.message; });
+  // Register before startup/termination so early exits and stdio closure are observed.
+  const closed = new Promise(resolve => child.once('close', (code, signal) => { status = { code, signal }; resolve([code, signal]); }));
+  const diagnostic = () => JSON.stringify({ status, launchError, stdout: out, stderr: err });
+  const bounded = async (promise, ms, stage) => {
+    let timer;
+    try {
+      return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${stage} timed out: ${diagnostic()}`)), ms); })]);
+    } finally { clearTimeout(timer); }
+  };
+  t.after(async () => {
+    if (!status) {
+      assert.equal(child.kill('SIGKILL'), true, diagnostic());
+      await bounded(closed, 2000, 'cleanup');
+    }
+  });
+  // Keep the event-driven startup and cold-runner allowance from the newer main fix;
+  // do not restore the old five-second startup poll or lose early-exit stderr.
+  const listening = new Promise((resolve, reject) => {
+    child.stdout.on('data', () => { if (/"event":"listening"/.test(out)) resolve(); });
+    child.once('error', error => reject(new Error(`launch failed: ${error.message}; ${diagnostic()}`)));
+    child.once('close', () => reject(new Error(`closed before startup completed: ${diagnostic()}`)));
+  });
+  await bounded(listening, 20000, 'startup');
+  assert.equal(child.kill('SIGTERM'), true, diagnostic());
+  const [code, signal] = await bounded(closed, 5000, 'termination');
+  t.diagnostic(`relay subprocess ${diagnostic()}`);
+  if (process.platform === 'win32') {
+    assert.equal(code, null, diagnostic());
+    assert.equal(signal, 'SIGTERM', diagnostic());
+    assert.doesNotMatch(out, /"event":"(?:draining|stopped)"/);
+  } else {
+    assert.equal(code, 0, diagnostic());
+    assert.equal(signal, null, diagnostic());
+    assert.match(out, /"event":"draining"/);
+    assert.match(out, /"event":"stopped"/);
+  }
 });
 
 test('relay responses carry anti-framing and no-sniff headers; the approval page declares its language', async t => {

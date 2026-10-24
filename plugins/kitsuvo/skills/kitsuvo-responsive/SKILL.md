@@ -11,4 +11,4 @@ Inspect the snapshot at each requested size and test relevant navigation or cont
 
 Record tested sizes, observable problems, and steps that reproduce them. Do not infer that an entire page is visually correct from its accessibility tree. In cleanup, call `browser_resize` with `off: true` on the test tab so it leaves responsive mode, including when a check fails.
 
-Then call `browser_cleanup` to close this connection's test tabs and popups, including after failure or cancellation. Use `keep_tabs` only when the user needs a result tab left open. Existing tabs and other connections' tabs are preserved. Report cleanup failures and retry when possible.
+Then call `browser_cleanup` to finish this connection's task scopes, closing verified temporary tabs/popups and idle task-created instances while preserving saved profile data, including after failure or cancellation. Use `keep_tabs` only when the user needs a result tab left open. Existing tabs and other connections' tabs are preserved. Report cleanup failures and retry when possible.
