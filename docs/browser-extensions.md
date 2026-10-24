@@ -128,19 +128,47 @@ only inside its own click, and a declined prompt leaves the setting off. The
 page also says where the controls live later and links to
 `https://kitsuvo.com/install` without a query string, and has one line about
 the status line on search pages. It makes no network requests. Finishing,
-leaving or closing it records guide version 4, so the popup does not repeat
-the same steps. The popup's **Setup guide** footer link
+leaving or closing it records guide version 5, so the popup does not repeat
+the same steps. A new install is therefore not walked through the popup's
+Rate Kitsuvo link. The popup's **Setup guide** footer link
 reopens it.
 
 The popup's nonblocking guide appears the first time it opens unless the
 welcome page already recorded it. It persists its completed/dismissed version
-in local extension storage, and **Help** replays all of its steps. Version 4
-has four steps: page scans, Hide AI answers, the Setup guide link and the
-status line checkbox. Someone who closed an earlier version sees only the
-newer steps once (version 2 sees steps 3 and 4). Close and Escape
+in local extension storage, and **Help** replays all of its steps. Version 5
+has five steps: page scans, Hide AI answers, the Setup guide link, the status
+line checkbox and the footer links. Step 5 points at **Rate Kitsuvo** in store
+installs and at the full-browser link otherwise, and is skipped if neither link
+is shown. Someone who closed an earlier version sees only the newer steps once
+(version 2 sees steps 3 to 5; version 4 sees step 5). Close and Escape
 restore focus. Neither the guide nor the welcome page scans, ticks a setting
 or grants access on the user's behalf. Keyboard, reduced-motion, and narrow
 layouts are supported.
+
+The popup footer links to `https://kitsuvo.com/install` (**Get the full
+Kitsuvo browser (Mac and Windows)**, new tab, no query string or channel
+label). In a store install it also shows **Rate Kitsuvo**, which opens that
+store's listing in a new tab. The store comes only from the extension ID:
+`kogkgeiglfeoflmlnbmjghbdoinclbdf` (Chrome Web Store),
+`nedklnjihgpgefpinabddmnoagkaoolp` (Edge Add-ons), `browser-evidence@kitsuvo.com`
+(Firefox Add-ons) and `com.kitsuvo.browser-extension.Extension (E2L636Z97D)`
+(Safari, Mac App Store write-review link). ZIP and unpacked installs have other
+IDs, and `management.getSelf()` (no extra permission) reports temporary
+Firefox loads as development installs, so neither gets a rating link. Nothing
+is fetched to decide this.
+
+After the search filter has hidden at least 5 results on at least 3 different
+days, the popup shows a quiet card: "Kitsuvo has hidden search results for you
+on 3 different days. If it has been useful, a store rating helps other people
+find it." Its actions are **Rate Kitsuvo** (new tab), **Not now** (hidden for
+14 days) and **Don’t ask again**; Rate also stops the card. It has no reward
+or incentive wording, appears only inside the popup the user opened and never
+opens anything by itself. Safari builds show only the footer link, because
+Apple does not allow custom review prompts in apps. `search.js` keeps the
+count: each result row the filter newly hides on a page adds one (up to 5),
+and the first such row on a new local date adds a day (up to 3). It stores only
+those counts and the last such date, writes nothing while the filter is off or
+when only AI answers are hidden, and stops writing once both counts are full.
 
 Default permissions are `activeTab`, `scripting`, and `storage`. Persistent
 search-host access is optional and removed when the filter is disabled.
@@ -158,13 +186,15 @@ does not automatically become a navigation rule. Codex runtime support still
 requires loading and testing the extension in Codex itself.
 
 No cookies, history, native messaging, web-request listeners, remote executable code,
-or cloud connections are requested. Local extension storage holds six keys:
+or cloud connections are requested. Local extension storage holds seven keys:
 `searchFilter` (search-result filter), `hideAiPanels` (Hide AI answers in
 search), `navigationBlock` (the Chromium-only Block known AI-builder sites
 switch), `alwaysShowHosts` (exact hostnames you choose to always show, from the
 popup or from **Wrong verdict?** on a search page), `searchStatus` (whether the
-status line shows on search pages; missing means on) and `tourVersion` (the
-completed or closed guide version). Paths, query strings,
+status line shows on search pages; missing means on), `tourVersion` (the
+completed or closed guide version) and `rateAsk` (the capped rating counter
+above, its last date, and the Not now or Don’t ask again choice). Paths, query
+strings,
 page content and reports are not saved.
 Page scans skip sign-in provider hosts, password-field pages, and private tabs.
 Scan copies strip input values and editable content before local analysis.
