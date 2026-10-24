@@ -22,6 +22,9 @@ const digest = value => createHash('sha256').update(value).digest('hex');
 const now = () => Math.floor(Date.now() / 1000);
 const scope = ['browser'];
 const ttl = 600;
+// Unapproved registrations are discarded after a day; advertised confidential
+// secret expiry must match so clients re-register instead of failing later.
+const clientTtl = 86400;
 const maxRecords = 500;
 const trim = map => { for (const [key, value] of map) if (value.expiresAt <= now()) map.delete(key); };
 const display = value => JSON.stringify(value).replace(/[\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`);
@@ -56,7 +59,9 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
   function checkResource(target) {
     if (target && target.href !== resource.href) throw new InvalidTargetError('Token is only for this MCP resource.');
   }
-  function checkScopes(scopes = scope) {
+  function checkScopes(scopes) {
+    // The SDK passes [] when the client omits `scope`; default to browser.
+    if (!scopes?.length) scopes = scope;
     if (scopes.length !== 1 || scopes[0] !== 'browser') throw new InvalidScopeError('Only browser scope is supported.');
   }
   function record(map, value, client) {
@@ -75,7 +80,10 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
     bounded(tokens, digest(access), { clientId, browserId, grantId, kind: 'access', expiresAt: now() + ttl });
     bounded(tokens, digest(refresh), { clientId, browserId, grantId, kind: 'refresh', expiresAt: now() + (durable(browserId) ? 90 * 86400 : 86400) });
     if (durable(browserId)) {
-      clients.get(clientId).expiresAt = now() + 90 * 86400;
+      const saved = clients.get(clientId);
+      saved.expiresAt = now() + 90 * 86400;
+      // Keep any confidential secret valid for exactly as long as the record.
+      if (saved.client.client_secret_expires_at) saved.client.client_secret_expires_at = saved.expiresAt;
       for (const item of identities.values()) if (item.browserId === browserId) item.expiresAt = now() + 90 * 86400;
     }
     persist();
@@ -97,7 +105,7 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
           }
         }
         const saved = { ...client, client_id: nonce(), client_id_issued_at: now() };
-        bounded(clients, saved.client_id, { client: saved, expiresAt: now() + 86400 });
+        bounded(clients, saved.client_id, { client: saved, expiresAt: saved.client_id_issued_at + clientTtl });
         persist(); return saved;
       },
     },
@@ -182,7 +190,7 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
     if (!claim || !/^glama_claim_[A-Za-z0-9]+$/.test(claim)) return res.status(404).end();
     return res.json({ $schema: 'https://glama.ai/mcp/schemas/connector.json', claim });
   });
-  app.use(mcpAuthRouter({ provider, issuerUrl: issuer, resourceServerUrl: resource, scopesSupported: scope, resourceName: 'Your isolated Kitsuvo browser' }));
+  app.use(mcpAuthRouter({ provider, issuerUrl: issuer, resourceServerUrl: resource, scopesSupported: scope, resourceName: 'Your isolated Kitsuvo browser', clientRegistrationOptions: { clientSecretExpirySeconds: clientTtl } }));
   const bearer = requireBearerAuth({ verifier: provider, requiredScopes: scope, expectedResource: resource, resourceMetadataUrl: new URL('/.well-known/oauth-protected-resource/mcp', issuer).href });
   app.get('/userinfo', bearer, (req, res) => res.json({ sub: req.auth.extra.browserId }));
   app.all('/mcp', bearer, express.json({ limit: '256kb' }), async (req, res) => {
@@ -209,6 +217,11 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
 
   });
   app.use((error, req, res, _next) => {
+    // Malformed or oversized request bodies are client errors, not crashes.
+    if (error?.type === 'entity.parse.failed' || error?.type === 'entity.too.large' || error?.status === 400 || error?.status === 413) {
+      if (!res.headersSent) res.status(error.status === 413 ? 413 : 400).json({ error: 'invalid_request', error_description: error.status === 413 ? 'Request body too large.' : 'Malformed request body.' });
+      return;
+    }
     telemetry.captureException(error, { source: 'express', method: req.method, path: req.path });
     if (!res.headersSent) res.status(500).end('Internal server error.');
   });

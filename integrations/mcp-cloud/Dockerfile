@@ -1,4 +1,5 @@
 FROM node:24-alpine
+ENV NODE_ENV=production
 RUN apk add --no-cache su-exec
 WORKDIR /app
 COPY package.json package-lock.json ./

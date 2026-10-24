@@ -392,3 +392,34 @@ test('restart removes legacy orphan identities while retaining approved grants',
  const clean=JSON.parse(await readFile(f.stateFile,'utf8'));assert.equal(clean.identities.length,1);
  assert.equal((await fetch(f.origin+'/userinfo',{headers:{Authorization:'Bearer '+token.access_token}})).status,200);
 });
+
+test('authorization without a scope parameter defaults to browser scope', async t => {
+  const f = await fixture(t);
+  const client = await f.client();
+  const params = new URLSearchParams({ client_id: client.client_id, response_type: 'code', redirect_uri: client.redirect_uris[0], code_challenge: 'a'.repeat(43), code_challenge_method: 'S256', resource: f.origin + '/mcp' });
+  const page = await fetch(f.origin + '/authorize?' + params, { redirect: 'manual' });
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /approve [A-Za-z0-9_-]{43}/);
+  const wrong = await fetch(f.origin + '/authorize?' + params + '&scope=admin', { redirect: 'manual' });
+  assert.equal(new URL(wrong.headers.get('location')).searchParams.get('error'), 'invalid_scope');
+});
+
+test('malformed JSON bodies return a short 400 instead of a server error', async t => {
+  const reported = [];
+  const f = await fixture(t, false, { telemetry: { captureException(error) { reported.push(error); } } });
+  const response = await fetch(f.origin + '/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{bad' });
+  assert.equal(response.status, 400);
+  const body = await response.text();
+  assert.doesNotMatch(body, /<html|at \w+ \(|node_modules/i);
+  assert.equal(JSON.parse(body).error, 'invalid_request');
+  assert.equal(reported.length, 0);
+});
+
+test('confidential client secret expiry matches the registration lifetime', async t => {
+  const f = await fixture(t);
+  const response = await fetch(f.origin + '/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_name: 'Confidential', redirect_uris: ['https://example.com/callback'] }) });
+  assert.equal(response.status, 201);
+  const client = await response.json();
+  assert.ok(client.client_secret);
+  assert.equal(client.client_secret_expires_at - client.client_id_issued_at, 86400);
+});

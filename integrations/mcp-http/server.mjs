@@ -16,6 +16,11 @@ import { operationQueue } from './operation-queue.mjs';
 import { sessionHandler } from './sessions.mjs';
 import { createSessions } from './protocol-sessions.mjs';
 
+// SDK 1.32 parses the registered schema before its own tools/call validation,
+// so malformed params surface as -32603. Register a method-only schema and let
+// the SDK's wrapper reject bad params with -32602 (Invalid params).
+const ToolCallRequestSchema = CallToolRequestSchema.pick({ method: true }).passthrough();
+
 const catalogues = new WeakMap();
 function cachedCatalogue(backend) {
   let cache = catalogues.get(backend);
@@ -54,7 +59,7 @@ export function createAppServer(backend, serialize = (operation, options) => ope
       _meta: { ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] }, prefersBorder: true } },
     }] };
   });
-  server.setRequestHandler(CallToolRequestSchema, (request, extra) => serialize((signal, remainingMs = () => 180000) =>
+  server.setRequestHandler(ToolCallRequestSchema, (request, extra) => serialize((signal, remainingMs = () => 180000) =>
     appTools.some(tool => tool.name === request.params.name)
       ? callBrowserApp(backend, request.params.name, request.params.arguments, signal, caller())
       : backend.callTool({...request.params,_meta:{...request.params._meta,...caller(),'kitsuvo/deadlineMs':remainingMs()}}, undefined, { timeout: remainingMs(), signal }),
