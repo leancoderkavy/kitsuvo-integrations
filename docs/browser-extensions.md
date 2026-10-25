@@ -41,6 +41,17 @@ mobile browsers vary in extension support; compatibility is not claimed for
 every mobile browser. Runtime testing in one engine does not prove Safari or
 Firefox behavior; complete per-browser qualification before store submission.
 
+The Chromium and Firefox packages carry `_locales/<code>/messages.json` for
+English plus ten listing languages (`es`, `pt_BR`, `fr`, `de`, `ja`, `ko`,
+`zh_CN`, `ru`, `it`, `tr`). `scripts/build_extensions.py` generates them from
+`extensions/listing/store-listing.json` and `extensions/listing/locales/`; each
+file has only the `extName` and `extDescription` keys, and the manifest reads them
+as `__MSG_extName__` and `__MSG_extDescription__` with `default_locale` `en`. The
+name is `Kitsuvo — AI site filter` in every language. The build fails if a draft
+code is unknown, a name differs, or a summary is empty, over 132 characters or
+holds a `$`. The Safari target keeps literal strings and has no `_locales`. See
+`docs/listing-copy.md`.
+
 The runtime smoke was verified on Windows with Chrome for Testing
 155.0.8059.39, installed Chrome, and installed Edge. It loads the temporary
 package using CDP `Extensions.loadUnpacked` over a debugging pipe. The randomly
@@ -348,7 +359,8 @@ along with the store length limits, `data_collection` staying "None" and the
 manifest name and summary matching the listing.
 
 The store name and summary come from the manifest that
-`scripts/build_extensions.py` writes into each package. The next store upload
+`scripts/build_extensions.py` writes into each package (in the Chromium and
+Firefox packages through the English `_locales` file). The next store upload
 must carry a `VERSION` above 0.1.10. The 0.1.11 archives meet that rule, and
 their manifest name and summary match the current listing. Any change to the
 manifest name or summary, including a renamed listing, needs a new `VERSION`
