@@ -494,7 +494,7 @@
     {
       "name": "browser_take_screenshot",
       "title": "Screenshot",
-      "description": "Take a PNG screenshot of the visible page on Windows or macOS. Full-page capture is available on Windows. Use browser_snapshot to act on the page.",
+      "description": "Read browser_status first and request a PNG screenshot only when the connected build reports support for the requested capture mode, including full-page capture. Do not infer support from the operating system alone. If status is unavailable or capture is unsupported, use browser_snapshot and state that visual checks were not performed. Use browser_snapshot to act on the page.",
       "inputSchema": {
         "type": "object",
         "properties": {

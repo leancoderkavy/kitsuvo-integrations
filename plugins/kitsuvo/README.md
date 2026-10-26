@@ -21,7 +21,7 @@ This plugin connects your AI client to Kitsuvo. Kitsuvo helps you inspect AI-bui
 
 Install Kitsuvo from https://kitsuvo.com on Windows or macOS and place `kitsuvo` on PATH. The plugin starts `kitsuvo mcp`; it does not download or bundle the native executable. The executable is the publicly distributed Kitsuvo desktop application, maintained in a separate private repository. Reviewers should install the desktop app first and test the local MCP connection.
 
-The local server runs in Claude Code and Cowork. It does not run on Claude web or mobile. On macOS use page snapshots and resizing; screenshots are Windows-only.
+The local server runs in Claude Code and Cowork. It does not run on Claude web or mobile. Read `browser_status` and request screenshots only when the connected build reports support for the requested capture mode. If status is unavailable or capture is unsupported, use snapshots and state that visual checks were not performed. Do not infer screenshot support from the operating system alone.
 
 Download and extract the integrations archive from https://kitsuvo.com/integrations.
 Run `claude plugin marketplace add .` from the extracted folder, then install in
