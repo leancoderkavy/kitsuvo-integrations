@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Kitsuvo \u2014 AI site filter",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "Local AI-builder evidence and optional search filtering.",
   "homepage_url": "https://kitsuvo.com/extensions",
   "icons": {
