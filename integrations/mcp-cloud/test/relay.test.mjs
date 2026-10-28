@@ -268,6 +268,48 @@ test('relay cancellation reaches the backend and cancelled queued tools never ru
 });
 
 
+for (const [invalidation, method] of [['revoke','tools/call'], ['rotate','tools/list'], ['expire','resources/read'], ['revoke','resources/list']]) {
+test(`${invalidation} prevents queued ${method}; rotated credentials work in the same session`, {timeout:10000}, async t => {
+  const clock = fakeClock(), f = await fixture(t, false, {clock}), effects = [];
+  let release, started;
+  const gate = new Promise(resolve => release = resolve), began = new Promise(resolve => started = resolve);
+  t.after(() => release());
+  const browser = await f.browser('revocation-fixture', true, {
+    async callTool(params) {
+      effects.push(params.arguments.id);
+      if (params.arguments.id === 0) { started(); await gate; }
+      return {content:[{type:'text',text:'completed'}]};
+    },
+  });
+  const registration = await f.client();
+  const token = await (await f.exchange(registration, await f.authorize(registration, browser))).json();
+  const c = new Client({name:'revocation-fixture',version:'1'}); t.after(() => c.close());
+  const transport = new StreamableHTTPClientTransport(new URL(f.origin+'/mcp'), {requestInit:{headers:{Authorization:'Bearer '+token.access_token}}});
+  await c.connect(transport);
+  const first = c.callTool({name:'fixture',arguments:{id:0}}); await began;
+  const admitted = new Promise(resolve => f.relay.http.on('request', req => {
+    if (req.headers['x-test-queued']) req.once('end', () => setImmediate(resolve));
+  }));
+  const call = (access, id, queued = false) => fetch(f.origin+'/mcp', {
+    method:'POST', headers:{Authorization:'Bearer '+access, 'Content-Type':'application/json', Accept:'application/json, text/event-stream', 'mcp-session-id':transport.sessionId, ...(queued ? {'x-test-queued':'1'} : {})},
+    body:JSON.stringify({jsonrpc:'2.0',id:100+id,method:queued ? method : 'tools/call',params:queued && method === 'resources/read' ? {uri:'ui://kitsuvo/browser.html'} : {name:'fixture',arguments:{id}}}),
+  }).then(response => response.json());
+  const queued = call(token.access_token, 1, true); await admitted;
+  if (invalidation === 'expire') clock.advance(601000);
+  else if (invalidation === 'rotate') assert.equal((await f.post('/token', {grant_type:'refresh_token',client_id:registration.client_id,refresh_token:token.refresh_token,resource:f.origin+'/mcp'})).status, 200);
+  else assert.equal((await f.post('/revoke', {client_id:registration.client_id, token:token.refresh_token})).status, 200);
+  release(); await first;
+  const denied = await queued;
+  assert.ok(denied.error, 'queued operation must fail after credential invalidation');
+  assert.deepEqual(effects, [0]);
+
+  const renewed = await (await f.exchange(registration, await f.authorize(registration, browser))).json();
+  const rotated = await (await f.post('/token', {grant_type:'refresh_token',client_id:registration.client_id,refresh_token:renewed.refresh_token,resource:f.origin+'/mcp'})).json();
+  assert.ok((await call(rotated.access_token, 2)).result);
+  assert.deepEqual(effects, [0,2], 'a session uses each request credential, not its initialization token');
+});
+}
+
 test('approved durable connector survives offline refresh, socket and relay restart without new authorization', {timeout:20000}, async t => {
   const f = await fixture(t, true), key = randomBytes(32).toString('base64url');
   let browser = await f.browser('original', true, {}, key);
