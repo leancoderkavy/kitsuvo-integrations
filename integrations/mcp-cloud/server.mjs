@@ -331,20 +331,28 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
   app.get('/userinfo', bearer, (req, res) => res.json({ sub: req.auth.extra.browserId }));
   app.all('/mcp', bearer, express.json({ limit: '256kb' }), async (req, res) => {
     const browserId = req.auth.extra.browserId;
-    const browser = { call: (...args) => { const active = browsers.get(browserId); if (!active) throw new Error('Browser offline'); return active.call(...args); } };
+    const browser = { call: (method, params, extra) => {
+      const active = browsers.get(browserId); if (!active) throw new Error('Browser offline');
+      return active.call(method, params, { signal: extra.signal, authorize: () => {
+        // Sessions survive token rotation. Check this message's credential at
+        // dispatch, after queueing, never the session's initialization token.
+        const grant = record(tokens, extra.authInfo?.token || '');
+        if (grant.kind !== 'access' || grant.browserId !== browserId || grant.clientId !== extra.authInfo?.clientId) throw new InvalidTokenError('Expired or revoked browser access.');
+      } });
+    } };
     if (!browsers.has(browserId)) return res.status(503).end('Your browser is disconnected.');
     try {
       await protocolSessions.handle(req,res,req.auth.clientId+':'+browserId,()=>{
         const server = new Server({name:'kitsuvo',title:'Kitsuvo',version:relayVersion,icons},{capabilities:{tools:{},resources:{}}});
         server.setRequestHandler(ListToolsRequestSchema,async (_,extra)=>{
-          const result=await browser.call('tools/list',undefined,{signal:extra.signal});
+          const result=await browser.call('tools/list',undefined,extra);
           return {...result,tools:result.tools.map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:scope}],_meta:{...tool._meta,securitySchemes:[{type:'oauth2',scopes:scope}]}}))};
         });
         // A refusal from the local browser is a tool failure the model can read, like the HTTP bridge.
-        server.setRequestHandler(ToolCallRequestSchema,(request,extra)=>browser.call('tools/call',request.params,{signal:extra.signal})
+        server.setRequestHandler(ToolCallRequestSchema,(request,extra)=>browser.call('tools/call',request.params,extra)
           .catch(error=>{ if(!(error instanceof BrowserRejection)) throw error; return {content:[{type:'text',text:error.detail}],isError:true}; }));
-        server.setRequestHandler(ListResourcesRequestSchema,(_,extra)=>browser.call('resources/list',undefined,{signal:extra.signal}));
-        server.setRequestHandler(ReadResourceRequestSchema,(request,extra)=>browser.call('resources/read',request.params,{signal:extra.signal}));
+        server.setRequestHandler(ListResourcesRequestSchema,(_,extra)=>browser.call('resources/list',undefined,extra));
+        server.setRequestHandler(ReadResourceRequestSchema,(request,extra)=>browser.call('resources/read',request.params,extra));
         return server;
       },req.body);
     } catch (error) {
@@ -435,6 +443,7 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
     const send = value => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(value)); };
     const browser = { established, installed: Boolean(identityKey), source, call(method, params, options) {
       return queue.run((signal,remainingMs) => new Promise((resolve, reject) => {
+        options.authorize();
         if (socket.readyState !== WebSocket.OPEN) return reject(new Error('Disconnected'));
         const callId = nonce();
         const cancel = () => { pending.delete(callId); send({ type: 'cancel', id: callId }); reject(new Error('Browser request cancelled.')); };

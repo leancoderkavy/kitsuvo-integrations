@@ -1,14 +1,14 @@
 # Connect a chat to an open Kitsuvo window
 
-This flow requires a browser build that offers **Copy connection prompt** and
+This flow requires a browser build that offers **Copy tab connection** and
 an MCP server with `browser_attach`. Updating the plugin alone does not update
 the native browser. If these are missing, use the regular setup instructions;
 the window-targeting feature needs a newer native build when available.
 
 1. In the browser window you want your chat to use, select the desired tab.
 2. Press the plug button beside Settings.
-3. If the window has not enabled automation, check the permission box and press
-   **Allow control & copy prompt**. Otherwise press **Copy connection prompt**.
+3. Press **Copy tab connection**. Local assistant access is on by default.
+   If you turned it off, enable **Settings → Assistants → Assistant access**.
 4. Paste the prompt into your Codex, Claude Code or other locally connected MCP
    chat. The assistant confirms the selected page before starting your task.
 
@@ -21,8 +21,9 @@ retarget the chat. To change its destination, copy a new prompt from that page.
 The assistant includes the `browser` target on every tool call, including
 session identity, status, tabs, controller and cleanup.
 
-Normal-window permission allows control of the window and its signed-in sites.
-Sign-in pages and password fields remain protected. Press **Stop** in the top
+Assistant access allows authenticated local apps to control this profile, including
+signed-in sites. Private tabs, sign-in pages and password fields remain protected.
+Turn access off in Settings → Assistants to block it across restarts. Press **Stop** in the top
 bar to end control API access until the window restarts. Closing the target
 produces an error; the assistant must not launch or adopt a replacement.
 
