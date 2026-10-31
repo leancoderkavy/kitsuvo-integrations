@@ -1,10 +1,10 @@
 {
   "name": "@kitsuvo/mcp-cloud",
-  "version": "0.2.9",
+  "version": "0.2.11",
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=24.22.1"
   },
   "scripts": {
     "start": "node server.mjs",

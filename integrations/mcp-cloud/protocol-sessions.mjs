@@ -6,6 +6,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 // Matches the per-session bridge's 1 MiB request cap (sessions.mjs).
 // An owner group (the relay's browser) may hold only groupCapacity sessions; a
 // new one evicts that group's least recently used session, never another's.
+// groupCapacity may be a function of the group (the relay's Plus browsers hold more).
 // With sourceOf (the relay's connector network), each source may hold only
 // sourceCapacity sessions, and a full table evicts the least recently used
 // session of the source holding the most, so a few networks cannot starve others.
@@ -42,8 +43,9 @@ export function createSessions({ capacity = 64, idleMs = 900000, maxRequestBodyS
         if (req.method !== 'POST') { res.writeHead(405, {Allow:'POST'}).end('Initialize MCP with POST.'); return; }
         sweep();
         group = groupOf(owner);
+        const groupLimit = typeof groupCapacity === 'function' ? groupCapacity(group) : groupCapacity;
         const held = [...sessions.values()].filter(other => other.group === group).sort((a, b) => a.touched - b.touched);
-        while (held.length && held.length + (creatingGroups.get(group) || 0) >= groupCapacity) remove(held.shift());
+        while (held.length && held.length + (creatingGroups.get(group) || 0) >= groupLimit) remove(held.shift());
         if (sourceOf) {
           source = sourceOf(owner);
           const inFlight = creatingSources.get(source) || 0;
@@ -53,7 +55,7 @@ export function createSessions({ capacity = 64, idleMs = 900000, maxRequestBodyS
           for (let victim; sessions.size + creating >= capacity && (victim = heaviest());) remove(victim);
         }
         const sourceFull = sourceOf && [...sessions.values()].filter(other => other.source === source).length + (creatingSources.get(source) || 0) >= sourceCapacity;
-        if (sourceFull || sessions.size + creating >= capacity || (creatingGroups.get(group) || 0) >= groupCapacity) { res.writeHead(503).end('MCP session capacity reached.'); return; }
+        if (sourceFull || sessions.size + creating >= capacity || (creatingGroups.get(group) || 0) >= groupLimit) { res.writeHead(503).end('MCP session capacity reached.'); return; }
         creating++; creatingGroups.set(group, (creatingGroups.get(group) || 0) + 1); reserved = true;
         if (sourceOf) creatingSources.set(source, (creatingSources.get(source) || 0) + 1);
         try {

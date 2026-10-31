@@ -11,6 +11,7 @@ import { createInterface } from 'node:readline/promises';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { connectBrowser, browserTransportConfig, checkIsolationSupport, ConnectorError } from './connect.mjs';
+import { plusSource, watchPlus } from './plus.mjs';
 
 const label = 'app.kitsuvo.cloud-connector';
 const taskName = 'Kitsuvo Cloud Connector';
@@ -25,6 +26,9 @@ export function validateConfig(config) {
   if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || url.pathname !== '/') throw new Error('An HTTPS relay origin is required.');
   if (config.consent !== 'isolated-browser-cloud-access-v1') throw new Error('Explicit cloud browser consent is required.');
   for (const key of ['binary', 'profile', 'node', 'script']) if (typeof config[key] !== 'string' || !path.isAbsolute(config[key])) throw new Error(`Absolute ${key} path required.`);
+  // Plus is optional: `plus: false` never sends a code; `plusLicense` overrides the app's file.
+  if (config.plus !== undefined && typeof config.plus !== 'boolean') throw new Error('Plus setting must be true or false.');
+  if (config.plusLicense !== undefined && (typeof config.plusLicense !== 'string' || !path.isAbsolute(config.plusLicense))) throw new Error('Absolute plusLicense path required.');
   return { ...config, origin: url.origin };
 }
 
@@ -73,9 +77,10 @@ export async function connectorIdentity(directory, origin) {
 
 export async function startControl({ connection, directory }) {
   const key = token(), reviews = new Map(), approvals = new Map();
-  let connected = false, durable = false, revocation;
+  let connected = false, durable = false, plus, revocation;
   const receive = message => {
     if (message.type === 'connected') { connected = true; durable = message.durable === true; }
+    if (message.type === 'plus') plus = message.active === true ? { active: true, expiresAt: message.expiresAt } : { active: false };
     if (message.type === 'revoked') { revocation?.(); revocation = undefined; }
     if (message.type === 'review') {
       const pending = reviews.get(message.id); if (!pending) return;
@@ -94,7 +99,7 @@ export async function startControl({ connection, directory }) {
     try {
       let body = ''; for await (const chunk of req) { body += chunk; if (body.length > 2048) throw new Error('Too large'); }
       const data = JSON.parse(body);
-      if (data.action === 'status') { res.end(JSON.stringify({ connected, durable, pid: process.pid })); return; }
+      if (data.action === 'status') { res.end(JSON.stringify({ connected, durable, pid: process.pid, ...(plus ? { plus } : {}) })); return; }
       if (data.action === 'revoke') {
         if (!connected || !durable || revocation) throw new Error('No durable connection');
         await new Promise((resolve, reject) => {
@@ -151,12 +156,16 @@ async function run(directory) {
   try { await controlRequest(directory, { action: 'status' }); throw new Error('Connector already running.'); } catch (error) { if (error.message === 'Connector already running.') throw error; }
   const backend = new Client({ name: 'kitsuvo-cloud-service', version: '0.1.0' });
   const native = new StdioClientTransport(browserTransportConfig({ KITSUVO_BINARY: config.binary, KITSUVO_PROFILE_DIR: config.profile, KITSUVO_PANEL_STATE_FILE: path.join(directory, 'panels.json') }, true));
-  let connection, control, stopped = false;
-  const stop = async () => { if (stopped) return; stopped = true; connection?.socket.close(); await control?.close(); await backend.close(); };
+  let connection, control, refresh, stopped = false;
+  const stop = async () => { if (stopped) return; stopped = true; refresh?.stop(); connection?.socket.close(); await control?.close(); await backend.close(); };
   try {
     await backend.connect(native);
     const early = [];
-    connection = connectBrowser({ origin: config.origin, connectorKey: await connectorIdentity(directory, config.origin), backend, onMessage: message => control ? control.receive(message) : early.push(message) });
+    // Installation consented to cloud access; Plus rides on that unless installed with --no-plus.
+    const readPlus = config.plus === false ? undefined : plusSource({ file: config.plusLicense });
+    const plusCode = await readPlus?.();
+    connection = connectBrowser({ origin: config.origin, connectorKey: await connectorIdentity(directory, config.origin), plusCode, backend, onMessage: message => control ? control.receive(message) : early.push(message) });
+    if (readPlus) refresh = watchPlus(readPlus, code => connection.plus(code), { initial: plusCode });
     control = await startControl({ connection, directory }); early.forEach(control.receive);
     connection.socket.on('close', () => { process.exitCode = 1; void stop(); });
     connection.socket.on('error', () => { process.exitCode = 1; void stop(); });
@@ -182,7 +191,8 @@ export async function main(args = process.argv.slice(2)) {
     if (!args.includes('--approve-cloud')) throw new Error('Pass --approve-cloud only after consenting to persistent isolated browser cloud access.');
     if (!['darwin', 'win32'].includes(process.platform)) throw new ConnectorError('Automatic startup supports macOS and Windows.');
     checkIsolationSupport();
-    const config = validateConfig({ origin: get('--origin'), binary: get('--binary'), profile: get('--profile'), node: process.execPath, script: here, consent: 'isolated-browser-cloud-access-v1' });
+    const config = validateConfig({ origin: get('--origin'), binary: get('--binary'), profile: get('--profile'), node: process.execPath, script: here, consent: 'isolated-browser-cloud-access-v1',
+      ...(args.includes('--no-plus') ? { plus: false } : {}), ...(args.includes('--plus-license') ? { plusLicense: path.resolve(get('--plus-license')) } : {}) });
     await privateFile(path.join(directory, 'config.json'), config);
     if (process.platform === 'darwin') {
       const file = path.join(homedir(), 'Library', 'LaunchAgents', `${label}.plist`);
@@ -190,7 +200,9 @@ export async function main(args = process.argv.slice(2)) {
       try { execFileSync('/bin/launchctl', ['bootout', `gui/${process.getuid()}/${label}`], { stdio: 'ignore' }); } catch { /* first install */ }
       execFileSync('/bin/launchctl', ['bootstrap', `gui/${process.getuid()}`, file]);
     } else execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', windowsTask(config, directory)]);
-    console.log('Installed. Starts at login and keeps the connection alive when Kitsuvo closes. New clients require service.mjs approve <code>.'); return;
+    console.log('Installed. Starts at login and keeps the connection alive when Kitsuvo closes. New clients require service.mjs approve <code>.');
+    if (config.plus !== false) console.log('If Kitsuvo Plus is active, its activation code is sent to the relay for Plus capacity (the relay keeps only your subscription\'s anonymous ID and expiry while connected). Reinstall with --no-plus to skip.');
+    return;
   }
   if (args[0] === 'uninstall') {
     await revokeConnector(directory);
@@ -200,7 +212,7 @@ export async function main(args = process.argv.slice(2)) {
     } else if (process.platform === 'win32') execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Stop-ScheduledTask -TaskName ${ps(taskName)} -ErrorAction SilentlyContinue; Unregister-ScheduledTask -TaskName ${ps(taskName)} -Confirm:$false`]);
     await rm(path.join(directory, 'config.json'), { force: true }); console.log('Disabled automatic startup and revoked this connector connection.'); return;
   }
-  throw new Error('Use install --origin URL --binary PATH --profile PATH --approve-cloud, status, approve CODE, revoke, run, or uninstall.');
+  throw new Error('Use install --origin URL --binary PATH --profile PATH --approve-cloud [--no-plus] [--plus-license FILE], status, approve CODE, revoke, run, or uninstall.');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch(error => { console.error(error instanceof ConnectorError ? error.message : 'Cloud service request failed. Check the configuration, service status and relay availability.'); process.exitCode = 1; });

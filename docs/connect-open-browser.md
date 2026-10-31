@@ -1,14 +1,19 @@
-# Connect a chat to an open Kitsuvo window
+# Pin a chat to an open Kitsuvo window
 
-This flow requires a browser build that offers **Copy tab connection** and
+Pinning is optional. With **Assistant access** on (the switch beside Settings),
+assistants you added Kitsuvo to already use the active tab. Pin a chat when it
+must stay on one window and tab while you switch.
+
+This flow requires a browser build that offers **Copy connection prompt** in the
+plug button's panel and
 an MCP server with `browser_attach`. Updating the plugin alone does not update
 the native browser. If these are missing, use the regular setup instructions;
 the window-targeting feature needs a newer native build when available.
 
 1. In the browser window you want your chat to use, select the desired tab.
-2. Press the plug button beside Settings.
-3. Press **Copy tab connection**. Local assistant access is on by default.
-   If you turned it off, enable **Settings → Assistants → Assistant access**.
+2. Press the plug button beside Settings, then **Copy connection prompt** under
+   **3. Optional: pin a chat to this tab**. If assistant access is off, turn on
+   the **Assistant access** switch first.
 4. Paste the prompt into your Codex, Claude Code or other locally connected MCP
    chat. The assistant confirms the selected page before starting your task.
 
@@ -23,7 +28,8 @@ session identity, status, tabs, controller and cleanup.
 
 Assistant access allows authenticated local apps to control this profile, including
 signed-in sites. Private tabs, sign-in pages and password fields remain protected.
-Turn access off in Settings → Assistants to block it across restarts. Press **Stop** in the top
+Turn the **Assistant access** switch off (the same setting as Settings →
+Assistants) to block it across restarts. Press **Stop** in the top
 bar to end control API access until the window restarts. Closing the target
 produces an error; the assistant must not launch or adopt a replacement.
 

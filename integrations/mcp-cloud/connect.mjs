@@ -8,6 +8,7 @@ import { release as osRelease } from 'node:os';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { plusSource, watchPlus } from './plus.mjs';
 
 // Cloud access is disclosed as using the isolated agent profile, but plain
 // `kitsuvo mcp` uses the normal signed-in profile. Request isolation explicitly,
@@ -44,7 +45,9 @@ export function browserTransportConfig(env = process.env, app = false, help = ''
 
 const display = value => JSON.stringify(value).replace(/[\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`);
 
-export function connectBrowser({ origin, backend, onMessage = () => {}, connectorKey }) {
+// `plusCode` is a Kitsuvo Plus activation code. Callers pass it only after the
+// user opted in to cloud access; it never travels anywhere but this relay.
+export function connectBrowser({ origin, backend, onMessage = () => {}, connectorKey, plusCode }) {
   const url = new URL(origin);
   if (url.username || url.password || url.search || url.hash || url.pathname !== '/' ||
       (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) {
@@ -52,7 +55,11 @@ export function connectBrowser({ origin, backend, onMessage = () => {}, connecto
   }
   url.pathname = '/connect'; url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   if (connectorKey !== undefined && !/^[A-Za-z0-9_-]{43}$/.test(connectorKey)) throw new Error('Invalid connector identity.');
-  const socket = new WebSocket(url, { headers: connectorKey ? { 'X-Kitsuvo-Connector-Key': connectorKey } : {}, maxPayload: 8 * 1024 * 1024, followRedirects: false });
+  if (plusCode !== undefined && !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(plusCode)) throw new Error('Invalid Plus activation code.');
+  const headers = { ...(connectorKey ? { 'X-Kitsuvo-Connector-Key': connectorKey } : {}), ...(plusCode ? { 'X-Kitsuvo-Plus': plusCode } : {}) };
+  const socket = new WebSocket(url, { headers, maxPayload: 8 * 1024 * 1024, followRedirects: false });
+  // Older relays close the socket on unknown messages; refresh only on one that said it understands Plus.
+  let relayPlus = false;
   const queue = operationQueue(), requests = new Map();
   let tools;
   const catalogue = () => tools ??= backend.listTools().catch(error => { tools = undefined; throw error; });
@@ -63,6 +70,7 @@ export function connectBrowser({ origin, backend, onMessage = () => {}, connecto
     let message;
     try { message = JSON.parse(data.toString()); } catch { socket.close(1008, 'Invalid message'); return; }
     if (message.type === 'cancel') { requests.get(message.id)?.abort(); return; }
+    if (message.type === 'connected') relayPlus = message.plus === true;
     if (message.type !== 'call') { onMessage(message); return; }
     if (requests.has(message.id)) { socket.close(1008, 'Duplicate call'); return; }
     const request = new AbortController(); requests.set(message.id, request);
@@ -89,7 +97,8 @@ export function connectBrowser({ origin, backend, onMessage = () => {}, connecto
       } catch { send({ type: 'result', id: message.id, error: 'Browser request failed.' }); }
     }, { signal: request.signal, timeoutMs: message.deadlineMs ?? 180000 }).catch(() => send({ type: 'result', id: message.id, error: 'Browser request cancelled or deadline exceeded.' })).finally(() => requests.delete(message.id));
   });
-  return { socket, review: id => send({ type: 'review', id }), approve: id => send({ type: 'approve', id }), revoke: () => send({ type: 'revoke' }) };
+  return { socket, review: id => send({ type: 'review', id }), approve: id => send({ type: 'approve', id }), revoke: () => send({ type: 'revoke' }),
+    plus: code => { if (relayPlus) send({ type: 'plus', code }); } };
 }
 
 async function main() {
@@ -99,20 +108,24 @@ async function main() {
   if (!process.stdin.isTTY) throw new ConnectorError('Cloud connection requires an interactive terminal for browser-access consent. Run it in Terminal (macOS) or PowerShell (Windows), not from a script or service.');
   const terminal = createInterface({ input: process.stdin, output: process.stderr });
   const ask = prompt => new Promise(resolve => terminal.question(prompt, resolve));
+  const flag = process.argv.indexOf('--plus-license');
+  const readPlus = plusSource({ file: flag > 0 ? process.argv[flag + 1] : undefined });
+  const plusCode = await readPlus?.();
   console.error('Cloud access forwards selected tool arguments, page snapshots and reports to the relay and your authorized MCP client.\nIt uses Kitsuvo\'s isolated agent profile. Closing this connector revokes its grants.');
+  if (plusCode) console.error('Kitsuvo Plus: your activation code is sent to the relay for Plus capacity. It holds only your subscription\'s anonymous ID and expiry while connected. Set KITSUVO_PLUS=off to skip.');
   if ((await ask(`Connect to ${new URL(origin).origin}? Type CONNECT: `)) !== 'CONNECT') { terminal.close(); return; }
   const backend = new Client({ name: 'kitsuvo-cloud-connector', version: '0.1.0' });
   const app = process.argv.includes('--app');
   const help = app ? '' : (await promisify(execFile)(process.env.KITSUVO_BINARY || 'kitsuvo', ['--help'], { timeout: 5000, maxBuffer: 65536, windowsHide: true })).stdout;
   const native = new StdioClientTransport(browserTransportConfig(process.env, app, help));
-  let connection, stopping = false, approvalPending = false;
+  let connection, refresh, stopping = false, approvalPending = false;
   const stop = async () => {
     if (stopping) return; stopping = true;
-    connection?.socket.close(); terminal.close(); await backend.close();
+    refresh?.stop(); connection?.socket.close(); terminal.close(); await backend.close();
   };
   try {
     await backend.connect(native);
-    connection = connectBrowser({ origin, backend, onMessage: async message => {
+    connection = connectBrowser({ origin, backend, plusCode, onMessage: async message => {
       if (message.type === 'connected') console.error('Connected. When linking an MCP client, type: approve <code shown by the relay>');
       else if (message.type === 'review') {
         if (approvalPending) return;
@@ -124,7 +137,9 @@ async function main() {
         approvalPending = false;
       } else if (message.type === 'approved') console.error('Approved. Refresh the authorization page to finish linking.');
       else if (message.type === 'rejected') console.error('Approval expired or already used. Restart linking.');
+      else if (message.type === 'plus') console.error(message.active ? `Kitsuvo Plus relay capacity active until ${new Date(message.expiresAt * 1000).toLocaleString()}.` : 'Kitsuvo Plus code not accepted by the relay; using standard limits.');
     } });
+    if (readPlus) refresh = watchPlus(readPlus, code => connection.plus(code), { initial: plusCode });
     connection.socket.on('close', code => {
       // 1012: the relay is restarting (deploy or maintenance), not a local fault.
       console.error(code === 1012 ? 'The relay is restarting, so this temporary connection ended and its grants were revoked. Start the connector again in a minute and re-approve your client.' : 'Relay disconnected; browser grants revoked.');

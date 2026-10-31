@@ -79,6 +79,27 @@ async function fixture(t, durable = false, { telemetry, trustedProxyHops=0, cloc
   };
 }
 
+test('remote control page is same-origin, script-only from self and never framed', async t => {
+  const f = await fixture(t);
+  const page = await fetch(f.origin + '/remote');
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get('content-type'), /^text\/html/);
+  const csp = page.headers.get('content-security-policy');
+  for (const directive of ["default-src 'none'", "script-src 'self'", "connect-src 'self'", "img-src data:", "frame-ancestors 'none'", "form-action 'none'"]) assert.ok(csp.includes(directive), directive);
+  assert.equal(page.headers.get('x-frame-options'), 'DENY');
+  assert.equal(page.headers.get('cache-control'), 'no-store');
+  const html = await page.text();
+  assert.ok(html.includes('src="/remote.js"') && !/<script>[^<]/.test(html) && !/https?:\/\//.test(html.replace(/<meta[^>]*>/g, '')));
+  for (const [route, type] of [['/remote.js', /^text\/javascript/], ['/remote.css', /^text\/css/]]) {
+    const asset = await fetch(f.origin + route);
+    assert.equal(asset.status, 200);
+    assert.match(asset.headers.get('content-type'), type);
+  }
+  // The page registers itself with its own address as the redirect.
+  const registered = await fetch(f.origin + '/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_name: 'Kitsuvo remote control', redirect_uris: [f.origin + '/remote'], token_endpoint_auth_method: 'none', grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'] }) });
+  assert.equal(registered.status, 201);
+});
+
 test('invalid WebSocket protocol messages are reported through injected telemetry', async t => {
   const reported = [];
   const f = await fixture(t, false, { telemetry: { captureException(error, context) { reported.push({ error, context }); } } });

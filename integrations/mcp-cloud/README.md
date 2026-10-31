@@ -7,9 +7,19 @@ profile on the connecting computer.
 
 ## Connect your browser
 
+Kitsuvo builds after 0.2.37 can do this without a terminal: open Settings →
+Assistants → Remote access, turn it on, and follow the two steps shown there.
+The terminal connector below remains for older builds, headless setups and
+the App-mode panel.
+
+To watch and drive the browser yourself from a phone or another computer, open
+`<relay origin>/remote` there, choose Link this device and approve it in Kitsuvo
+like any assistant. The page is served by the relay itself, keeps its tokens in
+the tab's session storage and reaches only the isolated agent profile.
+
 Install Kitsuvo and put `kitsuvo` on PATH. Use Node.js 22 or newer:
 
-Download and extract the [integration package](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.34.zip).
+Download and extract the [integration package](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.35.zip).
 Open a terminal in its `integrations/mcp-cloud` folder before running the commands
 below. If the browser is not on PATH, set `KITSUVO_BINARY` to its absolute executable
 path. Web hosts need the App-mode commands in the next section for the in-chat panel.
@@ -223,10 +233,81 @@ provide browser access while the computer is off. After 90 days without refresh,
 revocation, removal of the identity file or loss of the relay volume, linking is
 required again.
 
+## Kitsuvo Plus relay capacity
+
+Kitsuvo Plus subscribers get priority relay capacity and higher limits. Free
+connectors keep every limit above exactly; Plus connectors are admitted to a
+separate reserved pool and do not count against the free one.
+
+| Limit | Free | Plus |
+| --- | --- | --- |
+| Connectors online, global | 50 installed, 25 temporary | 50 reserved (either kind), then free room |
+| Connectors per source | 5 installed, 3 temporary | 10 installed, 6 temporary |
+| Pending connectors | 60 global, 3 per source | 20 global, 6 per source |
+| Connectors per subscription | — | 10 |
+| Grants (approved clients) per browser | 8 | 16 |
+| MCP sessions per browser | 16 | 32 |
+
+Grants per client (4), the per-network session cap (64), the global session
+and token tables, rate limits and message sizes are the same for everyone. A
+Plus connector tries the reserved pool first and can still use free room, so a
+full free pool never turns it away. One subscription can hold at most 10
+connectors, so a shared activation code cannot fill the reserved pool.
+
+**How the connector proves Plus.** Only after you opt in to cloud access
+(`CONNECT` in the terminal connector, or `service.mjs install --approve-cloud`),
+the connector reads the current activation code the desktop app saved
+(`plus-license.txt` in Kitsuvo's config folder: `~/Library/Application Support/kitsuvo`
+on macOS, `%APPDATA%\kitsuvo` on Windows, `~/.config/kitsuvo` on Linux). Override
+the file with `--plus-license FILE` or `KITSUVO_PLUS_LICENSE_FILE`, or pass the code
+in `KITSUVO_PLUS_LICENSE`; the code is never accepted as a command-line argument,
+where other processes could see it. `KITSUVO_PLUS=off` (terminal connector) or
+`service.mjs install --no-plus` never sends one. An expired code is never sent.
+The code travels in the TLS WebSocket handshake header `X-Kitsuvo-Plus`. The
+connector re-reads the file hourly and sends a renewed code (the desktop app
+refreshes it about two days before expiry) on the open connection, so a
+long-running service stays on Plus without reconnecting. It sends renewals only
+to relays that advertise Plus support, so older relays keep working.
+`service.mjs status` reports the relay's answer as `plus`.
+
+**What the relay learns.** The relay verifies the code offline: the Ed25519
+signature against the pinned public key in `PLUS_PUBLIC_KEY_HEX`, the product
+`kitsuvo-plus-personal-v1`, version, a validity of at most seven days and the
+expiry, exactly as the desktop app does. It never contacts kitsuvo.com, Stripe or
+anyone else. It keeps only the code's subscription hash (a SHA-256 of the
+subscription ID, which identifies no person or payment detail) and expiry, in
+memory on the live connection, to apply the limits above. Both are discarded when
+the connector disconnects. The code, hash and expiry are never written to the
+authorization file, logged or included in exception reports. While connectors
+are online, the relay can tell which of them share a subscription; the
+per-subscription cap needs exactly that and nothing more. Without
+`PLUS_PUBLIC_KEY_HEX` every connector gets free limits.
+
+**When the code expires.** Expiry is checked whenever a limit is applied, so an
+expired, forged or wrong-product code gives free limits from that moment, and an
+invalid renewal leaves the current code to lapse at its own expiry. Nothing is
+revoked or disconnected because Plus ended:
+
+- A connected connector stays connected and keeps its slot in the reserved pool
+  until it disconnects; its next connection is admitted with free limits.
+- Every approved grant keeps working and refreshing for its normal lifetime
+  (one day for temporary connectors, 90 days of inactivity for installed ones).
+  Refreshing never revokes another grant.
+- If the browser holds more grants than the free cap of 8, approving a new
+  client revokes only that browser's single least recently refreshed grant, not
+  everything over the cap, so the count can only fall back gradually. At or under
+  the cap, free behaviour applies exactly.
+- Open MCP sessions keep working. A new session beyond the free cap of 16 evicts
+  that browser's least recently used sessions down to the cap, as for free users;
+  a session is not a grant, and the client re-initializes it.
+- Presenting a renewed code restores Plus limits immediately.
+
 ## Validation and deployment
 
 `npm test` exercises PKCE, resource/client/redirect binding, replay refusal,
 refresh rotation, revocation, host/origin checks and independent browser routing.
+`test/plus.test.mjs` uses a generated throwaway Ed25519 keypair for valid,
+expired, forged and wrong-product Plus codes; it never needs the real signing key.
 For an explicit native test in a disposable profile, set
 `KITSUVO_CLOUD_SMOKE=1` and run `node smoke-native.mjs` against your chosen relay.
 The smoke approves only its own named test client and closes its own browser.
@@ -237,7 +318,10 @@ browser panel. Install the HTTP bridge's dependencies first as shown above.
 one machine/process (never `fly scale count` above 1 or a second volume: each
 machine would hold its own authorization file, so a token issued or revoked on
 one would be unknown on the other; `test/relay.test.mjs` checks `fly.toml`) with the `kitsuvo_cloud_state` volume mounted at `/data`,
-and `KITSUVO_CLOUD_STATE_FILE=/data/authorization.json`. Create the volume in the
+and `KITSUVO_CLOUD_STATE_FILE=/data/authorization.json`. For Plus capacity set
+`PLUS_PUBLIC_KEY_HEX` to the same 64-character public key the site and desktop
+builds use (`fly secrets set PLUS_PUBLIC_KEY_HEX=…`, or a `fly.toml` `[env]`
+value: it is public, not a secret); it is never the private signing key. Create the volume in the
 app region before the first deployment. Browser sockets and in-flight approvals
 remain ephemeral; client registrations and approved installed-service grants
 survive process restarts. State writes are asynchronous, so they do not stall
