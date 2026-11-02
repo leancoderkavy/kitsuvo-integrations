@@ -5,6 +5,17 @@ Kitsuvo browser. The cloud service does not launch a browser or share an owner's
 profile. Each outbound TLS WebSocket belongs to a separate isolated agent
 profile on the connecting computer.
 
+## Reviewed browser tasks
+
+Updated native/connector source exposes optional task grants, filter-aware
+research observations, structured extraction, explicit artifact inspection and
+reviewed workflows. Input, replacements, workflow runs and document-text sharing
+have separate browser controls. Saved research remains local and is not granted
+to an assistant automatically. See the [task guide](../../docs/agent-task-workbench.md)
+for limits and permission semantics. Deployment and package publication remain
+separate from this source change. Relay task identity belongs to the authenticated
+OAuth client/browser and survives protocol reconnects; it is not a per-chat grant.
+
 ## Connect your browser
 
 Kitsuvo builds after 0.2.37 can do this without a terminal: open Settings →
@@ -17,9 +28,16 @@ To watch and drive the browser yourself from a phone or another computer, open
 like any assistant. The page is served by the relay itself, keeps its tokens in
 the tab's session storage and reaches only the isolated agent profile.
 
-Install Kitsuvo and put `kitsuvo` on PATH. Use Node.js 22 or newer:
+Updated app/relay source also adds a **Terminal** choice on that page. Each new
+terminal needs separate approval and a starting folder chosen on the host;
+browser linking alone grants no shell. It uses the desktop app's native PTY,
+not this Node connector, and stops on disconnect, revoke or lease expiry.
+See [remote connections](../../docs/remote-connections.md) for setup, permissions,
+platform support and validation limits. Deployment is separate from source.
 
-Download and extract the [integration package](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.35.zip).
+Install Kitsuvo and put `kitsuvo` on PATH. Use Node.js 24.22.1 or newer:
+
+Download and extract the [integration package](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.38.zip).
 Open a terminal in its `integrations/mcp-cloud` folder before running the commands
 below. If the browser is not on PATH, set `KITSUVO_BINARY` to its absolute executable
 path. Web hosts need the App-mode commands in the next section for the in-chat panel.
@@ -134,7 +152,7 @@ reopening Kitsuvo, restarting the connector or logging in after a reboot does no
 require manually reconnecting ChatGPT. It uses the same isolated agent
 profile and forwards selected browser data through the selected HTTPS relay.
 Installation is explicit opt-in; Kitsuvo's normal local-only mode does not
-install or enable this service. Node.js 22+, this integration directory and its
+install or enable this service. Node.js 24.22.1+, this integration directory and its
 `mcp-http` sibling with installed dependencies must remain at their saved paths.
 
 ```sh

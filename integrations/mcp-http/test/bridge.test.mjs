@@ -80,6 +80,7 @@ test('HTTP MCP negotiates, forwards tools and results, and rejects untrusted req
   const client = new Client({ name: 'test', title: 'Test Agent', version: '1.0.0' });
   t.after(() => client.close());
   await client.connect(new StreamableHTTPClientTransport(url));
+  assert.match(client.getInstructions(), /Preserve any supplied browser target/);
   assert.deepEqual((await client.listTools()).tools, [tool, ...appTools]);
   assert.equal((await client.listResources()).resources[0].uri, APP_URI);
   const resource = (await client.readResource({ uri: APP_URI })).contents[0];
@@ -122,10 +123,13 @@ test('HTTP MCP negotiates, forwards tools and results, and rejects untrusted req
 
 
 test('native environment keeps the Codex thread for session links', () => {
-  const env = nativeEnvironment({ CODEX_THREAD_ID: 'thread-1', KITSUVO_PROFILE_DIR: '/profile', SECRET_TOKEN: 'no' });
+  const env = nativeEnvironment({ CODEX_THREAD_ID: 'thread-1', KITSUVO_PROFILE_DIR: '/profile', KITSUVO_MCP_ISOLATED_ONLY:'1', SECRET_TOKEN: 'no' });
   assert.equal(env.CODEX_THREAD_ID, 'thread-1');
   assert.equal(env.KITSUVO_PROFILE_DIR, '/profile');
   assert.equal(env.SECRET_TOKEN, undefined);
+  assert.equal(env.KITSUVO_MCP_ISOLATED_ONLY,'1');
+  assert.equal(env.KITSUVO_MCP_SCOPE, 'isolated');
+  assert.equal(nativeEnvironment({KITSUVO_MCP_SCOPE:'normal'}).KITSUVO_MCP_SCOPE,'isolated');
 });
 
 test('headless configuration is explicit and disabled by default', () => {

@@ -1,5 +1,9 @@
 # Kitsuvo MCP clients and distribution
 
+For Grok Bot, current client-specific configuration generation, function-tool
+adapters and qualification status, see [agent compatibility](agent-compatibility.md).
+Configuration generation is separate from a real host workflow pass.
+
 Version 0.2.7. Install Kitsuvo on Windows or macOS first. The local server is
 `kitsuvo mcp`; current Mac 0.2.30 local MCP reuses the normal signed-in profile by default. Add `--separate-profile` for a separate persistent profile. Sensitive pages remain protected. Windows 0.2.4 predates `browser_status` and cannot satisfy the current connection check; no qualified replacement Windows release is currently published.
 The client receives requested page text, screenshots and reports. No API key
@@ -30,7 +34,7 @@ normally use `/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo`.
 
 Claude Code: `claude mcp add --scope user kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile`.
 Codex: `codex mcp add kitsuvo -- "/Applications/Kitsuvo.app/Contents/MacOS/kitsuvo" mcp --separate-profile`.
-For skills too, download and extract the [integrations archive](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.35.zip), then run the marketplace commands from the extracted folder:
+For skills too, download and extract the [integrations archive](https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.38.zip), then run the marketplace commands from the extracted folder:
 
 ```sh
 claude plugin marketplace add .
@@ -58,8 +62,8 @@ plugin. A package is installation metadata, not a registered publisher app ID.
 Do not fabricate `.app.json` registered IDs; attach the actual portal-generated
 mapping if the target host requires it.
 
-On your own Windows or Mac computer, install Kitsuvo and Node.js 22+, extract
-`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.35.zip`, then:
+On your own Windows or Mac computer, install Kitsuvo and Node.js 24.22.1+, extract
+`https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.38.zip`, then:
 
 ```sh
 cd integrations/mcp-cloud
@@ -78,7 +82,7 @@ On the authorization page, copy the request code to the connector terminal:
 `approve <code>`. Review the client and redirect URI, then type `APPROVE` and
 refresh the authorization page. Keep the connector running. Each user approves
 access to their own isolated browser. Closing the connector revokes access.
-The relay has ephemeral state; restarts require reconnection/reauthorization.
+Temporary connectors revoke grants on disconnect. The explicitly installed background service retains approved grants across reconnects and relay restarts; see the cloud relay guide for expiry and revocation.
 A sleeping or disconnected user computer cannot fulfill browser workflows.
 
 For Claude Code's remote variant, run from the extracted integrations archive:

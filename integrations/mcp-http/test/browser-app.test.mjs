@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { appTools, callBrowserApp } from '../browser-app.mjs';
 
 const text = value => ({ content: [{ type: 'text', text: value }] });
+const request = (name, arguments_) => ({ name, arguments: arguments_, _meta: { 'kitsuvo/deadlineMs': 180000 } });
 function backend({ screenshot = true, denied = false } = {}) {
   const calls = [];
   return { calls, async callTool(params) {
@@ -21,7 +22,7 @@ function backend({ screenshot = true, denied = false } = {}) {
 test('opening the panel navigates, reads current state, and keeps preview out of model content', async () => {
   const native = backend();
   const result = await callBrowserApp(native, 'kitsuvo_browser', { url: 'https://example.com/', tab: 1 });
-  assert.deepEqual(native.calls[0], { name: 'browser_navigate', arguments: { url: 'https://example.com/', tab: 1 } });
+  assert.deepEqual(native.calls[0], request('browser_navigate', { url: 'https://example.com/', tab: 1 }));
   assert.equal(result.structuredContent.url, 'https://example.com/');
   assert.equal(result.structuredContent.tab, 1);
   assert.equal(result.structuredContent.tabs.length, 3);
@@ -94,6 +95,49 @@ test('native Stop and sensitive-page errors are preserved without reading furthe
   assert.equal(native.calls.length, 1);
 });
 
+test('panel cancellation between hops never dispatches another browser operation', async () => {
+  const controller = new AbortController(), calls = [];
+  const native = { async callTool(params) {
+    calls.push(params.name);
+    controller.abort(new Error('Task cancelled; inspect state before retrying.'));
+    return text('Opened tab 3.');
+  } };
+  const result = await callBrowserApp(native, 'kitsuvo_browser', {}, controller.signal);
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /cancelled/);
+  assert.deepEqual(calls, ['browser_tabs']);
+});
+
+test('panel hops consume one remaining deadline and forward it to native MCP', async () => {
+  const calls = []; let remaining = 120;
+  const native = { async callTool(params, schema, options) {
+    calls.push({ params, options }); remaining -= 30;
+    if (params.name === 'browser_tabs' && params.arguments.action === 'new') return text('Opened tab 3.');
+    if (params.name === 'browser_snapshot') return text('Page: https://example.com/\nTitle: Example\nTab: 3\n');
+    return text('- tab 3: Example (https://example.com/)');
+  } };
+  const result = await callBrowserApp(native, 'kitsuvo_browser', {}, undefined, { 'kitsuvo/client': 'Fixture' }, () => remaining);
+  assert.equal(result.isError, false);
+  assert.deepEqual(calls.map(call => call.options.timeout), [120, 90, 60, 30]);
+  assert.deepEqual(calls.map(call => call.params._meta['kitsuvo/deadlineMs']), [120, 90, 60, 30]);
+  assert.ok(calls.every(call => call.params._meta['kitsuvo/client'] === 'Fixture'));
+});
+
+test('preview fallback never turns a cancelled panel request into success', async () => {
+  const controller = new AbortController(), native = backend();
+  const call = native.callTool;
+  native.callTool = async (...args) => {
+    if (args[0].name === 'browser_take_screenshot') {
+      controller.abort(new Error('Task cancelled during preview.'));
+      throw controller.signal.reason;
+    }
+    return call(...args);
+  };
+  const result = await callBrowserApp(native, 'kitsuvo_browser', {}, controller.signal);
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /cancelled during preview/);
+});
+
 test('invalid panel actions cannot invoke arbitrary tools or JavaScript', async () => {
   const native = backend();
   for (const args of [{ action: 'evaluate', expression: 'alert(1)' }, { action: '__proto__' },
@@ -107,17 +151,17 @@ test('invalid panel actions cannot invoke arbitrary tools or JavaScript', async 
 test('typing and selecting forward explicit fields; closing reads the new active tab', async () => {
   const native = backend();
   await callBrowserApp(native, 'kitsuvo_browser_action', { action: 'type', tab: 1, ref: 'e2', text: 'Ada', submit: true, expression: 'ignored' });
-  assert.deepEqual(native.calls[0], { name: 'browser_type', arguments: { tab: 1, ref: 'e2', text: 'Ada', submit: true } });
+  assert.deepEqual(native.calls[0], request('browser_type', { tab: 1, ref: 'e2', text: 'Ada', submit: true }));
   native.calls.length = 0;
   await callBrowserApp(native, 'kitsuvo_browser_action', { action: 'close', tab: 2 });
-  assert.deepEqual(native.calls[0], { name: 'browser_tabs', arguments: { tab: 2, action: 'close' } });
-  assert.deepEqual(native.calls[1], { name: 'browser_snapshot', arguments: {} });
+  assert.deepEqual(native.calls[0], request('browser_tabs', { tab: 2, action: 'close' }));
+  assert.deepEqual(native.calls[1], request('browser_snapshot', {}));
 });
 
 test('page evidence is requested for the viewed tab and cleared by subsequent views', async () => {
   const native = backend();
   const result = await callBrowserApp(native, 'kitsuvo_browser_action', { action: 'report', tab: 2 });
-  assert.deepEqual(native.calls[0], { name: 'kitsuvo_report', arguments: { tab: 2 } });
+  assert.deepEqual(native.calls[0], request('kitsuvo_report', { tab: 2 }));
   assert.match(result.structuredContent.report, /blocked_ai/);
   assert.match(result.structuredContent.report, /Lovable/);
   const refresh = await callBrowserApp(native, 'kitsuvo_browser_action', { action: 'refresh', tab: 1 });
@@ -135,11 +179,29 @@ test('panel actions target its observed background tab rather than the visible d
   assert.equal(view.structuredContent.tab, 2);
   native.calls.length = 0;
   await callBrowserApp(native, 'kitsuvo_browser_action', { action: 'click', ref: 'e1', tab: view.structuredContent.tab });
-  assert.deepEqual(native.calls[0], { name: 'browser_click', arguments: { tab: 2, ref: 'e1' } });
+  assert.deepEqual(native.calls[0], request('browser_click', { tab: 2, ref: 'e1' }));
 });
 
 test('fitting the preview explicitly lays out the observed tab without custom device spoofing', async () => {
   const native = backend();
   await callBrowserApp(native, 'kitsuvo_browser_action', { action: 'fit', tab: 2 });
-  assert.deepEqual(native.calls[0], { name: 'browser_resize', arguments: { tab: 2, off: true } });
+  assert.deepEqual(native.calls[0], request('browser_resize', { tab: 2, off: true }));
+});
+
+
+test('panel accepts explicit session selection independently of the visible browser tab', async () => {
+  const native = backend();
+  const original = native.callTool;
+  native.callTool = async params => params.name === 'browser_tabs'
+    ? text('- tab 1 [visible in browser]: Visible (https://visible.example/)\n- tab 2 [selected for this session]: Research (https://research.example/)\n- tab 3 [active in profile]: Other (https://other.example/)')
+    : original(params);
+  const state = (await callBrowserApp(native, 'kitsuvo_browser_action', {action:'refresh'})).structuredContent;
+  assert.equal(state.tab, 2);
+  assert.equal(state.tabs.length, 3);
+  assert.equal(state.tabs[0].active, true);
+  assert.equal(state.tabs[0].selected, false);
+  assert.equal(state.tabs[1].active, false);
+  assert.equal(state.tabs[1].selected, true);
+  assert.equal(state.tabs[2].active, true);
+  assert.equal(state.tabs[2].selected, false);
 });

@@ -3,7 +3,7 @@
 [![Kitsuvo: free browser for Mac and Windows](https://img.shields.io/badge/Kitsuvo-free%20browser%20for%20Mac%20%26%20Windows-D23F1A)](https://kitsuvo.com)
 [![MCP: stdio and Streamable HTTP](https://img.shields.io/badge/MCP-stdio%20%26%20Streamable%20HTTP-0b6cff)](docs/quickstart/README.md)
 [![Claude Code and Codex plugin](https://img.shields.io/badge/plugin-Claude%20Code%20%26%20Codex-555555)](#claude-code)
-[![Node.js 22 or newer](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white)](integrations/mcp-http)
+[![Node.js 24.22.1 or newer for the cloud connector](https://img.shields.io/badge/cloud_node-%E2%89%A524.22.1-339933?logo=node.js&logoColor=white)](integrations/mcp-cloud)
 [![License: Kitsuvo Integration License](https://img.shields.io/badge/license-Kitsuvo%20Integration%20License-lightgrey)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/leancoderkavy/kitsuvo-integrations)](https://github.com/leancoderkavy/kitsuvo-integrations/commits/main)
 
@@ -40,6 +40,10 @@ previews. The browser itself is a separate download.
 No Kitsuvo account or API key is needed for local browsing and detection.
 
 ## Additional clients
+
+[Agent compatibility](docs/agent-compatibility.md) includes Grok Bot remote
+setup, client-specific configuration generation and the function-tool adapter.
+These sources do not establish a live connection in every named host.
 
 [Client configs and desktop extension](docs/distribution-clients.md) cover Cursor,
 VS Code, Gemini CLI, Cline, Continue, LM Studio, Devin and remote workflow clients.
@@ -89,7 +93,7 @@ codex plugin add kitsuvo --marketplace kitsuvo-browser
 
 The plugin includes setup, browsing, detection-evidence, and responsive skills.
 Do not assume the connection is isolated from your normal sign-ins. On current
-Mac 0.2.36, local MCP reuses the normal profile by default; add `--separate-profile`
+Mac 0.2.37, local MCP reuses the normal profile by default; add `--separate-profile`
 to a direct MCP configuration for a separate persistent profile. Check your
 installed build's `browser_status` and the [connection guide](https://kitsuvo.com/integrations).
 Windows 0.2.4 predates `browser_status` and cannot satisfy the current connection
@@ -183,7 +187,7 @@ establish approval in any AI-client directory.
 ## Security and privacy
 
 - **Choose the profile.** These local plugin configurations pass `mcp` and
-  inherit the installed browser's default. On current Mac 0.2.36 this reuses the normal
+  inherit the installed browser's default. On current Mac 0.2.37 this reuses the normal
   signed-in profile, including website cookies. Add `--separate-profile` in a
   direct MCP configuration when you want a separate persistent profile. Check
   `browser_status` for your installed build. The packages do not enable
@@ -225,7 +229,7 @@ image capture is unavailable. On Linux or ChromeOS, try the
 [extension preview](docs/quickstart/browser-extension.md).
 
 **Can the agent use my signed-in browser?** Yes, when it uses your normal
-profile: that is the local MCP default on current Mac 0.2.36. A separate profile must
+profile: that is the local MCP default on current Mac 0.2.37. A separate profile must
 be selected explicitly with `--separate-profile`. Sensitive sign-in pages and
 password fields are protected by default. Page text from other signed-in pages
 can still reach the connected AI client.

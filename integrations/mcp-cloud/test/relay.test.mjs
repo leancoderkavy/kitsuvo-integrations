@@ -14,9 +14,50 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import WebSocket from 'ws';
+import { remoteInstructions } from '../agent-contract.mjs';
 
 const cardVersion = JSON.parse(await readFile(new URL('../server-card.json', import.meta.url), 'utf8')).serverInfo.version;
 const fetch = (url, options = {}) => globalThis.fetch(url, {...options, headers:{...options.headers, Connection:'close'}});
+
+test('relay delivers browser safety instructions and forwards the actual upstream client', async t => {
+  const f = await fixture(t), calls = [];
+  const browser = await f.browser('identity fixture', false, { async callTool(params) {
+    calls.push(params); return { content: [{ type: 'text', text: 'observed' }] };
+  } });
+  t.after(() => browser.socket.terminate());
+  const registered = await f.client(), auth = await f.authorize(registered, browser);
+  const tokens = await (await f.exchange(registered, auth)).json();
+  const client = new Client({ name: 'grokbot-fixture', title: 'Grok Bot fixture', version: '1' });
+  t.after(() => client.close());
+  await client.connect(new StreamableHTTPClientTransport(new URL(f.origin + '/mcp'), {
+    requestInit: { headers: { Authorization: 'Bearer ' + tokens.access_token } },
+  }));
+  assert.equal(client.getInstructions(), remoteInstructions);
+  await client.callTool({ name: 'fixture', arguments: { browser: 'task-bound-target' },
+    _meta: { 'kitsuvo/client': 'forged display name', 'kitsuvo/session': 'forged owner' } });
+  assert.equal(calls[0]._meta['kitsuvo/client'], 'Grok Bot fixture');
+  assert.equal(calls[0].arguments.browser, 'task-bound-target');
+  const owner = calls[0]._meta['kitsuvo/session'];
+  assert.match(owner, /^[a-f0-9]{64}$/);
+  assert.notEqual(owner, 'forged owner');
+  await client.close();
+  const reconnect = new Client({ name: 'another display name', version: '1' });
+  t.after(() => reconnect.close());
+  await reconnect.connect(new StreamableHTTPClientTransport(new URL(f.origin + '/mcp'), {
+    requestInit: { headers: { Authorization: 'Bearer ' + tokens.access_token } },
+  }));
+  await reconnect.callTool({ name: 'fixture', arguments: {} });
+  assert.equal(calls[1]._meta['kitsuvo/session'], owner, 'same authenticated client cannot reset task restrictions by reconnecting');
+  const other = await f.client(), otherAuth = await f.authorize(other, browser);
+  const otherToken = await (await f.exchange(other, otherAuth)).json();
+  const different = new Client({ name: 'grokbot-fixture', version: '1' });
+  t.after(() => different.close());
+  await different.connect(new StreamableHTTPClientTransport(new URL(f.origin + '/mcp'), {
+    requestInit: { headers: { Authorization: 'Bearer ' + otherToken.access_token } },
+  }));
+  await different.callTool({ name: 'fixture', arguments: {}, _meta: { 'kitsuvo/session': owner } });
+  assert.notEqual(calls[2]._meta['kitsuvo/session'], owner, 'another authenticated client cannot borrow the task owner');
+});
 async function offline(f, headers) {
   let status;
   // The relay sees a closed connector socket asynchronously; allow a loaded runner up to 5 s rather than 50 polls.
@@ -182,6 +223,8 @@ test('connector App mode uses the fixed stdio bridge and preserves an isolated p
   assert.equal(config.args[1], '--stdio');
   assert.equal(config.env.KITSUVO_BINARY, 'C:/Program Files/Kitsuvo/kitsuvo.exe');
   assert.equal(config.env.KITSUVO_PROFILE_DIR, '/tmp/isolated-profile');
+  assert.equal(config.env.KITSUVO_MCP_ISOLATED_ONLY, '1');
+  assert.equal(browserTransportConfig({KITSUVO_MCP_ISOLATED_ONLY:'0'},false).env.KITSUVO_MCP_ISOLATED_ONLY,'1');
   assert.deepEqual(browserTransportConfig({}, false).args, ['mcp', '--separate-profile']);
 });
 
@@ -255,6 +298,34 @@ test('the terminal connector requests the isolated profile it discloses, like th
   const legacy = 'Usage:\n  --agent    Start agent mode with a separate profile\n  --headless\n';
   assert.deepEqual(browserTransportConfig({}, false, legacy).args, ['mcp']);
   assert.throws(() => nativeArguments('  --agent  separate profile\n', true), /headless/);
+});
+
+test('client deadlines expire in the relay queue and cannot dispatch a stale mutation', {timeout:10000}, async t => {
+  const f = await fixture(t), effects = [];
+  let release, started;
+  const gate = new Promise(resolve => { release = resolve; });
+  const began = new Promise(resolve => { started = resolve; });
+  t.after(() => release());
+  const browser = await f.browser('deadline-fixture', false, { async callTool(params) {
+    effects.push(params.arguments.id);
+    if (params.arguments.id === 0) { started(); await gate; }
+    return { content: [{ type: 'text', text: 'done' }] };
+  } });
+  const registration = await f.client(), auth = await f.authorize(registration, browser);
+  const token = await (await f.exchange(registration, auth)).json();
+  const client = new Client({ name: 'deadline-fixture', version: '1' }); t.after(() => client.close());
+  await client.connect(new StreamableHTTPClientTransport(new URL(f.origin + '/mcp'), {
+    requestInit: { headers: { Authorization: 'Bearer ' + token.access_token } },
+  }));
+  const first = client.callTool({ name: 'fixture', arguments: { id: 0 } }); await began;
+  const fallback = setTimeout(() => release(), 300); t.after(() => clearTimeout(fallback));
+  // The SDK timeout is long enough that only the server-side deadline can
+  // cause rejection. The second mutation must expire while the first is held.
+  await assert.rejects(client.callTool({ name: 'fixture', arguments: { id: 1 }, _meta: { 'kitsuvo/deadlineMs': 20 } }), /deadline/i);
+  assert.deepEqual(effects, [0]);
+  release(); await first;
+  await client.callTool({ name: 'fixture', arguments: { id: 2 } });
+  assert.deepEqual(effects, [0, 2]);
 });
 
 test('relay cancellation reaches the backend and cancelled queued tools never run; catalogue is cached', {timeout:10000},async t=>{
@@ -993,3 +1064,50 @@ test('the relay is deployed as exactly one machine because its authorization sta
   assert.match(config, /single machine/i, 'fly.toml documents the single-instance requirement');
   assert.doesNotMatch(config, /^\s*(min_machines_running|count)\s*=\s*([2-9]|\d{2,})/m);
 });
+
+test('remote terminal HTTP channel requires its own host approval, Origin, token and session ownership', async t => {
+  const f = await fixture(t), browser = await f.browser('terminal host'), client = await f.client(), other = await f.client();
+  t.after(() => browser.socket.close());
+  const access = await (await f.exchange(client, await f.authorize(client, browser))).json();
+  const otherAccess = await (await f.exchange(other, await f.authorize(other, browser))).json();
+  const terminal = (body, token = access.access_token, origin = f.origin) => fetch(f.origin + '/remote/terminal', {
+    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(origin ? { Origin: origin } : {}) }, body: JSON.stringify(body) });
+  assert.equal((await terminal({ action: 'request' }, '')).status, 401);
+  assert.equal((await terminal({ action: 'request' }, access.access_token, '')).status, 403);
+  assert.equal((await terminal({ action: 'request' }, access.access_token, 'https://evil.example')).status, 403);
+  assert.equal((await terminal({ action: 'request' })).status, 409, 'legacy browser connectors cannot expose a shell');
+  const calls = []; let approved = false;
+  browser.events.on('terminal', msg => {
+    calls.push(msg.params);
+    browser.socket.send(JSON.stringify({ type: 'result', id: msg.id, result: { session: msg.params.session,
+      state: msg.params.action === 'stop' ? 'closed' : approved ? 'running' : 'pending',
+      data: msg.params.action === 'poll' && approved ? Buffer.from('terminal-output').toString('base64') : '' } }));
+  });
+  browser.socket.send(JSON.stringify({ type: 'capabilities', terminal: true, computer: '<b>My computer</b>' }));
+  let info;
+  for (let n = 0; n < 20; n++) {
+    info = await (await fetch(f.origin + '/remote/computer', { headers: { Authorization: `Bearer ${access.access_token}` } })).json();
+    if (info.terminal) break;
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  assert.equal(info.name, '<b>My computer</b>'); assert.equal(info.terminal, true);
+  const requested = await terminal({ action: 'request' }); assert.equal(requested.status, 200);
+  const pending = await requested.json(); assert.equal(pending.state, 'pending');
+  assert.equal(calls[0].client, 'Fixture client');
+  assert.equal((await terminal({ action: 'poll', session: pending.session }, otherAccess.access_token)).status, 404);
+  assert.equal((await terminal({ action: 'input', session: pending.session, data: 'é'.repeat(4097) })).status, 400);
+  approved = true;
+  const output = await (await terminal({ action: 'poll', session: pending.session })).json();
+  assert.equal(output.state, 'running'); assert.equal(Buffer.from(output.data, 'base64').toString(), 'terminal-output');
+  await f.post('/revoke', { client_id: client.client_id, token: access.refresh_token });
+  for (let n = 0; n < 20 && calls.at(-1)?.action !== 'stop'; n++) await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal(calls.at(-1).action, 'stop');
+  assert.equal((await terminal({ action: 'poll', session: pending.session })).status, 401);
+});
+
+ test('remote native and App children cannot inherit a normal-profile target scope', () => {
+  for (const app of [false,true]) {
+    const config=browserTransportConfig({KITSUVO_BINARY:'/kitsuvo',KITSUVO_MCP_SCOPE:'normal'},app);
+    assert.equal(config.env.KITSUVO_MCP_SCOPE,'isolated');
+  }
+ });

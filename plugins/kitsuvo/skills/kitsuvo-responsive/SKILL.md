@@ -3,7 +3,7 @@ name: kitsuvo-responsive
 description: Check a website's phone, tablet, or desktop layout and interactions using Kitsuvo's responsive browser mode.
 ---
 
-Before browser work, call `browser_session` with your provider (`Codex` or `Claude`), actual session ID, short task title, and real session URL when available. Codex can derive its link from the thread ID. Never invent a Claude session URL; omit it if the host does not expose one. This lets the user see who is using the browser and return to the chat.
+Before browser work, call `browser_session` with your provider (`Codex`, `Claude` or `Grok Bot`), actual session ID, short task title, and real session URL when available. Codex can derive its link from the thread ID. Never invent a session ID or URL; if the host does not expose a session ID, retain the MCP client attribution instead. Omit unavailable session URLs; only Codex links can be derived from a real thread ID. This lets the user see who is using the browser and return to the chat.
 
 Open the requested page in a dedicated agent tab and pass its tab number to every tool. Use `browser_resize` with a device such as `iphone-16`, `pixel-8`, `ipad-air`, or `desktop`, or explicit `width` and `height`. On Windows, phones and tablets enable touch and a mobile user agent; reload if the site chooses its layout by user agent.
 

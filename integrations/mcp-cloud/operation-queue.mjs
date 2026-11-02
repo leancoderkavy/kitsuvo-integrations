@@ -1,13 +1,22 @@
 // Distributed independently; keep both implementations identical.
 export function operationQueue(capacity = 32, timeoutMs = 180000) {
   const waiting = []; let active, closed = false;
+  const deadlineError = () => new Error('Browser request deadline exceeded. A dispatched mutation may have completed; inspect state before retrying.');
   const pump = async () => {
     if (active || closed) return;
     const item = waiting.shift(); if (!item) return;
     active = item;
     try {
       item.controller.signal.throwIfAborted();
-      item.resolve(await item.operation(item.controller.signal, ()=>Math.max(1,Math.ceil(item.deadline-performance.now()))));
+      // A busy event loop can run the next microtask before expired timers.
+      // Check the monotonic deadline at dispatch, never just the timer flag.
+      if (performance.now() >= item.deadline) throw deadlineError();
+      item.resolve(await item.operation(item.controller.signal, () => {
+        item.controller.signal.throwIfAborted();
+        const remaining = Math.ceil(item.deadline - performance.now());
+        if (remaining <= 0) throw deadlineError();
+        return remaining;
+      }));
     } catch (e) { item.reject(e); }
     finally { item.cleanup(); active = undefined; void pump(); }
   };
@@ -30,7 +39,7 @@ export function operationQueue(capacity = 32, timeoutMs = 180000) {
           reject(controller.signal.reason);
         };
         const abort = () => controller.abort(signal.reason);
-        const timer = setTimeout(()=>controller.abort(new Error('Browser request deadline exceeded. A dispatched mutation may have completed; inspect state before retrying.')),duration);
+        const timer = setTimeout(()=>controller.abort(deadlineError()),duration);
         item.cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort',abort); controller.signal.removeEventListener('abort',cancel); };
         controller.signal.addEventListener('abort',cancel,{once:true});
         signal?.addEventListener('abort',abort,{once:true});

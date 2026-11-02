@@ -8,6 +8,21 @@ import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/st
 import {createSessions} from '../protocol-sessions.mjs';
 import {CallToolRequestSchema} from '@modelcontextprotocol/sdk/types.js';
 
+test('modern probes fail deterministically and legacy SDK clients can still initialize', async t => {
+ const sessions=createSessions(); let calls=0;
+ const http=createServer((req,res)=>sessions.handle(req,res,'owner',()=>{
+  const server=new Server({name:'fixture',version:'1'},{capabilities:{tools:{}}});
+  server.setRequestHandler(CallToolRequestSchema,async()=>{calls++;return {content:[]};});return server;
+ }).catch(()=>res.writeHead(500).end()));
+ await new Promise(r=>http.listen(0,'127.0.0.1',r));
+ t.after(()=>{sessions.close();http.closeAllConnections();http.close();});
+ const url=new URL(`http://127.0.0.1:${http.address().port}/mcp`);
+ const probe=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json, text/event-stream','MCP-Protocol-Version':'2026-07-28'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'server/discover',params:{_meta:{'io.modelcontextprotocol/protocolVersion':'2026-07-28'}}})});
+ assert.equal(probe.status,400);assert.equal(calls,0,'a modern probe must not dispatch a browser operation');
+ const client=new Client({name:'dual-era-fallback-fixture',version:'1'});t.after(()=>client.close());
+ await client.connect(new StreamableHTTPClientTransport(url));await client.ping();
+});
+
 test('sessions enforce capacity, owner isolation, and explicit termination',async t=>{
  const sessions=createSessions({capacity:1});
  const http=createServer((req,res)=>sessions.handle(req,res,req.headers['x-owner']||'a',()=>new Server({name:'fixture',version:'1'},{capabilities:{}})).catch(()=>res.writeHead(500).end()));

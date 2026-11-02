@@ -54,6 +54,14 @@ export async function serveEmbed(req, res, backend, serialize) {
   if (!params || !['kitsuvo_browser', 'kitsuvo_browser_refresh', 'kitsuvo_browser_action'].includes(params.name)) {
     send(403, 'text/plain; charset=utf-8', 'Only browser panel tools are available.'); return;
   }
-  const result = await serialize(() => callBrowserApp(backend, params.name, params.arguments));
-  send(200, 'application/json', JSON.stringify(result));
+  const controller = new AbortController();
+  const disconnected = () => {
+    if (!res.writableFinished) controller.abort(new Error('Browser panel disconnected. Inspect state before retrying.'));
+  };
+  res.once('close', disconnected);
+  try {
+    const result = await serialize((signal, remainingMs) => callBrowserApp(backend, params.name, params.arguments, signal, undefined, remainingMs),
+      { signal: controller.signal, timeoutMs: params._meta?.['kitsuvo/deadlineMs'] ?? 180000 });
+    if (!controller.signal.aborted) send(200, 'application/json', JSON.stringify(result));
+  } finally { res.off('close', disconnected); }
 }

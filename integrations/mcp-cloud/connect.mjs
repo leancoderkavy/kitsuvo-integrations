@@ -1,5 +1,6 @@
 import WebSocket from 'ws';
 import { operationQueue } from './operation-queue.mjs';
+import { catalogueCache } from './client-requests.mjs';
 import { createInterface } from 'node:readline';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -34,7 +35,8 @@ export function browserTransportConfig(env = process.env, app = false, help = ''
     command: app ? process.execPath : env.KITSUVO_BINARY || 'kitsuvo',
     args: app ? [fileURLToPath(new URL('../mcp-http/server.mjs', import.meta.url)), '--stdio'] : nativeArguments(help, env.KITSUVO_HEADLESS === '1'),
     stderr: 'inherit',
-    env: { ...getDefaultEnvironment(),
+    env: { ...getDefaultEnvironment(), KITSUVO_MCP_SCOPE: 'isolated', KITSUVO_MCP_ISOLATED_ONLY: '1',
+      ...(app ? {KITSUVO_MCP_FORWARD_SESSIONS:'1'} : {}),
       ...(env.KITSUVO_HEADLESS === '1' ? { KITSUVO_HEADLESS: '1' } : {}),
       ...(env.KITSUVO_BINARY ? { KITSUVO_BINARY: env.KITSUVO_BINARY } : {}),
       ...(env.KITSUVO_PANEL_STATE_FILE ? { KITSUVO_PANEL_STATE_FILE: env.KITSUVO_PANEL_STATE_FILE } : {}),
@@ -61,9 +63,9 @@ export function connectBrowser({ origin, backend, onMessage = () => {}, connecto
   // Older relays close the socket on unknown messages; refresh only on one that said it understands Plus.
   let relayPlus = false;
   const queue = operationQueue(), requests = new Map();
-  let tools;
-  const catalogue = () => tools ??= backend.listTools().catch(error => { tools = undefined; throw error; });
-  backend.setNotificationHandler?.(ToolListChangedNotificationSchema, () => { tools = undefined; });
+  const tools = catalogueCache(backend);
+  const catalogue = tools.read;
+  backend.setNotificationHandler?.(ToolListChangedNotificationSchema, tools.invalidate);
   socket.on('close', () => { queue.close(); requests.clear(); });
   const send = value => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(value)); };
   socket.on('message', data => {
@@ -132,7 +134,7 @@ async function main() {
         approvalPending = true;
         // JSON quoting prevents untrusted client metadata from writing terminal
         // control characters. Never print token, native control key or page data.
-        console.error(`Client: ${display(message.clientName)}\nRedirect: ${display(message.redirectUri)}\nPermission: navigate, manage tabs, click, type, run page JavaScript, and read snapshots, reports and supported screenshots in your isolated agent profile.`);
+        console.error(`Client: ${display(message.clientName)}\nRedirect: ${display(message.redirectUri)}\nPermission: navigate, manage tabs, click, type, run page JavaScript, read snapshots, reports and supported screenshots, select client-supplied upload bytes, access origin-scoped bookmark/history/download metadata and change allowed appearance/performance/filter preferences in your isolated agent profile. Task grants can narrow this access. Reading a task download’s local PDF/text content requires separate approval of that exact file in Kitsuvo; extracted text is shared with the connected assistant. Saved research and workflows stay local, and workflow runs need separate review. OS dialogs and sensitive access remain under your control.`);
         if ((await ask('Grant this client access? Type APPROVE: ')) === 'APPROVE') connection.approve(message.id);
         approvalPending = false;
       } else if (message.type === 'approved') console.error('Approved. Refresh the authorization page to finish linking.');

@@ -1,7 +1,7 @@
 {
   "serverInfo": {
     "name": "Kitsuvo",
-    "version": "0.2.11",
+    "version": "0.2.13",
     "title": "Kitsuvo",
     "icons": [
       {
@@ -72,6 +72,25 @@
               "object",
               "null"
             ]
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
           }
         },
         "required": []
@@ -79,12 +98,20 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_cleanup",
       "title": "Clean up task resources",
-      "description": "Call at task completion, cancellation or failure. On updated desktop backends, clean verified task-owned tabs across registered targets and close idle task-created instances. Retained, pinned, visible, user-adopted and other-task tabs stay open. Saved profile data is preserved. Failed cleanup remains retryable. No replacement browser is started.",
+      "description": "Call at task completion, cancellation or failure. Clean this MCP connection across targets registered to the same provider/session identity, then close only idle task-created instances. Existing, pinned, visible, user-adopted and other-task tabs are preserved. keep_tabs retains results. Saved profile data is kept for Reopen. Failures remain retryable; cleanup never starts a replacement browser. May omit browser to finish all task targets.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -99,6 +126,25 @@
           "tab": {
             "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
             "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
           }
         },
         "required": []
@@ -106,7 +152,15 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_navigate",
@@ -126,6 +180,25 @@
           "url": {
             "description": "http(s) address; a bare host gets https.",
             "type": "string"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
           }
         },
         "required": [
@@ -135,7 +208,75 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "action_receipt": {
+            "properties": {
+              "elapsed_ms": {
+                "type": "integer"
+              },
+              "execution": {
+                "enum": [
+                  "acknowledged",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "observation": {
+                "enum": [
+                  "observed",
+                  "condition_met",
+                  "navigation_complete",
+                  "pending",
+                  "timed_out",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "retry": {
+                "const": "inspect_before_retry",
+                "type": "string"
+              },
+              "tab": {
+                "type": "integer"
+              },
+              "task_outcome": {
+                "const": "unverified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation",
+              "execution",
+              "task_outcome",
+              "observation",
+              "retry"
+            ],
+            "type": "object"
+          },
+          "schema_version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "action_receipt"
+        ]
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_navigate_back",
@@ -147,6 +288,25 @@
           "tab": {
             "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
             "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
           }
         },
         "required": []
@@ -154,7 +314,75 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "action_receipt": {
+            "properties": {
+              "elapsed_ms": {
+                "type": "integer"
+              },
+              "execution": {
+                "enum": [
+                  "acknowledged",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "observation": {
+                "enum": [
+                  "observed",
+                  "condition_met",
+                  "navigation_complete",
+                  "pending",
+                  "timed_out",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "retry": {
+                "const": "inspect_before_retry",
+                "type": "string"
+              },
+              "tab": {
+                "type": "integer"
+              },
+              "task_outcome": {
+                "const": "unverified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation",
+              "execution",
+              "task_outcome",
+              "observation",
+              "retry"
+            ],
+            "type": "object"
+          },
+          "schema_version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "action_receipt"
+        ]
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_navigate_forward",
@@ -166,6 +394,25 @@
           "tab": {
             "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
             "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
           }
         },
         "required": []
@@ -173,7 +420,75 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "action_receipt": {
+            "properties": {
+              "elapsed_ms": {
+                "type": "integer"
+              },
+              "execution": {
+                "enum": [
+                  "acknowledged",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "observation": {
+                "enum": [
+                  "observed",
+                  "condition_met",
+                  "navigation_complete",
+                  "pending",
+                  "timed_out",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "retry": {
+                "const": "inspect_before_retry",
+                "type": "string"
+              },
+              "tab": {
+                "type": "integer"
+              },
+              "task_outcome": {
+                "const": "unverified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation",
+              "execution",
+              "task_outcome",
+              "observation",
+              "retry"
+            ],
+            "type": "object"
+          },
+          "schema_version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "action_receipt"
+        ]
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_reload",
@@ -185,6 +500,25 @@
           "tab": {
             "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
             "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
           }
         },
         "required": []
@@ -192,7 +526,75 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "action_receipt": {
+            "properties": {
+              "elapsed_ms": {
+                "type": "integer"
+              },
+              "execution": {
+                "enum": [
+                  "acknowledged",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "observation": {
+                "enum": [
+                  "observed",
+                  "condition_met",
+                  "navigation_complete",
+                  "pending",
+                  "timed_out",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "retry": {
+                "const": "inspect_before_retry",
+                "type": "string"
+              },
+              "tab": {
+                "type": "integer"
+              },
+              "task_outcome": {
+                "const": "unverified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation",
+              "execution",
+              "task_outcome",
+              "observation",
+              "retry"
+            ],
+            "type": "object"
+          },
+          "schema_version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "action_receipt"
+        ]
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_snapshot",
@@ -212,6 +614,19 @@
           "viewport_only": {
             "description": "Only what is on screen, to save tokens.",
             "type": "boolean"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "output": {
+            "default": "full",
+            "enum": [
+              "full",
+              "changed",
+              "viewport"
+            ],
+            "type": "string"
           }
         },
         "required": []
@@ -219,12 +634,20 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true
-      }
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_click",
       "title": "Click",
-      "description": "Click an element. Waits for any navigation it starts and returns the new snapshot.",
+      "description": "Click an element. Windows uses engine-native input; macOS uses native AppKit events for a visible page, with DOM fallback for hidden/headless pages. The result identifies native or dom input. Waits for any navigation it starts and returns the new snapshot. Native click support does not imply native typing, hover or key support on Mac.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -237,7 +660,7 @@
             "type": "string"
           },
           "settle_ms": {
-            "description": "Navigation grace period (default 700 ms). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
+            "description": "Explicit legacy navigation grace (auto readiness is the default). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
             "maximum": 2000,
             "minimum": 0,
             "type": "integer"
@@ -249,6 +672,54 @@
           "timeout_ms": {
             "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
             "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "document_id": {
+            "description": "Optional document identity from the snapshot. Rejects a stale document before input; MCP automatically uses the last snapshot identity for this tab.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "readiness": {
+            "description": "auto waits for direct navigation or loading; ack returns observed state; navigation waits for a new page.",
+            "enum": [
+              "auto",
+              "ack",
+              "navigation"
+            ],
+            "type": "string"
+          },
+          "wait_until": {
+            "description": "Wait for all supplied page predicates after the action; takes precedence over auto navigation hints.",
+            "properties": {
+              "ref": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "text_gone": {
+                "type": "string"
+              }
+            },
+            "type": "object"
           }
         },
         "required": [
@@ -258,7 +729,75 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "action_receipt": {
+            "properties": {
+              "elapsed_ms": {
+                "type": "integer"
+              },
+              "execution": {
+                "enum": [
+                  "acknowledged",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "observation": {
+                "enum": [
+                  "observed",
+                  "condition_met",
+                  "navigation_complete",
+                  "pending",
+                  "timed_out",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "retry": {
+                "const": "inspect_before_retry",
+                "type": "string"
+              },
+              "tab": {
+                "type": "integer"
+              },
+              "task_outcome": {
+                "const": "unverified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation",
+              "execution",
+              "task_outcome",
+              "observation",
+              "retry"
+            ],
+            "type": "object"
+          },
+          "schema_version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "action_receipt"
+        ]
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_type",
@@ -280,7 +819,7 @@
             "type": "string"
           },
           "settle_ms": {
-            "description": "Navigation grace period (default 700 ms). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
+            "description": "Explicit legacy navigation grace (auto readiness is the default). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
             "maximum": 2000,
             "minimum": 0,
             "type": "integer"
@@ -299,6 +838,54 @@
           "timeout_ms": {
             "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
             "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "document_id": {
+            "description": "Optional document identity from the snapshot. Rejects a stale document before input; MCP automatically uses the last snapshot identity for this tab.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "readiness": {
+            "description": "auto waits for direct navigation or loading; ack returns observed state; navigation waits for a new page.",
+            "enum": [
+              "auto",
+              "ack",
+              "navigation"
+            ],
+            "type": "string"
+          },
+          "wait_until": {
+            "description": "Wait for all supplied page predicates after the action; takes precedence over auto navigation hints.",
+            "properties": {
+              "ref": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "text_gone": {
+                "type": "string"
+              }
+            },
+            "type": "object"
           }
         },
         "required": [
@@ -309,7 +896,75 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "action_receipt": {
+            "properties": {
+              "elapsed_ms": {
+                "type": "integer"
+              },
+              "execution": {
+                "enum": [
+                  "acknowledged",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "observation": {
+                "enum": [
+                  "observed",
+                  "condition_met",
+                  "navigation_complete",
+                  "pending",
+                  "timed_out",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "retry": {
+                "const": "inspect_before_retry",
+                "type": "string"
+              },
+              "tab": {
+                "type": "integer"
+              },
+              "task_outcome": {
+                "const": "unverified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation",
+              "execution",
+              "task_outcome",
+              "observation",
+              "retry"
+            ],
+            "type": "object"
+          },
+          "schema_version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "action_receipt"
+        ]
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_press_key",
@@ -322,7 +977,7 @@
             "type": "string"
           },
           "settle_ms": {
-            "description": "Navigation grace period (default 700 ms). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
+            "description": "Explicit legacy navigation grace (auto readiness is the default). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
             "maximum": 2000,
             "minimum": 0,
             "type": "integer"
@@ -334,6 +989,54 @@
           "timeout_ms": {
             "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
             "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "document_id": {
+            "description": "Optional document identity from the snapshot. Rejects a stale document before input; MCP automatically uses the last snapshot identity for this tab.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "readiness": {
+            "description": "auto waits for direct navigation or loading; ack returns observed state; navigation waits for a new page.",
+            "enum": [
+              "auto",
+              "ack",
+              "navigation"
+            ],
+            "type": "string"
+          },
+          "wait_until": {
+            "description": "Wait for all supplied page predicates after the action; takes precedence over auto navigation hints.",
+            "properties": {
+              "ref": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "text_gone": {
+                "type": "string"
+              }
+            },
+            "type": "object"
           }
         },
         "required": [
@@ -343,7 +1046,75 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "action_receipt": {
+            "properties": {
+              "elapsed_ms": {
+                "type": "integer"
+              },
+              "execution": {
+                "enum": [
+                  "acknowledged",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "observation": {
+                "enum": [
+                  "observed",
+                  "condition_met",
+                  "navigation_complete",
+                  "pending",
+                  "timed_out",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "retry": {
+                "const": "inspect_before_retry",
+                "type": "string"
+              },
+              "tab": {
+                "type": "integer"
+              },
+              "task_outcome": {
+                "const": "unverified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation",
+              "execution",
+              "task_outcome",
+              "observation",
+              "retry"
+            ],
+            "type": "object"
+          },
+          "schema_version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "action_receipt"
+        ]
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_select_option",
@@ -361,7 +1132,7 @@
             "type": "string"
           },
           "settle_ms": {
-            "description": "Navigation grace period (default 700 ms). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
+            "description": "Explicit legacy navigation grace (auto readiness is the default). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
             "maximum": 2000,
             "minimum": 0,
             "type": "integer"
@@ -375,6 +1146,54 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "document_id": {
+            "description": "Optional document identity from the snapshot. Rejects a stale document before input; MCP automatically uses the last snapshot identity for this tab.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "readiness": {
+            "description": "auto waits for direct navigation or loading; ack returns observed state; navigation waits for a new page.",
+            "enum": [
+              "auto",
+              "ack",
+              "navigation"
+            ],
+            "type": "string"
+          },
+          "wait_until": {
+            "description": "Wait for all supplied page predicates after the action; takes precedence over auto navigation hints.",
+            "properties": {
+              "ref": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "text_gone": {
+                "type": "string"
+              }
+            },
+            "type": "object"
           }
         },
         "required": [
@@ -385,7 +1204,75 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "action_receipt": {
+            "properties": {
+              "elapsed_ms": {
+                "type": "integer"
+              },
+              "execution": {
+                "enum": [
+                  "acknowledged",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "observation": {
+                "enum": [
+                  "observed",
+                  "condition_met",
+                  "navigation_complete",
+                  "pending",
+                  "timed_out",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "retry": {
+                "const": "inspect_before_retry",
+                "type": "string"
+              },
+              "tab": {
+                "type": "integer"
+              },
+              "task_outcome": {
+                "const": "unverified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation",
+              "execution",
+              "task_outcome",
+              "observation",
+              "retry"
+            ],
+            "type": "object"
+          },
+          "schema_version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "action_receipt"
+        ]
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_hover",
@@ -405,6 +1292,54 @@
           "tab": {
             "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
             "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "document_id": {
+            "description": "Optional document identity from the snapshot. Rejects a stale document before input; MCP automatically uses the last snapshot identity for this tab.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "readiness": {
+            "description": "auto waits for direct navigation or loading; ack returns observed state; navigation waits for a new page.",
+            "enum": [
+              "auto",
+              "ack",
+              "navigation"
+            ],
+            "type": "string"
+          },
+          "wait_until": {
+            "description": "Wait for all supplied page predicates after the action; takes precedence over auto navigation hints.",
+            "properties": {
+              "ref": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "text_gone": {
+                "type": "string"
+              }
+            },
+            "type": "object"
           }
         },
         "required": [
@@ -414,7 +1349,75 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "action_receipt": {
+            "properties": {
+              "elapsed_ms": {
+                "type": "integer"
+              },
+              "execution": {
+                "enum": [
+                  "acknowledged",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "observation": {
+                "enum": [
+                  "observed",
+                  "condition_met",
+                  "navigation_complete",
+                  "pending",
+                  "timed_out",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "retry": {
+                "const": "inspect_before_retry",
+                "type": "string"
+              },
+              "tab": {
+                "type": "integer"
+              },
+              "task_outcome": {
+                "const": "unverified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation",
+              "execution",
+              "task_outcome",
+              "observation",
+              "retry"
+            ],
+            "type": "object"
+          },
+          "schema_version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "action_receipt"
+        ]
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_wait_for",
@@ -444,6 +1447,10 @@
           "timeout_ms": {
             "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
             "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
           }
         },
         "required": []
@@ -451,7 +1458,15 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true
-      }
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_tabs",
@@ -480,6 +1495,29 @@
           "url": {
             "description": "For new: the address to open.",
             "type": "string"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "foreground": {
+            "description": "For select with background false: true requests a user handoff; the background-focus preference controls whether the browser comes forward.",
+            "type": "boolean"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
           }
         },
         "required": [
@@ -489,12 +1527,20 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_take_screenshot",
       "title": "Screenshot",
-      "description": "Read browser_status first and request a PNG screenshot only when the connected build reports support for the requested capture mode, including full-page capture. Do not infer support from the operating system alone. If status is unavailable or capture is unsupported, use browser_snapshot and state that visual checks were not performed. Use browser_snapshot to act on the page.",
+      "description": "Take a PNG screenshot of the visible page on Windows or macOS. Full-page capture is available on Windows and macOS. macOS uses bounded viewport tiles, briefly scrolls the page, omits repeated fixed overlays, and restores scroll; lazy content that changes page dimensions requires a retry. Use browser_snapshot to act on the page.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -504,6 +1550,28 @@
           "tab": {
             "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
             "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_bytes": {
+            "default": 2097152,
+            "maximum": 8388608,
+            "minimum": 65536,
+            "type": "integer"
+          },
+          "max_height": {
+            "default": 1600,
+            "maximum": 8192,
+            "minimum": 256,
+            "type": "integer"
+          },
+          "max_width": {
+            "default": 1600,
+            "maximum": 8192,
+            "minimum": 256,
+            "type": "integer"
           }
         },
         "required": []
@@ -511,7 +1579,15 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true
-      }
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_evaluate",
@@ -526,6 +1602,25 @@
           "tab": {
             "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
             "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
           }
         },
         "required": [
@@ -535,7 +1630,15 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_get_text",
@@ -551,6 +1654,10 @@
           "tab": {
             "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
             "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
           }
         },
         "required": []
@@ -558,12 +1665,20 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true
-      }
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_resize",
       "title": "Responsive size",
-      "description": "Show the page at a phone, tablet or custom size (Kitsuvo's responsive mode), or turn that off. The page lays out at that width, so media queries apply. On Windows, mobile also turns on touch input, meta viewport handling and a mobile user agent; reload for sites that check the device. Devices: iphone-se, iphone-16, iphone-16-pro-max, pixel-8, galaxy-s24, ipad-mini, ipad-air, ipad-pro, laptop, desktop.",
+      "description": "Show the selected tab at a phone, tablet or custom size (Kitsuvo's responsive mode), or turn that off. Selects the target as the visible tab and waits for layout. Returns actual frame_width/frame_height and capped when the window is too small. Mobile changes the HTTP and JavaScript user agent on Windows and macOS. Windows also adds touch input and meta viewport handling; macOS keeps desktop WebKit input/viewport semantics. Results distinguish mobile_user_agent from touch_emulation. Reload for sites that check the device. Devices: iphone-se, iphone-16, iphone-16-pro-max, pixel-8, galaxy-s24, ipad-mini, ipad-air, ipad-pro, laptop, desktop.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -580,7 +1695,7 @@
             "type": "boolean"
           },
           "mobile": {
-            "description": "Touch and a mobile user agent (Windows). Defaults to on for phones and tablets.",
+            "description": "Mobile user agent on Windows/macOS; also touch and mobile viewport emulation on Windows. Defaults to on for phones and tablets. Custom sizes use Android phone/tablet identity by width.",
             "type": "boolean"
           },
           "off": {
@@ -594,6 +1709,25 @@
           "width": {
             "description": "Custom width in CSS pixels (200-3840), with height.",
             "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
           }
         },
         "required": []
@@ -601,7 +1735,15 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "kitsuvo_report",
@@ -613,6 +1755,10 @@
           "tab": {
             "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
             "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
           }
         },
         "required": []
@@ -620,7 +1766,15 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true
-      }
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     },
     {
       "name": "browser_run_script",
@@ -673,7 +1827,1786 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true
-      }
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Scroll the document, or a container ref, by CSS pixels or to top/bottom. Returns observed position and a fresh snapshot. DOM scrolling; custom wheel-only widgets may require page scripting.",
+      "inputSchema": {
+        "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "delta_x": {
+            "maximum": 100000,
+            "minimum": -100000,
+            "type": "number"
+          },
+          "delta_y": {
+            "maximum": 100000,
+            "minimum": -100000,
+            "type": "number"
+          },
+          "document_id": {
+            "description": "Optional document identity from the snapshot. Rejects a stale document before input; MCP automatically uses the last snapshot identity for this tab.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "readiness": {
+            "description": "auto waits for direct navigation or loading; ack returns observed state; navigation waits for a new page.",
+            "enum": [
+              "auto",
+              "ack",
+              "navigation"
+            ],
+            "type": "string"
+          },
+          "ref": {
+            "description": "Element ref from the latest snapshot, such as \"e12\".",
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "to": {
+            "enum": [
+              "top",
+              "bottom"
+            ],
+            "type": "string"
+          },
+          "wait_until": {
+            "description": "Wait for all supplied page predicates after the action; takes precedence over auto navigation hints.",
+            "properties": {
+              "ref": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "text_gone": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "name": "browser_scroll",
+      "title": "Scroll page or container",
+      "outputSchema": {
+        "properties": {
+          "action_receipt": {
+            "properties": {
+              "elapsed_ms": {
+                "type": "integer"
+              },
+              "execution": {
+                "enum": [
+                  "acknowledged",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "observation": {
+                "enum": [
+                  "observed",
+                  "condition_met",
+                  "navigation_complete",
+                  "pending",
+                  "timed_out",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "retry": {
+                "const": "inspect_before_retry",
+                "type": "string"
+              },
+              "tab": {
+                "type": "integer"
+              },
+              "task_outcome": {
+                "const": "unverified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation",
+              "execution",
+              "task_outcome",
+              "observation",
+              "retry"
+            ],
+            "type": "object"
+          },
+          "schema_version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "action_receipt"
+        ],
+        "type": "object"
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Synthetic HTML drag/drop between distinct refs in the same document. Source must be draggable; target must accept dragover. Refuses covered targets. Does not emulate trusted pointer drags, cross-document drags or OS file drops. Inspect state to verify the site's outcome.",
+      "inputSchema": {
+        "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "document_id": {
+            "description": "Optional document identity from the snapshot. Rejects a stale document before input; MCP automatically uses the last snapshot identity for this tab.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "readiness": {
+            "description": "auto waits for direct navigation or loading; ack returns observed state; navigation waits for a new page.",
+            "enum": [
+              "auto",
+              "ack",
+              "navigation"
+            ],
+            "type": "string"
+          },
+          "source_ref": {
+            "description": "Element ref from the latest snapshot, such as \"e12\".",
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "target_ref": {
+            "description": "Element ref from the latest snapshot, such as \"e12\".",
+            "type": "string"
+          },
+          "wait_until": {
+            "description": "Wait for all supplied page predicates after the action; takes precedence over auto navigation hints.",
+            "properties": {
+              "ref": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "text_gone": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "source_ref",
+          "target_ref"
+        ],
+        "type": "object"
+      },
+      "name": "browser_drag_and_drop",
+      "title": "Drag an HTML element",
+      "outputSchema": {
+        "properties": {
+          "action_receipt": {
+            "properties": {
+              "elapsed_ms": {
+                "type": "integer"
+              },
+              "execution": {
+                "enum": [
+                  "acknowledged",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "observation": {
+                "enum": [
+                  "observed",
+                  "condition_met",
+                  "navigation_complete",
+                  "pending",
+                  "timed_out",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "retry": {
+                "const": "inspect_before_retry",
+                "type": "string"
+              },
+              "tab": {
+                "type": "integer"
+              },
+              "task_outcome": {
+                "const": "unverified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation",
+              "execution",
+              "task_outcome",
+              "observation",
+              "retry"
+            ],
+            "type": "object"
+          },
+          "schema_version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "action_receipt"
+        ],
+        "type": "object"
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Set 0-8 client-supplied files on a file input by snapshot ref or unique CSS selector (including a hidden input). Exactly one ref/selector is required. Standard base64; 96 KiB per file and 128 KiB total raw bytes, portable across current transport body limits. Empty files array clears selection. Dispatches synthetic input/change; the site may upload immediately. Never reads local paths or opens the OS chooser. This confirms selection, not server receipt.",
+      "inputSchema": {
+        "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "document_id": {
+            "description": "Optional document identity from the snapshot. Rejects a stale document before input; MCP automatically uses the last snapshot identity for this tab.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "content_base64": {
+                  "maxLength": 131072,
+                  "type": "string"
+                },
+                "mime_type": {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                "name": {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "content_base64"
+              ],
+              "type": "object"
+            },
+            "maxItems": 8,
+            "type": "array"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "readiness": {
+            "description": "auto waits for direct navigation or loading; ack returns observed state; navigation waits for a new page.",
+            "enum": [
+              "auto",
+              "ack",
+              "navigation"
+            ],
+            "type": "string"
+          },
+          "ref": {
+            "description": "Element ref from the latest snapshot, such as \"e12\".",
+            "type": "string"
+          },
+          "selector": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "wait_until": {
+            "description": "Wait for all supplied page predicates after the action; takes precedence over auto navigation hints.",
+            "properties": {
+              "ref": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "text_gone": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "type": "object"
+      },
+      "name": "browser_upload_file",
+      "title": "Set files on an upload input",
+      "outputSchema": {
+        "properties": {
+          "action_receipt": {
+            "properties": {
+              "elapsed_ms": {
+                "type": "integer"
+              },
+              "execution": {
+                "enum": [
+                  "acknowledged",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "observation": {
+                "enum": [
+                  "observed",
+                  "condition_met",
+                  "navigation_complete",
+                  "pending",
+                  "timed_out",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "operation": {
+                "type": "string"
+              },
+              "retry": {
+                "const": "inspect_before_retry",
+                "type": "string"
+              },
+              "tab": {
+                "type": "integer"
+              },
+              "task_outcome": {
+                "const": "unverified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation",
+              "execution",
+              "task_outcome",
+              "observation",
+              "retry"
+            ],
+            "type": "object"
+          },
+          "schema_version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "action_receipt"
+        ],
+        "type": "object"
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
+      "description": "List, explicitly add or remove bookmark links within one supplied origin in this selected profile. Bounded metadata only; does not expose folders, saved-page contents, other origins, private or sensitive entries. Adds canonical URLs without fragments. Remove requires an exact returned bookmark id and matching origin; cannot remove folders.",
+      "inputSchema": {
+        "properties": {
+          "action": {
+            "enum": [
+              "list",
+              "add",
+              "remove"
+            ],
+            "type": "string"
+          },
+          "before_id": {
+            "description": "Use next_before_id from the previous page; results use stable descending row-id order.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 32,
+            "type": "string"
+          },
+          "limit": {
+            "default": 50,
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "origin": {
+            "description": "Required explicit scope: one exact non-sensitive http(s) origin, e.g. https://example.com. No paths, credentials, query, fragments, wildcards or whole-profile access. Private and sensitive entries are excluded.",
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "origin"
+        ],
+        "type": "object"
+      },
+      "name": "browser_bookmarks",
+      "title": "Manage scoped bookmarks",
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
+      "description": "List bounded URL/title/visit metadata for one explicitly supplied origin, or delete one exact URL's recorded history. Never returns saved content or the whole profile. Sensitive/authentication URLs stay excluded even when sensitive page interaction is allowed. No bulk deletion.",
+      "inputSchema": {
+        "properties": {
+          "action": {
+            "enum": [
+              "list",
+              "delete_url"
+            ],
+            "type": "string"
+          },
+          "before_id": {
+            "description": "Use next_before_id from the previous page; results use stable descending row-id order.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "limit": {
+            "default": 50,
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "origin": {
+            "description": "Required explicit scope: one exact non-sensitive http(s) origin, e.g. https://example.com. No paths, credentials, query, fragments, wildcards or whole-profile access. Private and sensitive entries are excluded.",
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "url": {
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "origin"
+        ],
+        "type": "object"
+      },
+      "name": "browser_history",
+      "title": "Read or delete scoped history",
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
+      "description": "List persisted normal-profile download metadata for one origin, or forget one finished record by returned id. No paths, file bytes, private downloads, file deletion, opening, execution or transfer cancellation. Start downloads with the page's normal link/button and inspect these records afterward. Recently starting downloads may not yet have a stored id.",
+      "inputSchema": {
+        "properties": {
+          "action": {
+            "enum": [
+              "list",
+              "forget"
+            ],
+            "type": "string"
+          },
+          "before_id": {
+            "description": "Use next_before_id from the previous page; results use stable descending row-id order.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "id": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "limit": {
+            "default": 50,
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "origin": {
+            "description": "Required explicit scope: one exact non-sensitive http(s) origin, e.g. https://example.com. No paths, credentials, query, fragments, wildcards or whole-profile access. Private and sensitive entries are excluded.",
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action",
+          "origin"
+        ],
+        "type": "object"
+      },
+      "name": "browser_downloads",
+      "title": "Inspect scoped download records",
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Get the allowed appearance/performance/filter preferences or atomically apply an explicit patch. Only theme, performance_mode, block_ai, block_ai_content, block_ai_media, block_ai_images, serp_snippet_filter and spoof_warn. Does not expose account/model secrets or permit assistant access, sensitive-page, remote, network, telemetry or release settings. Never change a preference without a user request.",
+      "inputSchema": {
+        "properties": {
+          "action": {
+            "enum": [
+              "get",
+              "set"
+            ],
+            "type": "string"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "patch": {
+            "additionalProperties": false,
+            "maxProperties": 8,
+            "minProperties": 1,
+            "properties": {
+              "block_ai": {
+                "type": "boolean"
+              },
+              "block_ai_content": {
+                "type": "boolean"
+              },
+              "block_ai_images": {
+                "type": "boolean"
+              },
+              "block_ai_media": {
+                "type": "boolean"
+              },
+              "performance_mode": {
+                "enum": [
+                  "eco",
+                  "balanced",
+                  "performance"
+                ],
+                "type": "string"
+              },
+              "serp_snippet_filter": {
+                "type": "boolean"
+              },
+              "spoof_warn": {
+                "type": "boolean"
+              },
+              "theme": {
+                "enum": [
+                  "system",
+                  "washi",
+                  "midnight",
+                  "autumn",
+                  "moss",
+                  "sakura"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      },
+      "name": "browser_preferences",
+      "title": "Read or change browser preferences",
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_find",
+      "title": "Find a browser instance and tab",
+      "description": "Read-only lookup by exact instance name, exact page URL/hostname, title or tab. Returns MATCH with a per-tab target, AMBIGUOUS, CONTROL_REQUIRED, PROTECTED_TAB or DISCOVERY_INCOMPLETE. Never attaches, selects, opens, enables control or follows focus. With browser, inspect only that consented host; without browser, inspect the configured profile registry. Preserve supplied targets unless the user requests a different instance.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "instance_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_instances",
+      "title": "Manage browser instances",
+      "description": "List local profile instances or create a named isolated instance without changing the visible profile. Without browser, manage instances through the configured MCP host even if a previous page target is unavailable. For an explicit request to open a new window, omit the stale browser target and use action:create with a task name. Creation starts the browser if needed and returns a browser target; attach to that target and include it on subsequent page calls. Existing instances require explicitly enabled control: discover their targets with browser_windows. Never silently replace a supplied page target or bypass Stop. Additional instances require Windows, macOS 14+, or the Linux desktop preview.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "enum": [
+              "list",
+              "create"
+            ],
+            "type": "string"
+          },
+          "browser": {
+            "description": "Optional window target for instance management. Omit browser to use the configured MCP host, including an explicit new-window request after an old target closes. Creation does not attach to the returned target; call browser_attach before page operations. Stop still applies.",
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "name": {
+            "description": "Required for create; name the instance after its task.",
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_session",
+      "title": "Identify your session",
+      "description": "Show the assistant session or remote human controller using this browser. Call before browser work; report status:completed, cancelled or failed when the task ends to clean verified task-owned resources. Request completion or idle time never implies task completion. Never invent a session URL.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "keep_tabs": {
+            "description": "Result tabs to retain when ending the task.",
+            "items": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "Codex",
+              "Claude",
+              "Grok Bot",
+              "Kitsuvo remote control"
+            ],
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "status": {
+            "description": "Report a terminal task status to automatically clean task tabs and idle task-created instances across targets registered to this task.",
+            "enum": [
+              "running",
+              "completed",
+              "cancelled",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "title": {
+            "description": "Short chat or task title.",
+            "type": "string"
+          },
+          "url": {
+            "description": "Real HTTPS session URL or codex://threads/<thread-id>. Codex links can be derived from session_id.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "title",
+          "session_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_windows",
+      "title": "Available browser windows",
+      "description": "Discover named instances and their enabled/disabled/stopped control states, plus safe tabs and per-tab targets for enabled instances. With browser, scope discovery to that consented host. Without browser, use the configured profile registry. Returns instance names/control states, browser targets, tab numbers, safe titles/URLs and restriction/completeness flags. Disabled profiles have no page metadata or usable target. Private/protected metadata is redacted. Reuse a matching accessible tab before opening a new one; preserve a supplied target. Does not read pages, wake tabs, change controllers, start a browser or enable access.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_attach",
+      "title": "Attach to this browser",
+      "description": "Verify the exact window and tab from the copied connection prompt. Include the returned browser target on every subsequent call. Never follows focus or starts a replacement window.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "browser"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_status",
+      "title": "Browser capabilities",
+      "description": "Read platform capabilities, controller and current browser status.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_resource_budget",
+      "title": "Tab resource budget",
+      "description": "Limit this MCP session's created tabs. Does not close existing tabs or discard page state.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "max_tabs": {
+            "maximum": 128,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_batch",
+      "title": "Batch page actions",
+      "description": "Run up to 16 ordered actions on one tab, returning one snapshot. Stops on failure, navigation, popup or timeout. Set settle_ms:0 only for known non-navigating edits.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "document_id": {
+            "description": "Document identity for every step. Defaults to this client's last snapshot; conflicting step identities are refused before any input.",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "arguments": {
+                  "type": "object"
+                },
+                "tool": {
+                  "enum": [
+                    "click",
+                    "type",
+                    "select",
+                    "press",
+                    "hover"
+                  ]
+                }
+              },
+              "required": [
+                "tool",
+                "arguments"
+              ],
+              "type": "object"
+            },
+            "maxItems": 16,
+            "minItems": 1,
+            "type": "array"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "steps"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_view",
+      "title": "View browser in chat",
+      "description": "Show this session browser viewport inline in chat together with an accessibility snapshot and element refs. Call after actions to refresh. Requires MCP image support.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_bytes": {
+            "default": 2097152,
+            "maximum": 8388608,
+            "minimum": 65536,
+            "type": "integer"
+          },
+          "max_chars": {
+            "type": "integer"
+          },
+          "max_height": {
+            "default": 1600,
+            "maximum": 8192,
+            "minimum": 256,
+            "type": "integer"
+          },
+          "max_width": {
+            "default": 1600,
+            "maximum": 8192,
+            "minimum": 256,
+            "type": "integer"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_design",
+      "title": "Read design measurements or preview edits",
+      "description": "Read-only: summary gets the user's selection; query finds targets; inspect reads one target or a batch; measure returns edge gaps; css exports styles; changes reads edits. Use help for examples and limits. Read ops never open the overlay. All geometry uses CSS px in viewport coordinates. Compact JSON and structuredContent share schema_version:1. Writes: open/select/close, style/text previews, undo/revert. close keeps edits; reload discards them. Errors carry code and hint. Top-level light DOM only. Use browser_resize for responsive checks.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "detail": {
+            "default": "compact",
+            "description": "compact includes geometry and 9 common CSS properties, with bounded text. full includes all 24 computed properties. CSS pixel geometry is identical.",
+            "enum": [
+              "compact",
+              "full"
+            ],
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "description": "Maximum query/changes results. total and truncated report omitted rows.",
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "description": "Starting changes row; advance by limit while truncated is true.",
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "op": {
+            "enum": [
+              "help",
+              "summary",
+              "query",
+              "open",
+              "close",
+              "inspect",
+              "select",
+              "measure",
+              "css",
+              "style",
+              "text",
+              "changes",
+              "undo",
+              "revert"
+            ],
+            "type": "string"
+          },
+          "other": {
+            "description": "Second unique selector for measure.",
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "other_ref": {
+            "description": "Alternative to other: second snapshot ref for measure.",
+            "type": "string"
+          },
+          "property": {
+            "description": "Visual CSS property for style, e.g. padding or font-size.",
+            "type": "string"
+          },
+          "ref": {
+            "description": "Alternative to selector: ref from latest browser_snapshot, e.g. e12. Refresh snapshot on STALE_REF.",
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector: query allows multiple matches; other ops require exactly one. Omit selector/ref for the user's selected element.",
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "selectors": {
+            "description": "Batch inspect only. Resolves all targets before returning elements in input order. Do not combine with selector/ref.",
+            "items": {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "value": {
+            "description": "CSS value (no URLs, 500 chars) or text for a text-only element outside forms.",
+            "maxLength": 2000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "op"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "coordinate_space": {
+            "const": "viewport",
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "hint": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "op": {
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "type": "integer"
+          },
+          "units": {
+            "const": "CSS px",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "ok"
+        ],
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_task",
+      "title": "Scoped task and human handoff",
+      "description": "Start an optional grant for the selected tab and its exact origin. First read-only grants narrow existing access; writes and replacement grants wait for review in Kitsuvo's assistant card. Scope and budgets cannot be raised by tools. Pause for human login/MFA/CAPTCHA/dialog help; resume only reads the state after the user continued in Kitsuvo. Take a fresh snapshot before input. Completion is not verified business success. All task grants refuse browser-wide discovery and arbitrary scripting.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "enum": [
+              "start",
+              "status",
+              "pause",
+              "resume",
+              "finish"
+            ],
+            "type": "string"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "max_actions": {
+            "maximum": 2000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "max_elapsed_ms": {
+            "maximum": 1800000,
+            "minimum": 1000,
+            "type": "integer"
+          },
+          "max_returned_bytes": {
+            "maximum": 2097152,
+            "minimum": 4096,
+            "type": "integer"
+          },
+          "origin": {
+            "type": "string"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "read_only": {
+            "default": true,
+            "type": "boolean"
+          },
+          "reason": {
+            "enum": [
+              "login",
+              "mfa",
+              "captcha",
+              "dialog",
+              "layout_changed",
+              "uncertain_action",
+              "other"
+            ],
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 120,
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_evidence",
+      "title": "Research evidence and outcome inspection",
+      "description": "Capture explicitly selected current-page text with its document identity and filter verdict. Verify inspects the current page for supplied exact destination/text evidence; it never retries input or promotes a page banner into verified business success. List/export/delete affect only this task's temporary evidence. Saving locally requires a user action in Kitsuvo. Unknown filter verdicts remain unknown. No hidden-link fetching or automatic browsing memory.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "enum": [
+              "capture",
+              "verify",
+              "list",
+              "export",
+              "delete"
+            ],
+            "type": "string"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "expected_text": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "expected_url": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_extract",
+      "title": "Extract fields and tables with sources",
+      "description": "Deterministically extract 1-20 named fields from visible top-level light DOM. Field types: text, number, boolean, link or table. Returns missing/ambiguous/invalid_type instead of guessing, plus selector/ref/excerpt and document identity. No form values, hidden fields or cross-origin traversal. Requires a running task grant.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "fields": {
+            "additionalProperties": {
+              "properties": {
+                "selector": {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "text",
+                    "number",
+                    "boolean",
+                    "link",
+                    "table"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "selector"
+              ],
+              "type": "object"
+            },
+            "maxProperties": 20,
+            "minProperties": 1,
+            "type": "object"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "fields"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_document",
+      "title": "Task-owned download receipt and inspection",
+      "description": "List or receipt downloads started by this task's tab after task start. Receipt identifies completed content by SHA-256, bounded size and detected MIME, without exposing filesystem paths. Request inspection for a particular id/hash; the user must approve that exact artifact in Kitsuvo before inspect returns local PDF/text content. No arbitrary paths, executable launch or unrelated download access.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "enum": [
+              "list",
+              "receipt",
+              "request_inspection",
+              "inspect"
+            ],
+            "type": "string"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "sha256": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser_workflow",
+      "title": "Reviewed reusable browser workflow",
+      "description": "Prepare a local workflow definition for user review and saving in Kitsuvo, list task-attached workflows, or request/run one. Definitions contain 1-16 click/type/select/hover/press steps with unique CSS selectors and parameter names; no scripts, captured values or credentials. Each run requires separate user approval bound to definition, parameters and current page, consumes approval once, and stops with partial receipts on changed targets or failed checkpoints. Research-question recipes remain separate.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "enum": [
+              "prepare",
+              "list",
+              "run",
+              "delete"
+            ],
+            "type": "string"
+          },
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "definition": {
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "browser"
+          ]
+        }
+      ]
     }
   ]
 }

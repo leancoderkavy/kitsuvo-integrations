@@ -67,7 +67,14 @@ try {
   assert.equal((await sdk.callTool({ name: 'browser_navigate', arguments: { url: 'https://accounts.google.com/' } })).isError, true);
   const count = (await sdk.listTools()).tools.length;
   await sdk.close(); const closed = once(browser.socket, 'close'); browser.socket.close(); await closed;
-  assert.equal((await fetch(origin + '/userinfo', { headers: { Authorization: 'Bearer ' + grant.access_token } })).status, 401);
+  // The client close event precedes the relay processing its close frame.
+  let disconnectedStatus;
+  for (const deadline = Date.now() + 5000; Date.now() < deadline;) {
+    disconnectedStatus = (await fetch(origin + '/userinfo', { headers: { Authorization: 'Bearer ' + grant.access_token } })).status;
+    if (disconnectedStatus === 401) break;
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  assert.equal(disconnectedStatus, 401);
   console.log(`Cloud relay ${origin}: OAuth PKCE, ${count} ${appMode ? 'native and App' : 'native'} tools, isolated navigation, snapshot, report, ${appMode ? 'bundled App resource and panel, ' : ''}sensitive-page refusal and disconnect revocation passed.`);
 } finally {
   await sdk.close(); browser?.socket.terminate(); await native.close();

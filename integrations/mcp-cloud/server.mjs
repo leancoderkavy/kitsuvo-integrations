@@ -8,7 +8,9 @@ const relayVersion = serverCard.serverInfo.version;
 const icons = [{ src: `data:image/png;base64,${readFileSync(new URL('./icon-256.png', import.meta.url)).toString('base64')}`, mimeType: 'image/png', sizes: ['256x256'] }];
 import { durableStore } from './durable-store.mjs';
 import { operationQueue } from './operation-queue.mjs';
+import { terminalSessions } from './terminal-sessions.mjs';
 import { createSessions } from './protocol-sessions.mjs';
+import { remoteInstructions } from './agent-contract.mjs';
 import { createServer } from 'node:http';
 import { isIP } from 'node:net';
 import { ipKeyGenerator } from 'express-rate-limit';
@@ -26,7 +28,7 @@ import { plusPublicKey, verifyPlus } from './plus.mjs';
 
 // Remote control page (remote.html): same origin as the OAuth and MCP routes,
 // so the relay's Origin check needs no exception. Loaded once at start.
-const remotePage = Object.fromEntries([['remote.html', 'text/html'], ['remote.css', 'text/css'], ['remote-page.mjs', 'text/javascript']]
+const remotePage = Object.fromEntries([['remote.html', 'text/html'], ['remote.css', 'text/css'], ['remote-page.mjs', 'text/javascript'], ['xterm.js', 'text/javascript'], ['addon-fit.js', 'text/javascript'], ['xterm.css', 'text/css']]
   .map(([file, type]) => [file, { type, body: readFileSync(new URL(file, import.meta.url)) }]));
 const remoteCsp = "default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 
@@ -105,6 +107,7 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
   if(pruned)store.persist().catch(() => {});
   const requests = new Map(), codes = new Map(), browsers = new Map();
   const pendingIdentities = new Map();
+  const terminals = terminalSessions();
   // In-memory only: which source registered a client that has no grant yet.
   const clientSources = new Map(), registering = new Map();
   const durable = id => [...identities.values()].some(item => item.browserId === id && item.expiresAt > now());
@@ -191,6 +194,7 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
     return { access_token: access, refresh_token: refresh, token_type: 'Bearer', expires_in: ttl, scope: 'browser' };
   }
   function revokeGrant(grantId) {
+    terminals.revoke(grantId);
     for (const [key, item] of tokens) if (item.grantId === grantId) tokens.delete(key);
   }
   // OAuth 2.1 public clients: replaying a spent authorization code or rotated
@@ -249,7 +253,7 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
       } else {
         // Plain text has no executable content or third-party requests. Approval
         // happens in the connected browser's terminal, never from this page.
-        res.type('text/plain').send(`Kitsuvo browser access\n\nClient: ${display(client.client_name || 'Unnamed client')}\nRedirect: ${display(params.redirectUri)}\nPermission: navigate, manage tabs, click, type, run page JavaScript, and read snapshots, reports and supported screenshots in your isolated Kitsuvo agent profile.\n\nIn Kitsuvo, open Settings → Assistants → Remote access and paste this code:\n${request.id}\n\nUsing the terminal connector instead? Enter:\napprove ${request.id}\n\nReview the client details there and explicitly confirm. Then refresh this page.\nApproval expires in ten minutes. A temporary connector revokes access when closed. An installed background connector keeps approved access for up to 90 days of inactivity; use service.mjs revoke or disconnect this app to revoke it.\n`);
+        res.type('text/plain').send(`Kitsuvo browser access\n\nClient: ${display(client.client_name || 'Unnamed client')}\nRedirect: ${display(params.redirectUri)}\nPermission: navigate, manage tabs, click, type, run page JavaScript, read snapshots, reports and supported screenshots, select client-supplied upload bytes, access origin-scoped bookmark/history/download metadata and change allowed appearance/performance/filter preferences in your isolated Kitsuvo agent profile. Task grants can narrow this access. Reading a task download’s local PDF/text content requires separate approval of that exact file in Kitsuvo; extracted text is shared with the connected assistant. Saved research and workflows stay local, and workflow runs need separate review. OS dialogs and sensitive access remain under your control.\n\nIn Kitsuvo, open Settings → Assistants → Remote access and paste this code:\n${request.id}\n\nUsing the terminal connector instead? Enter:\napprove ${request.id}\n\nReview the client details there and explicitly confirm. Then refresh this page.\nApproval expires in ten minutes. A temporary connector revokes access when closed. An installed background connector keeps approved access for up to 90 days of inactivity; use service.mjs revoke or disconnect this app to revoke it.\n`);
       }
     },
     async challengeForAuthorizationCode(client, code) { return replayed(codes, code, client) ?? record(codes, code, client).params.codeChallenge; },
@@ -298,6 +302,7 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
     groupCapacity:browserId => plusActive(browsers.get(browserId)?.plus) ? plusLimits.sessionsPerBrowser : limits.sessionsPerBrowser,
     sourceCapacity:limits.sessionsPerSource, sourceOf:owner => browsers.get(browserOf(owner))?.source ?? browserOf(owner)});
   function revokeBrowser(id) {
+    terminals.stop(id);
     for (const map of [tokens, codes, requests]) for (const [key, item] of map) if (item.browserId === id) map.delete(key);
     protocolSessions.removeOwner(id); return persist();
   }
@@ -333,8 +338,13 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
     } catch { return res.status(503).end(); }
   });
   // The page itself holds no secrets; tokens stay in the visiting tab.
-  for (const [route, file] of [['/remote', 'remote.html'], ['/remote.css', 'remote.css'], ['/remote.js', 'remote-page.mjs']]) {
-    app.get(route, (_req, res) => res.set({ 'Content-Security-Policy': remoteCsp, 'Content-Type': `${remotePage[file].type}; charset=utf-8` }).send(remotePage[file].body));
+  for (const [route, file] of [['/remote', 'remote.html'], ['/remote.css', 'remote.css'], ['/remote.js', 'remote-page.mjs'], ['/xterm.js', 'xterm.js'], ['/addon-fit.js', 'addon-fit.js'], ['/xterm.css', 'xterm.css']]) {
+    app.get(route, (_req, res) => {
+      const styleNonce = nonce();
+      const csp = file === 'remote.html' ? remoteCsp.replace("style-src 'self'", `style-src 'self' 'nonce-${styleNonce}'`) : remoteCsp;
+      const body = file === 'remote.html' ? Buffer.from(remotePage[file].body.toString().replace('__KITSUVO_STYLE_NONCE__', styleNonce)) : remotePage[file].body;
+      res.set({ 'Content-Security-Policy': csp, 'Content-Type': `${remotePage[file].type}; charset=utf-8` }).send(body);
+    });
   }
   // Unapproved registrations live for a day; cap how many one source holds.
   app.post('/register', (req, res, next) => {
@@ -359,11 +369,35 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
   app.use(mcpAuthRouter({ provider, issuerUrl: issuer, resourceServerUrl: resource, scopesSupported: scope, resourceName: 'Your isolated Kitsuvo browser', clientRegistrationOptions: { clientSecretExpirySeconds: clientTtl } }));
   const bearer = requireBearerAuth({ verifier: provider, requiredScopes: scope, expectedResource: resource, resourceMetadataUrl: new URL('/.well-known/oauth-protected-resource/mcp', issuer).href });
   app.get('/userinfo', bearer, (req, res) => res.json({ sub: req.auth.extra.browserId }));
+  app.get('/remote/computer', bearer, (req, res) => {
+    const browser = browsers.get(req.auth.extra.browserId);
+    if (!browser) return res.status(503).json({ error: 'Your computer is offline.' });
+    res.json({ name: browser.computer || 'Kitsuvo computer', terminal: !!browser.terminal });
+  });
+  app.post('/remote/terminal', bearer, (req, res, next) => {
+    if (req.headers.origin !== issuer.origin) return res.status(403).end('Same-origin request required.');
+    next();
+  }, express.json({ limit: '16kb' }), async (req, res) => {
+    const grant = record(tokens, req.auth.token);
+    const browserId = grant.browserId;
+    const result = await terminals.handle({ browserId, grantId: grant.grantId,
+      client: clients.get(grant.clientId)?.client.client_name || 'Remote device',
+      browser: browsers.get(browserId), body: req.body, authorize() {
+        const current = record(tokens, req.auth.token);
+        if (current.kind !== 'access' || current.grantId !== grant.grantId) throw new InvalidTokenError('Terminal access revoked.');
+      }, stillGranted() {
+        if (![...tokens.values()].some(item => !item.used && item.kind === 'access' && item.grantId === grant.grantId && item.expiresAt > now())) {
+          throw new InvalidTokenError('Terminal access revoked.');
+        }
+      } });
+    res.status(result.status).json(result.body);
+  });
+
   app.all('/mcp', bearer, express.json({ limit: '256kb' }), async (req, res) => {
     const browserId = req.auth.extra.browserId;
     const browser = { call: (method, params, extra) => {
       const active = browsers.get(browserId); if (!active) throw new Error('Browser offline');
-      return active.call(method, params, { signal: extra.signal, authorize: () => {
+      return active.call(method, params, { signal: extra.signal, timeoutMs: params?._meta?.['kitsuvo/deadlineMs'] ?? 180000, authorize: () => {
         // Sessions survive token rotation. Check this message's credential at
         // dispatch, after queueing, never the session's initialization token.
         const grant = record(tokens, extra.authInfo?.token || '');
@@ -373,14 +407,23 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
     if (!browsers.has(browserId)) return res.status(503).end('Your browser is disconnected.');
     try {
       await protocolSessions.handle(req,res,req.auth.clientId+':'+browserId,()=>{
-        const server = new Server({name:'kitsuvo',title:'Kitsuvo',version:relayVersion,icons},{capabilities:{tools:{},resources:{}}});
+        // OAuth grants may be account-wide. Keep this authenticated client's
+        // task boundary across protocol reconnects; another client gets another
+        // boundary. Never trust a caller-supplied task session identity.
+        const taskSession=createHash('sha256').update(req.auth.clientId+':'+browserId).digest('hex');
+        const server = new Server({name:'kitsuvo',title:'Kitsuvo',version:relayVersion,icons},{capabilities:{tools:{},resources:{}},instructions:remoteInstructions});
         server.setRequestHandler(ListToolsRequestSchema,async (_,extra)=>{
           const result=await browser.call('tools/list',undefined,extra);
           return {...result,tools:result.tools.map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:scope}],_meta:{...tool._meta,securitySchemes:[{type:'oauth2',scopes:scope}]}}))};
         });
         // A refusal from the local browser is a tool failure the model can read, like the HTTP bridge.
-        server.setRequestHandler(ToolCallRequestSchema,(request,extra)=>browser.call('tools/call',request.params,extra)
-          .catch(error=>{ if(!(error instanceof BrowserRejection)) throw error; return {content:[{type:'text',text:error.detail}],isError:true}; }));
+        server.setRequestHandler(ToolCallRequestSchema,(request,extra)=>{
+          const info=server.getClientVersion();
+          const client=[info?.title,info?.name].find(value=>typeof value==='string'&&value.trim());
+          const params={...request.params,_meta:{...request.params._meta,...(client?{'kitsuvo/client':client.trim().slice(0,120)}:{}),'kitsuvo/session':taskSession}};
+          return browser.call('tools/call',params,extra)
+          .catch(error=>{ if(!(error instanceof BrowserRejection)) throw error; return {content:[{type:'text',text:error.detail}],isError:true}; });
+        });
         server.setRequestHandler(ListResourcesRequestSchema,(_,extra)=>browser.call('resources/list',undefined,extra));
         server.setRequestHandler(ReadResourceRequestSchema,(request,extra)=>browser.call('resources/read',request.params,extra));
         return server;
@@ -484,9 +527,19 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
   const messageLimit = (socket, bytes) => { if (Number.isInteger(socket._receiver?._maxPayload)) socket._receiver._maxPayload = bytes; };
   ws.on('connection', (socket, identity, identityKey, established, source, { plus, pool, presented }) => {
     const id = identity?.browserId || nonce(), pending = new Map();
-    const queue = operationQueue(); let alive = true;
+    const queue = operationQueue(), terminalQueue = operationQueue(8, 5000); let alive = true;
     const send = value => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(value)); };
-    const browser = { established, installed: Boolean(identityKey), source, pool, plus, call(method, params, options) {
+    const browser = { terminal: false, terminalCall(params, authorize) {
+      return terminalQueue.run((signal) => new Promise((resolve, reject) => {
+        authorize();
+        if (socket.readyState !== WebSocket.OPEN) return reject(new Error('Disconnected'));
+        const callId = nonce();
+        const cancel = () => { pending.delete(callId); reject(new Error('Terminal request cancelled.')); };
+        signal.addEventListener('abort', cancel, { once: true });
+        pending.set(callId, { resolve, reject, cleanup: () => signal.removeEventListener('abort', cancel) });
+        send({ type: 'terminal', id: callId, params });
+      }));
+    }, established, installed: Boolean(identityKey), source, pool, plus, call(method, params, options) {
       return queue.run((signal,remainingMs) => new Promise((resolve, reject) => {
         options.authorize();
         if (socket.readyState !== WebSocket.OPEN) return reject(new Error('Disconnected'));
@@ -499,7 +552,7 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
     } };
     if (!established) messageLimit(socket, limits.pendingMessageBytes);
     // `plus` tells the connector this relay understands refreshed codes.
-    browsers.set(id, browser); send({ type: 'connected', durable: established, plus: true });
+    browsers.set(id, browser); send({ type: 'connected', durable: established, plus: true, terminal: true });
     if (presented) send(plusStatus(plus));
     // Abandoned enrollment is short-lived, even if a client keeps answering pings.
     const enrollmentTimer = established ? undefined : setTimeout(() => socket.close(1008, 'Enrollment expired'), ttl * 1000);
@@ -536,7 +589,7 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
         if (socket.readyState !== WebSocket.OPEN) return;
         browser.established = true; pendingIdentities.delete(identityKey); clearTimeout(enrollmentTimer);
         messageLimit(socket, limits.connectorMessageBytes);
-        send({ type: 'connected', durable: true, plus: true });
+        send({ type: 'connected', durable: true, plus: true, terminal: true });
       } else if (!browser.established) {
         browser.established = true; clearTimeout(enrollmentTimer);
         messageLimit(socket, limits.connectorMessageBytes);
@@ -549,6 +602,9 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
         const message = JSON.parse(data.toString());
         if ((message.type === 'revoke' && identity) || message.type === 'review' || message.type === 'approve') {
           control = control.then(() => controlMessage(message)).catch(invalid);
+        } else if (message.type === 'capabilities') {
+          browser.terminal = message.terminal === true;
+          browser.computer = typeof message.computer === 'string' ? message.computer.slice(0, 200) : 'Kitsuvo computer';
         } else if (message.type === 'plus') {
           // A refreshed code extends Plus; an invalid one leaves the current
           // entitlement to lapse at its own expiry. Nothing here is stored.
@@ -567,6 +623,7 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
     });
     socket.on('error', error => telemetry.captureException(error, { source: 'websocket' }));
     socket.on('close', () => {
+      terminals.stop(id); terminalQueue.close();
       queue.close();
       clearTimeout(enrollmentTimer);
       if (identityKey) pendingIdentities.delete(identityKey);
@@ -582,6 +639,7 @@ export function createRelay({ origin, stateFile, telemetry = noopTelemetry, trus
   const flush = () => store.flush().catch(() => {});
   function close() {
     draining = true;
+    terminals.close();
     protocolSessions.close();
     for (const socket of ws.clients) socket.terminate();
     ws.close();

@@ -137,15 +137,20 @@ test('invalid initialization, unknown sessions, and oversized bodies never creat
 });
 
 test('idle expiry cleans up abandoned sessions without expiring active operations', async t => {
+  // Freeze admission/handshake time so a loaded native-build host cannot
+  // expire this intentionally short-lived fixture before its first call.
+  let clock = 0;
   const entered = deferred(), release = deferred(); let closed = 0;
   const f = await fixture(t, async () => ({ listTools: async () => ({ tools: [] }),
     callTool: async () => { entered.resolve(); await release.promise; return result('done'); },
     close: async () => { closed++; },
-  }), { idleMs: 100 });
+  }), { idleMs: 100, now: () => clock });
   const a = await f.client('idle-model');
   const pending = a.call(); await entered.promise;
+  clock = 1000;
   await delay(250); assert.equal(closed, 0, 'active requests retain their backend');
   release.resolve(); await pending;
+  clock = 2000;
   const deadline = Date.now() + 2000;
   while (!closed && Date.now() < deadline) await delay(25);
   assert.equal(closed, 1);

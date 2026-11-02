@@ -57,9 +57,19 @@ function textOf(result) {
 
 // Only these explicit native tools can be invoked by panel controls. Sensitive
 // pages, password fields and Stop continue to be enforced by the native engine.
-export async function callBrowserApp(backend, name, args = {}, signal, meta) {
-  const call = (name, arguments_) => backend.callTool({ name, arguments: arguments_, ...(meta ? { _meta: meta } : {}) }, undefined, { timeout: 180_000, signal });
+export async function callBrowserApp(backend, name, args = {}, signal, meta, remainingMs = () => 180000) {
+  const call = (name, arguments_) => {
+    signal?.throwIfAborted();
+    const timeout = remainingMs();
+    if (!Number.isFinite(timeout) || timeout <= 0) throw new Error('Browser request deadline exceeded. A dispatched mutation may have completed; inspect state before retrying.');
+    return backend.callTool({ name, arguments: arguments_, _meta: { ...meta, 'kitsuvo/deadlineMs': timeout } }, undefined, { timeout, signal });
+  };
   const fail = message => ({ content: [{ type: 'text', text: message }], isError: true });
+  let actionReceipt;
+  const observationFailure = result => actionReceipt ? {
+    ...result, structuredContent: { ...result.structuredContent, action_receipt: actionReceipt },
+    content: [...(result.content ?? []), { type: 'text', text: 'Input was acknowledged; task completion is unverified. Inspect the destination before retrying.' }],
+  } : result;
   try {
     if (!args || typeof args !== 'object' || Array.isArray(args)) return fail('Expected an arguments object.');
     if (args.tab !== undefined && (!Number.isInteger(args.tab) || args.tab < 0)) return fail('Invalid tab.');
@@ -82,6 +92,12 @@ export async function callBrowserApp(backend, name, args = {}, signal, meta) {
     if (readOnlyRefresh && !context) {
       return { ...fail(recovery ? 'Browser restarted. Reconnect browser to restore this panel.' : 'This browser panel is no longer connected. Open Kitsuvo in chat again.'),
         _meta: { recoveryRequired: Boolean(recovery) } };
+    }
+    if (name !== 'kitsuvo_browser' && panelId && !context && !recovery) {
+      return fail('This browser panel is no longer connected. Reconnect it before interacting.');
+    }
+    if (context && ['click', 'hover', 'type', 'option', 'key'].includes(args.action) && args.tab !== undefined && args.tab !== savedTab) {
+      return fail('This panel is showing a different tab. Refresh the panel or explicitly select the intended tab before interacting.');
     }
     if (name !== 'kitsuvo_browser' && recovery) {
       // Recover only a refresh, never replay an old click/type/submit against
@@ -127,8 +143,12 @@ export async function callBrowserApp(backend, name, args = {}, signal, meta) {
       if (args.action === 'select' && args.tab === undefined) return fail('Missing tab.');
       if (args.action === 'option' && (!Array.isArray(args.values) || !args.values.every(value => typeof value === 'string'))) return fail('Missing option values.');
       if (args.submit !== undefined && typeof args.submit !== 'boolean') return fail('Invalid submit flag.');
+      if (['click', 'hover', 'type', 'option', 'key'].includes(args.action) && context?.document && target.tab === savedTab) {
+        operation[1].document_id = context.document;
+      }
       const result = await call(...operation);
       if (result.isError) return result;
+      actionReceipt = result.structuredContent?.action_receipt;
       if (args.action === 'report') report = textOf(result);
       if (args.action === 'new') {
         const createdTab = textOf(result).match(/^Opened tab (\d+)\./m)?.[1];
@@ -154,26 +174,28 @@ export async function callBrowserApp(backend, name, args = {}, signal, meta) {
     // A close/new/select can change the active tab; do not read the old tab.
     const viewTarget = args.action === 'close' && !panelId ? {} : target;
     const snapshot = await call('browser_snapshot', viewTarget);
-    if (snapshot.isError) return snapshot;
+    if (snapshot.isError) return observationFailure(snapshot);
     const tabs = await call('browser_tabs', { action: 'list' });
-    if (tabs.isError) return tabs;
+    if (tabs.isError) return observationFailure(tabs);
     const page = textOf(snapshot);
     const state = {
       url: page.match(/^Page: (.*)$/m)?.[1] ?? '',
       title: page.match(/^Title: (.*)$/m)?.[1] ?? 'Kitsuvo',
+      document_id: page.match(/^Document: ([^\r\n]{1,128})$/m)?.[1],
+      ...(actionReceipt ? { action_receipt: actionReceipt } : {}),
       snapshot: page,
-      tabs: [...textOf(tabs).matchAll(/^- tab (\d+)( \[active\])?: (.*) \((.*)\)$/gm)]
-        .map(match => ({ tab: Number(match[1]), active: Boolean(match[2]), title: match[3], url: match[4] })),
+      tabs: [...textOf(tabs).matchAll(/^- tab (\d+)((?: \[(?:active|active in profile|selected for this session|visible in browser)\])*): (.*) \((.*)\)$/gm)]
+        .map(match => ({ tab: Number(match[1]), active: /\[(?:active|active in profile|visible in browser)\]/.test(match[2]), selected: match[2].includes('[selected for this session]'), title: match[3], url: match[4] })),
       // MCP navigation can select a background tab while the desktop's visible
       // active tab stays unchanged. Controls must follow the observed page.
       tab: page.match(/^Tab: (\d+)$/m) ? Number(page.match(/^Tab: (\d+)$/m)[1]) : viewTarget.tab,
       ...(panelId ? { panelId } : {}),
       ...(report === undefined ? {} : { report }),
     };
-    state.tab ??= state.tabs.find(item => item.active)?.tab;
+    state.tab ??= state.tabs.find(item => item.selected)?.tab ?? state.tabs.find(item => item.active)?.tab;
     if (panelId && state.tab !== undefined) {
       owned.add(state.tab);
-      contexts.set(panelId, { tab: state.tab, owned });
+      contexts.set(panelId, { tab: state.tab, owned, document: state.document_id });
       await backend._kitsuvoPanelRecovery?.save(panelId, state.url);
     }
     let preview;
@@ -183,11 +205,13 @@ export async function callBrowserApp(backend, name, args = {}, signal, meta) {
       preview = shot.isError ? undefined : shot.content?.find(item => item.type === 'image' && item.mimeType === 'image/png');
       if (!preview) previewNote = textOf(shot) || 'Page previews are unavailable. Use the page text and controls below.';
     } catch {
+      signal?.throwIfAborted();
       previewNote = 'Page previews are unavailable. Use the page text and controls below.';
     }
-    return { content: [{ type: 'text', text: `Kitsuvo browser: ${state.title}\n${state.url}\n\n${state.snapshot}` }],
+    signal?.throwIfAborted();
+    return { content: [{ type: 'text', text: `Kitsuvo browser: ${state.title}\n${state.url}\n${actionReceipt ? 'Input acknowledged. Task completion remains unverified; inspect the destination result.\n' : ''}\n${state.snapshot}` }],
       structuredContent: state, _meta: { preview, previewNote }, isError: false };
   } catch (error) {
-    return fail(error.message);
+    return observationFailure(fail(error.message));
   }
 }

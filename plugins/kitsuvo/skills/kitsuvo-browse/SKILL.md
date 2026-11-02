@@ -14,7 +14,7 @@ When the user has not supplied a target, agents may choose an enabled instance f
 
 If `browser_instances` is unavailable, the native browser/MCP executable needs an update and restart before agent-created instances are supported. Keep using an explicitly enabled existing target when appropriate; do not emulate creation by weakening profile isolation or replacing a supplied target.
 
-Before browser work, call `browser_session` with your provider (`Codex` or `Claude`), actual session ID, short task title, and real session URL when available. Codex can derive its link from the thread ID. Never invent a Claude session URL; omit it if the host does not expose one. This lets the user see who is using the browser and return to the chat.
+Before browser work, call `browser_session` with your provider (`Codex`, `Claude` or `Grok Bot`), actual session ID, short task title, and real session URL when available. Codex can derive its link from the thread ID. Never invent a session ID or URL; if the host does not expose a session ID, retain the MCP client attribution instead. Omit unavailable session URLs; only Codex links can be derived from a real thread ID. This lets the user see who is using the browser and return to the chat.
 
 Use Kitsuvo MCP tools (possibly host-prefixed). Open the requested URL with `browser_navigate`, or use `browser_tabs` with `action: list` to find an existing agent tab. Pass its `tab` explicitly when several tabs are open.
 

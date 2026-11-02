@@ -8,7 +8,7 @@ When the user requests live browsing inside Codex, use the sibling
 renderer. The native-browser workflow below applies to Kitsuvo browser targets;
 do not silently open another engine for a Codex live tab’s analysis.
 
-Before browser work, call `browser_session` with your provider (`Codex` or `Claude`), actual session ID, short task title, and real session URL when available. Codex can derive its link from the thread ID. Never invent a Claude session URL; omit it if the host does not expose one. This lets the user see who is using the browser and return to the chat.
+Before browser work, call `browser_session` with your provider (`Codex`, `Claude` or `Grok Bot`), actual session ID, short task title, and real session URL when available. Codex can derive its link from the thread ID. Never invent a session ID or URL; if the host does not expose a session ID, retain the MCP client attribution instead. Omit unavailable session URLs; only Codex links can be derived from a real thread ID. This lets the user see who is using the browser and return to the chat.
 
 Open the requested site with Kitsuvo's `browser_navigate`, then call `kitsuvo_report` for that tab. Kitsuvo analyzes rendered pages; do not substitute fetched HTML or a guessed verdict. If `pending` is true, wait briefly with `browser_wait_for` and request the report again. If it remains unavailable, report its `note` or `skipped` reason.
 

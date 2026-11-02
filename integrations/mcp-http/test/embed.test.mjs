@@ -2,9 +2,35 @@ import { authenticatedBridge as createBridge, authenticatedFetch as fetch } from
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { request } from 'node:http';
+import { EventEmitter } from 'node:events';
 
 import { mountKitsuvo } from '../embed-host.mjs';
 import { APP_URI } from '../browser-app.mjs';
+import { serveEmbed } from '../embed-server.mjs';
+import { operationQueue } from '../operation-queue.mjs';
+
+test('disconnecting an embedded panel cancels queued work before any tab allocation', async t => {
+  const queue = operationQueue(); t.after(() => queue.close());
+  let release; const first = queue.run(() => new Promise(resolve => { release = resolve; }));
+  await new Promise(resolve => setImmediate(resolve)); t.after(() => release());
+  let admitted; const queued = new Promise(resolve => { admitted = resolve; });
+  const calls = [];
+  const backend = { async callTool(params) { calls.push(params); return { content: [] }; } };
+  const req = { method: 'POST', url: '/embed/action', headers: { 'content-type': 'application/json' },
+    async *iterator() { yield Buffer.from(JSON.stringify({ name: 'kitsuvo_browser', arguments: {} })); } };
+  const res = new EventEmitter();
+  res.writeHead = () => res; res.end = () => { res.writableFinished = true; };
+  const serving = serveEmbed(req, res, backend, (operation, options) => {
+    const result = queue.run(operation, options); admitted(); return result;
+  });
+  await queued;
+  const rejected = assert.rejects(serving, /disconnected/);
+  res.emit('close');
+  await rejected;
+  release(); await first;
+  assert.deepEqual(calls, []);
+  assert.equal(res.listenerCount('close'), 0);
+});
 
 test('embed initialization validates its host and client before reading resources', async () => {
   await assert.rejects(mountKitsuvo(null), /DOM container/);

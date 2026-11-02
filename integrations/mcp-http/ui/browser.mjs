@@ -28,7 +28,12 @@ function setBusy(value) {
   $('fullscreen').hidden = !hostContext.availableDisplayModes?.includes(hostContext.displayMode === 'fullscreen' ? 'inline' : 'fullscreen');
   $('fullscreen').textContent = hostContext.displayMode === 'fullscreen' ? 'Return to chat' : 'Open full browser';
 }
-const textOf = result => (result.content ?? []).filter(item => item.type === 'text').map(item => item.text).join('\n');
+const textOf = result => {
+  // The model receives a legacy JSON receipt too. Keep the human error visible
+  // without printing that transport metadata in the panel's status line.
+  const receipt = result.structuredContent?.action_receipt && JSON.stringify(result.structuredContent);
+  return (result.content ?? []).filter(item => item.type === 'text' && item.text !== receipt).map(item => item.text).join('\n');
+};
 function button(label, accessibleName, action) {
   const node = document.createElement('button');
   node.type = 'button'; node.textContent = label; node.setAttribute('aria-label', accessibleName); node.onclick = action;
@@ -117,7 +122,7 @@ function render(result) {
     $('elements').append(row);
   }
   if (!$('elements').children.length) $('elements').textContent = 'No page controls available. Review the raw page text, or sign in directly in the Kitsuvo window if needed.';
-  $('status').textContent = 'Browser ready';
+  $('status').textContent = state.action_receipt ? 'Action sent. Check the result.' : 'Browser ready';
   $('connection').textContent = 'Connected';
   $('connection').setAttribute('data-ready', 'true');
   setBusy(busy);

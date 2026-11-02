@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "updated": "2026-11-01",
+  "meaning": "Configuration/route inventory, not a live provider compatibility certificate. See docs/agent-compatibility.md and the dated execution record.",
+  "source_branch": "codex/agent-compatibility-20261101",
+  "protocol": {
+    "family": "initialization-based",
+    "native_supported": [
+      "2025-11-25",
+      "2025-06-18",
+      "2025-03-26",
+      "2024-11-05"
+    ],
+    "modern_stateless": "not advertised; dual-era client legacy fallback required"
+  },
+  "clients": [
+    {
+      "client": "grokbot",
+      "configuration": "implemented",
+      "route": "remote OAuth",
+      "host_workflow": "pending",
+      "panel": "pending",
+      "blocker": "Installed cloud plugin observed in Grok Bot desktop; existing default account returns HTTP 503. Relay health is HTTP 200, version 0.2.12. Need an online approved browser and a fresh host workflow test; not an ENOENT failure in this selected entry."
+    },
+    {
+      "client": "codex",
+      "configuration": "implemented",
+      "route": "local stdio or remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "claude-code",
+      "configuration": "implemented",
+      "route": "local stdio or remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "claude-desktop",
+      "configuration": "implemented",
+      "route": "local stdio or remote OAuth",
+      "host_workflow": "pending",
+      "panel": "pending",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "cursor",
+      "configuration": "implemented",
+      "route": "local stdio or remote OAuth",
+      "host_workflow": "pending",
+      "panel": "pending",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "gemini",
+      "configuration": "implemented",
+      "route": "local stdio or remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "vscode",
+      "configuration": "implemented",
+      "route": "local stdio or remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "copilot",
+      "configuration": "implemented",
+      "route": "local stdio or remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "chatgpt",
+      "configuration": "implemented",
+      "route": "remote OAuth",
+      "host_workflow": "pending",
+      "panel": "pending",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "claude-web",
+      "configuration": "implemented",
+      "route": "remote OAuth",
+      "host_workflow": "pending",
+      "panel": "pending",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "cline",
+      "configuration": "implemented",
+      "route": "local stdio or remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "continue",
+      "configuration": "implemented",
+      "route": "local stdio or remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "lm-studio",
+      "configuration": "implemented",
+      "route": "local stdio or remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "opencode",
+      "configuration": "implemented",
+      "route": "local stdio or remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "openclaw",
+      "configuration": "implemented",
+      "route": "local stdio or remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "openai-api",
+      "configuration": "implemented",
+      "route": "remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "xai-api",
+      "configuration": "implemented",
+      "route": "remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "claude-api",
+      "configuration": "implemented",
+      "route": "remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "n8n",
+      "configuration": "implemented",
+      "route": "remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    },
+    {
+      "client": "dify",
+      "configuration": "implemented",
+      "route": "remote OAuth",
+      "host_workflow": "pending",
+      "panel": "not claimed",
+      "blocker": "Requires exact provider account/runtime qualification; configuration or native SDK tests do not establish this claim."
+    }
+  ],
+  "frameworks": [
+    {
+      "name": "LangChain/LangGraph",
+      "route": "framework MCP client; function adapter available for function-tool hosts",
+      "host_workflow": "pending"
+    },
+    {
+      "name": "Google ADK",
+      "route": "framework MCP client; function adapter available for function-tool hosts",
+      "host_workflow": "pending"
+    },
+    {
+      "name": "CrewAI",
+      "route": "framework MCP client; function adapter available for function-tool hosts",
+      "host_workflow": "pending"
+    },
+    {
+      "name": "Vercel AI SDK",
+      "route": "framework MCP client; function adapter available for function-tool hosts",
+      "host_workflow": "pending"
+    }
+  ],
+  "runtime_notes": {
+    "grokbot_desktop": "signed in; cloud plugin installed; browser connection offline (503)",
+    "relay_health_version": "0.2.12",
+    "relay_deployment_for_this_change": "not performed",
+    "modern_stateless_only_clients": "unsupported; not advertised",
+    "native_macos": "Fresh source binary 0.2.37: native tools/function adapter 15 checks; App mode 19 checks; disposable OAuth/native App relay chain passed. Provider-host workflows remain pending.",
+    "native_windows": "Pending: native Windows host unavailable; shared implementation and Windows/macOS Chromium UI states checked."
+  }
+}

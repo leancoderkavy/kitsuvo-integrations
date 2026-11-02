@@ -9,6 +9,10 @@ needed for local browser automation or local detection.
 
 ## More clients and install bundles
 
+Grok Bot uses the remote URL with OAuth, not a local executable on its cloud
+computer. See [agent compatibility](agent-compatibility.md) for its setup,
+account-wide access boundary, generated client formats and qualification.
+
 [Client setup and distribution](distribution-clients.md) includes Cursor, VS Code,
 Gemini CLI, Cline, Continue, LM Studio, Devin and workflow recipes for n8n,
 Zapier and Dify. The Claude Desktop bundle is
@@ -90,7 +94,7 @@ Keep `args: ["mcp"]`. Plugin installation does not install the native browser.
 An installed plugin is cached by its host; edit/reinstall the plugin copy or
 configure a separate native MCP connection when using a custom executable path.
 
-Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.35.zip`.
+Download and extract `https://kitsuvo.com/downloads/kitsuvo-integrations-0.2.38.zip`.
 It contains the local marketplace manifests, branded plugin, four skills, and
 loopback HTTP MCP bridge with its locked dependencies and tests. Commands below
 run from the extracted directory or an authorized repository checkout.

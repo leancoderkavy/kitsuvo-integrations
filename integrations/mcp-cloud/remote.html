@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="terminal-style-nonce" content="__KITSUVO_STYLE_NONCE__">
+  <title>Kitsuvo remote control</title>
+  <link rel="stylesheet" href="/remote.css">
+  <link rel="stylesheet" href="/xterm.css">
+  <script defer src="/xterm.js"></script>
+  <script defer src="/addon-fit.js"></script>
+  <script type="module" src="/remote.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Kitsuvo remote control</h1>
+    <p id="status" role="status" aria-live="polite">Loading…</p>
+    <p id="notice" role="alert" hidden></p>
+  </header>
+
+  <section id="link" hidden aria-labelledby="linkTitle">
+    <h2 id="linkTitle">Link this device</h2>
+    <ol>
+      <li>On the computer running Kitsuvo, open Settings → Assistants → Remote access and turn it on.</li>
+      <li>Choose <strong>Link this device</strong> below. The next page shows a code.</li>
+      <li>Paste that code into Kitsuvo, check that the assistant is “Kitsuvo remote control”, and approve it.</li>
+      <li>Come back and refresh that page to finish.</li>
+    </ol>
+    <button id="start" type="button" class="primary">Link this device</button>
+    <p class="fine">You control Kitsuvo's separate agent profile, never its signed-in tabs. The link lasts while this browser tab stays open.</p>
+  </section>
+
+  <main id="control" hidden>
+    <p id="computer" class="fine"></p>
+    <nav class="bar" aria-label="Connection type">
+      <button id="chooseBrowser" type="button" aria-pressed="true">Browser</button>
+      <button id="chooseTerminal" type="button" aria-pressed="false">Terminal</button>
+    </nav>
+    <section id="browserPanel" aria-label="Remote browser">
+    <form id="navigate" class="bar">
+      <button type="button" data-tool="browser_navigate_back" aria-label="Back">←</button>
+      <button type="button" data-tool="browser_navigate_forward" aria-label="Forward">→</button>
+      <button type="button" data-tool="browser_reload" aria-label="Reload">↻</button>
+      <input id="url" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="Enter a web address" aria-label="Web address">
+      <button type="submit" class="primary">Go</button>
+    </form>
+    <div class="bar">
+      <button type="button" id="refresh">Refresh view</button>
+      <button type="button" data-key="PageUp">Scroll up</button>
+      <button type="button" data-key="PageDown">Scroll down</button>
+      <label class="check"><input id="live" type="checkbox" checked> Refresh live view</label>
+    </div>
+    <figure>
+      <img id="view" alt="The current page in Kitsuvo. Tap to click." hidden>
+      <figcaption class="fine">Tap the page to click there, or use the controls below. Live refresh only updates this view; it does not pause assistants. Complete protected sign-in steps directly in Kitsuvo, then refresh. Use Stop in Kitsuvo to end agent control.</figcaption>
+    </figure>
+    <details id="controls" open>
+      <summary>Page controls</summary>
+      <ul id="elements"></ul>
+    </details>
+    </section>
+    <section id="terminalPanel" hidden aria-labelledby="terminalTitle">
+      <h2 id="terminalTitle">Remote terminal</h2>
+      <p class="fine">Request a new shell on the connected computer. Someone there must choose a starting folder and approve this session. Commands run with that user's permissions; the folder is not a sandbox.</p>
+      <p id="terminalStatus" role="status" aria-live="polite">Terminal access requires separate approval.</p>
+      <div class="bar">
+        <button id="requestTerminal" class="primary" type="button">Request terminal access</button>
+        <button id="stopTerminal" type="button" disabled>End terminal session</button>
+        <button id="interruptTerminal" type="button" disabled>Ctrl+C</button>
+      </div>
+      <div id="terminalScreen" aria-label="Terminal on the connected computer"></div>
+    </section>
+    <button type="button" id="signout">Unlink this device</button>
+  </main>
+</body>
+</html>

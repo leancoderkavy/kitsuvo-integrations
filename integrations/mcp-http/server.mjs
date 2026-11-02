@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
-import { timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual, randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -15,6 +15,8 @@ import { serveEmbed, embedSdk } from './embed-server.mjs';
 import { operationQueue } from './operation-queue.mjs';
 import { sessionHandler, bodyOf } from './sessions.mjs';
 import { createSessions } from './protocol-sessions.mjs';
+import { browserInstructions, managementInstructions } from './agent-contract.mjs';
+import { catalogueCache } from './client-requests.mjs';
 
 // SDK 1.32 parses the registered schema before its own tools/call validation,
 // so malformed params surface as -32603. Register a method-only schema and let
@@ -25,29 +27,34 @@ const catalogues = new WeakMap();
 function cachedCatalogue(backend) {
   let cache = catalogues.get(backend);
   if (!cache) {
-    cache = {}; catalogues.set(backend,cache);
-    backend.setNotificationHandler?.(ToolListChangedNotificationSchema,()=>{cache.promise=undefined;});
+    cache = catalogueCache(backend, appTools.map(tool => tool.name));
+    catalogues.set(backend, cache);
+    backend.setNotificationHandler?.(ToolListChangedNotificationSchema, cache.invalidate);
   }
-  return cache.promise ||= backend.listTools().catch(error=>{cache.promise=undefined;throw error;});
+  // One bounded read belongs to the shared backend, not its first client.
+  return cache.read();
 }
 
 // Read once: every MCP session used to read and re-encode the icon synchronously.
 const icons = [{ src: `data:image/png;base64,${readFileSync(new URL('./icon-256.png', import.meta.url)).toString('base64')}`, mimeType: 'image/png', sizes: ['256x256'] }];
 
-export function createAppServer(backend, serialize = (operation, options) => operation(options?.signal)) {
+export function createAppServer(backend, serialize = (operation, options) => operation(options?.signal), { forwardSessions = false } = {}) {
+  const session = randomUUID();
   const server = new Server(
-    { name: 'kitsuvo', title: 'Kitsuvo', version: '0.2.3',
+    { name: 'kitsuvo', title: 'Kitsuvo', version: '0.2.6',
       icons },
     { capabilities: { tools: {}, resources: {} },
-      instructions: `${backend.getInstructions?.() ?? ''}\nCall kitsuvo_browser to display the interactive browser inside chat. Native tools remain available for automation.` },
+      instructions: `${backend.getInstructions?.() || browserInstructions + managementInstructions}\nCall kitsuvo_browser to display the interactive browser inside chat. Native tools remain available for automation.` },
   );
   const tools = () => cachedCatalogue(backend);
   // Stdio and shared HTTP bridges reuse one native connection, which only saw
   // the bridge's own initialize. Name the upstream client on every call.
-  const caller = () => {
+  const caller = meta => {
     const info = server.getClientVersion();
     const name = [info?.title, info?.name].find(value => typeof value === 'string' && value.trim());
-    return name ? { 'kitsuvo/client': name.trim().slice(0, 120) } : {};
+    const upstream=forwardSessions&&typeof meta?.['kitsuvo/session']==='string'&&/^[A-Za-z0-9:_-]{1,160}$/.test(meta['kitsuvo/session'])
+      ?meta['kitsuvo/session']:null;
+    return { ...(name ? { 'kitsuvo/client': name.trim().slice(0, 120) } : {}), 'kitsuvo/session':upstream||session };
   };
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     const result = await tools();
@@ -62,12 +69,21 @@ export function createAppServer(backend, serialize = (operation, options) => ope
       _meta: { ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] }, prefersBorder: true } },
     }] };
   });
-  server.setRequestHandler(ToolCallRequestSchema, (request, extra) => serialize((signal, remainingMs = () => 180000) =>
-    appTools.some(tool => tool.name === request.params.name)
-      ? callBrowserApp(backend, request.params.name, request.params.arguments, signal, caller())
-      : backend.callTool({...request.params,_meta:{...request.params._meta,...caller(),'kitsuvo/deadlineMs':remainingMs()}}, undefined, { timeout: remainingMs(), signal }),
-    { signal: extra.signal },
-  ));
+  server.setRequestHandler(ToolCallRequestSchema, async (request, extra) => {
+    try {
+      return await serialize((signal, remainingMs = () => 180000) => {
+        signal?.throwIfAborted();
+        const meta = { ...request.params._meta, ...caller(request.params._meta) };
+        if (appTools.some(tool => tool.name === request.params.name)) {
+          return callBrowserApp(backend, request.params.name, request.params.arguments, signal, meta, remainingMs);
+        }
+        const timeout = remainingMs();
+        return backend.callTool({...request.params,_meta:{...meta,'kitsuvo/deadlineMs':timeout}}, undefined, { timeout, signal });
+      }, { signal: extra.signal, timeoutMs: request.params._meta?.['kitsuvo/deadlineMs'] ?? 180000 });
+    } catch (error) {
+      return { content: [{ type: 'text', text: error.message }], isError: true };
+    }
+  });
   return server;
 }
 
@@ -159,10 +175,10 @@ export function nativeArguments(help, headless = false) {
 // session link from CODEX_THREAD_ID, so pass that through with the profile.
 export function nativeEnvironment(env = process.env) {
   const passed = ['KITSUVO_PROFILE_DIR', 'CODEX_THREAD_ID'].filter(key => env[key]);
-  return { ...getDefaultEnvironment(), ...Object.fromEntries(passed.map(key => [key, env[key]])) };
+  return { ...getDefaultEnvironment(), ...Object.fromEntries(passed.map(key => [key, env[key]])), KITSUVO_MCP_SCOPE: 'isolated', KITSUVO_MCP_ISOLATED_ONLY: '1' };
 }
 
-export async function createNativeBackend(config, clientInfo = { name: 'kitsuvo-http-bridge', version: '0.2.3' }) {
+export async function createNativeBackend(config, clientInfo = { name: 'kitsuvo-http-bridge', version: '0.2.6' }) {
   const { stdout: help } = await promisify(execFile)(config.binary, ['--help'], { timeout: 5000, maxBuffer: 65536, windowsHide: true });
   // Keep the title: Kitsuvo's agent bar prefers it over the package name.
   const title = typeof clientInfo.title === 'string' && clientInfo.title.trim() ? { title: clientInfo.title } : {};
@@ -205,7 +221,7 @@ async function main() {
     if (process.argv.includes('--embed')) await embedSdk();
     if (process.argv.includes('--stdio')) {
       const queue = operationQueue();
-      const server = createAppServer(backend, (operation, options) => queue.run(operation, options));
+      const server = createAppServer(backend, (operation, options) => queue.run(operation, options), {forwardSessions:process.env.KITSUVO_MCP_FORWARD_SESSIONS==='1'});
       await server.connect(new StdioServerTransport());
       const stop = () => { void server.close(); void backend.close(); };
       server.onclose = () => { void backend.close(); };

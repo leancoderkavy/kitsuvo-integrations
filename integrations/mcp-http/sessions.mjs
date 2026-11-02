@@ -31,10 +31,11 @@ export async function bodyOf(req, res) {
   catch { reject(res, 400, 'Invalid JSON.'); }
 }
 
-export function sessionHandler(createBackend, createAppServer, { maxSessions = 16, idleMs = 600_000, maxPending = 32 } = {}) {
+export function sessionHandler(createBackend, createAppServer, { maxSessions = 16, idleMs = 600_000, maxPending = 32, now = () => performance.now() } = {}) {
   for (const [key, value] of Object.entries({ maxSessions, idleMs, maxPending })) {
     if (!Number.isSafeInteger(value) || value < 1) throw new Error(`${key} must be a positive integer.`);
   }
+  if (typeof now !== 'function') throw new Error('now must be a monotonic clock function.');
   const sessions = new Map();
   let stopping = false;
 
@@ -51,9 +52,9 @@ export function sessionHandler(createBackend, createAppServer, { maxSessions = 1
   }
 
   const sweep = () => {
-    const now = Date.now();
+    const time = now();
     for (const session of sessions.values()) {
-      if (!session.active && now - session.lastUsed >= idleMs) void dispose(session);
+      if (!session.active && time - session.lastUsed >= idleMs) void dispose(session);
     }
   };
   const timer = setInterval(sweep, Math.min(idleMs, 30_000));
@@ -83,7 +84,7 @@ export function sessionHandler(createBackend, createAppServer, { maxSessions = 1
           return reject(res, 400, 'Initialize an MCP connection before calling tools.');
         }
         if (sessions.size >= maxSessions) return reject(res, 503, 'MCP session limit reached. Close an existing connection and retry.');
-        session = { id: randomUUID(), queue: operationQueue(maxPending), active: 0, lastUsed: Date.now(), initialized: false };
+        session = { id: randomUUID(), queue: operationQueue(maxPending), active: 0, lastUsed: now(), initialized: false };
         sessions.set(session.id, session);
         // Reserve before awaiting: simultaneous initializations cannot exceed
         // the process limit. Late startup results are closed during shutdown.
@@ -112,7 +113,7 @@ export function sessionHandler(createBackend, createAppServer, { maxSessions = 1
       const release = () => {
         if (released) return;
         released = true;
-        session.active--; session.lastUsed = Date.now();
+        session.active--; session.lastUsed = now();
       };
       res.once('close', release);
       try {
