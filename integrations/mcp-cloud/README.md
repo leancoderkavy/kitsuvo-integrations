@@ -16,6 +16,10 @@ for limits and permission semantics. Deployment and package publication remain
 separate from this source change. Relay task identity belongs to the authenticated
 OAuth client/browser and survives protocol reconnects; it is not a per-chat grant.
 
+## Grok Bot
+
+The [Grok Bot walkthrough](https://kitsuvo.com/downloads/grok-bot.md) covers native Remote access, terminal setup, OAuth approval and a copyable first task. Use the HTTPS endpoint rather than installing the local stdio plugin on its cloud computer. Grok Bot tool use and MCP App rendering require separate host qualification.
+
 ## Connect your browser
 
 Kitsuvo builds after 0.2.37 can do this without a terminal: open Settings →

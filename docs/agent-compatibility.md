@@ -8,6 +8,8 @@ and verify its actual tool call.
 
 ## Grok Bot
 
+Start with the [Grok Bot walkthrough](grok-bot.md) for copyable setup and first-task requests, Windows/macOS commands, troubleshooting and revocation.
+
 Grok Bot runs tools on its cloud computer. Use the remote connection:
 
 1. On your own supported Windows or macOS 14+ computer, open Kitsuvo Settings →

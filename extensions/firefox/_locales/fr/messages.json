@@ -3,6 +3,6 @@
     "message": "Kitsuvo — AI site filter"
   },
   "extDescription": {
-    "message": "Indices locaux sur les créateurs d’IA et filtrage facultatif de la recherche."
+    "message": "Moins d’IA dans la recherche : masquage facultatif des réponses d’IA et des résultats probablement créés avec l’IA, indices locaux."
   }
 }

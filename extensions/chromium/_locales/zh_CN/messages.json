@@ -3,6 +3,6 @@
     "message": "Kitsuvo — AI site filter"
   },
   "extDescription": {
-    "message": "本地 AI 构建器证据，以及可选的搜索过滤。"
+    "message": "减少搜索中的 AI：可选隐藏 AI 回答和很可能由 AI 构建的结果，并在本地显示构建器证据。"
   }
 }

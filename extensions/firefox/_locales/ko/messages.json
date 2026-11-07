@@ -3,6 +3,6 @@
     "message": "Kitsuvo — AI site filter"
   },
   "extDescription": {
-    "message": "로컬 AI 빌더 근거와 선택 사항인 검색 필터링."
+    "message": "검색에서 AI를 줄입니다. AI 답변과 AI로 제작했을 가능성이 높은 결과를 선택 사항으로 숨기고, AI 빌더 근거를 로컬에서 보여 줍니다."
   }
 }

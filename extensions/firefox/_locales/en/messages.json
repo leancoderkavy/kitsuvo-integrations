@@ -3,6 +3,6 @@
     "message": "Kitsuvo — AI site filter"
   },
   "extDescription": {
-    "message": "Local AI-builder evidence and optional search filtering."
+    "message": "Less AI in search: optionally hide AI answers and likely AI-built results, with local builder evidence for each page."
   }
 }

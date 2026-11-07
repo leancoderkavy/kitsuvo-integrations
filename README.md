@@ -41,6 +41,8 @@ No Kitsuvo account or API key is needed for local browsing and detection.
 
 ## Additional clients
 
+[Grok Bot setup](docs/grok-bot.md) provides copyable connection and first-task requests, troubleshooting and disconnect steps.
+
 [Agent compatibility](docs/agent-compatibility.md) includes Grok Bot remote
 setup, client-specific configuration generation and the function-tool adapter.
 These sources do not establish a live connection in every named host.

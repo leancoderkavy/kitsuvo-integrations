@@ -27,10 +27,29 @@
       "inputSchema": {
         "type": "object",
         "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
           "client": {
             "type": "string"
           },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
           "model": {
+            "type": "string"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
             "type": "string"
           },
           "provider": {
@@ -72,25 +91,6 @@
               "object",
               "null"
             ]
-          },
-          "browser": {
-            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
-            "type": "string"
-          },
-          "max_chars": {
-            "maximum": 400000,
-            "minimum": 2000,
-            "type": "integer"
-          },
-          "output": {
-            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
-            "enum": [
-              "full",
-              "changed",
-              "viewport",
-              "none"
-            ],
-            "type": "string"
           }
         },
         "required": []
@@ -115,6 +115,10 @@
       "inputSchema": {
         "type": "object",
         "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
           "keep_tabs": {
             "description": "Created result tabs to leave open for the user; omitted means close all created tabs.",
             "items": {
@@ -122,14 +126,6 @@
               "type": "integer"
             },
             "type": "array"
-          },
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
-          "browser": {
-            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
-            "type": "string"
           },
           "max_chars": {
             "maximum": 400000,
@@ -145,6 +141,10 @@
               "none"
             ],
             "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
           }
         },
         "required": []
@@ -169,18 +169,6 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
-          "timeout_ms": {
-            "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
-            "type": "integer"
-          },
-          "url": {
-            "description": "http(s) address; a bare host gets https.",
-            "type": "string"
-          },
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
             "type": "string"
@@ -198,6 +186,18 @@
               "viewport",
               "none"
             ],
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "timeout_ms": {
+            "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
+            "type": "integer"
+          },
+          "url": {
+            "description": "http(s) address; a bare host gets https.",
             "type": "string"
           }
         },
@@ -285,10 +285,6 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
             "type": "string"
@@ -307,6 +303,10 @@
               "none"
             ],
             "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
           }
         },
         "required": []
@@ -391,10 +391,6 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
             "type": "string"
@@ -413,6 +409,10 @@
               "none"
             ],
             "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
           }
         },
         "required": []
@@ -497,10 +497,6 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
             "type": "string"
@@ -519,6 +515,10 @@
               "none"
             ],
             "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
           }
         },
         "required": []
@@ -603,21 +603,13 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "max_chars": {
-            "description": "Size limit for the snapshot (default 30000).",
-            "type": "integer"
-          },
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
-          "viewport_only": {
-            "description": "Only what is on screen, to save tokens.",
-            "type": "boolean"
-          },
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
             "type": "string"
+          },
+          "max_chars": {
+            "description": "Size limit for the snapshot (default 30000).",
+            "type": "integer"
           },
           "output": {
             "default": "full",
@@ -627,6 +619,14 @@
               "viewport"
             ],
             "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "viewport_only": {
+            "description": "Only what is on screen, to save tokens.",
+            "type": "boolean"
           }
         },
         "required": []
@@ -651,28 +651,6 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "element": {
-            "description": "Human-readable description of the element, for the log.",
-            "type": "string"
-          },
-          "ref": {
-            "description": "Element ref from the latest snapshot, such as \"e12\".",
-            "type": "string"
-          },
-          "settle_ms": {
-            "description": "Explicit legacy navigation grace (auto readiness is the default). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
-            "maximum": 2000,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
-          "timeout_ms": {
-            "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
-            "type": "integer"
-          },
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
             "type": "string"
@@ -680,6 +658,10 @@
           "document_id": {
             "description": "Optional document identity from the snapshot. Rejects a stale document before input; MCP automatically uses the last snapshot identity for this tab.",
             "maxLength": 128,
+            "type": "string"
+          },
+          "element": {
+            "description": "Human-readable description of the element, for the log.",
             "type": "string"
           },
           "max_chars": {
@@ -705,6 +687,24 @@
               "navigation"
             ],
             "type": "string"
+          },
+          "ref": {
+            "description": "Element ref from the latest snapshot, such as \"e12\".",
+            "type": "string"
+          },
+          "settle_ms": {
+            "description": "Explicit legacy navigation grace (auto readiness is the default). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
+            "maximum": 2000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "timeout_ms": {
+            "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
+            "type": "integer"
           },
           "wait_until": {
             "description": "Wait for all supplied page predicates after the action; takes precedence over auto navigation hints.",
@@ -806,12 +806,45 @@
       "inputSchema": {
         "type": "object",
         "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
           "clear": {
             "description": "Replace the current text (default true).",
             "type": "boolean"
           },
+          "document_id": {
+            "description": "Optional document identity from the snapshot. Rejects a stale document before input; MCP automatically uses the last snapshot identity for this tab.",
+            "maxLength": 128,
+            "type": "string"
+          },
           "element": {
             "description": "Human-readable description of the element, for the log.",
+            "type": "string"
+          },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "output": {
+            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
+            "enum": [
+              "full",
+              "changed",
+              "viewport",
+              "none"
+            ],
+            "type": "string"
+          },
+          "readiness": {
+            "description": "auto waits for direct navigation or loading; ack returns observed state; navigation waits for a new page.",
+            "enum": [
+              "auto",
+              "ack",
+              "navigation"
+            ],
             "type": "string"
           },
           "ref": {
@@ -838,39 +871,6 @@
           "timeout_ms": {
             "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
             "type": "integer"
-          },
-          "browser": {
-            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
-            "type": "string"
-          },
-          "document_id": {
-            "description": "Optional document identity from the snapshot. Rejects a stale document before input; MCP automatically uses the last snapshot identity for this tab.",
-            "maxLength": 128,
-            "type": "string"
-          },
-          "max_chars": {
-            "maximum": 400000,
-            "minimum": 2000,
-            "type": "integer"
-          },
-          "output": {
-            "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
-            "enum": [
-              "full",
-              "changed",
-              "viewport",
-              "none"
-            ],
-            "type": "string"
-          },
-          "readiness": {
-            "description": "auto waits for direct navigation or loading; ack returns observed state; navigation waits for a new page.",
-            "enum": [
-              "auto",
-              "ack",
-              "navigation"
-            ],
-            "type": "string"
           },
           "wait_until": {
             "description": "Wait for all supplied page predicates after the action; takes precedence over auto navigation hints.",
@@ -973,23 +973,6 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "key": {
-            "type": "string"
-          },
-          "settle_ms": {
-            "description": "Explicit legacy navigation grace (auto readiness is the default). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
-            "maximum": 2000,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
-          "timeout_ms": {
-            "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
-            "type": "integer"
-          },
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
             "type": "string"
@@ -997,6 +980,9 @@
           "document_id": {
             "description": "Optional document identity from the snapshot. Rejects a stale document before input; MCP automatically uses the last snapshot identity for this tab.",
             "maxLength": 128,
+            "type": "string"
+          },
+          "key": {
             "type": "string"
           },
           "max_chars": {
@@ -1022,6 +1008,20 @@
               "navigation"
             ],
             "type": "string"
+          },
+          "settle_ms": {
+            "description": "Explicit legacy navigation grace (auto readiness is the default). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
+            "maximum": 2000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "timeout_ms": {
+            "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
+            "type": "integer"
           },
           "wait_until": {
             "description": "Wait for all supplied page predicates after the action; takes precedence over auto navigation hints.",
@@ -1123,30 +1123,6 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "element": {
-            "description": "Human-readable description of the element, for the log.",
-            "type": "string"
-          },
-          "ref": {
-            "description": "Element ref from the latest snapshot, such as \"e12\".",
-            "type": "string"
-          },
-          "settle_ms": {
-            "description": "Explicit legacy navigation grace (auto readiness is the default). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
-            "maximum": 2000,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
-          "values": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
             "type": "string"
@@ -1154,6 +1130,10 @@
           "document_id": {
             "description": "Optional document identity from the snapshot. Rejects a stale document before input; MCP automatically uses the last snapshot identity for this tab.",
             "maxLength": 128,
+            "type": "string"
+          },
+          "element": {
+            "description": "Human-readable description of the element, for the log.",
             "type": "string"
           },
           "max_chars": {
@@ -1179,6 +1159,26 @@
               "navigation"
             ],
             "type": "string"
+          },
+          "ref": {
+            "description": "Element ref from the latest snapshot, such as \"e12\".",
+            "type": "string"
+          },
+          "settle_ms": {
+            "description": "Explicit legacy navigation grace (auto readiness is the default). Use 0 for known non-navigating form edits to avoid the grace delay. For asynchronous results, call browser_wait_for afterward. Keep the default when navigation or popups may occur.",
+            "maximum": 2000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "wait_until": {
             "description": "Wait for all supplied page predicates after the action; takes precedence over auto navigation hints.",
@@ -1281,18 +1281,6 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "element": {
-            "description": "Human-readable description of the element, for the log.",
-            "type": "string"
-          },
-          "ref": {
-            "description": "Element ref from the latest snapshot, such as \"e12\".",
-            "type": "string"
-          },
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
             "type": "string"
@@ -1300,6 +1288,10 @@
           "document_id": {
             "description": "Optional document identity from the snapshot. Rejects a stale document before input; MCP automatically uses the last snapshot identity for this tab.",
             "maxLength": 128,
+            "type": "string"
+          },
+          "element": {
+            "description": "Human-readable description of the element, for the log.",
             "type": "string"
           },
           "max_chars": {
@@ -1325,6 +1317,14 @@
               "navigation"
             ],
             "type": "string"
+          },
+          "ref": {
+            "description": "Element ref from the latest snapshot, such as \"e12\".",
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
           },
           "wait_until": {
             "description": "Wait for all supplied page predicates after the action; takes precedence over auto navigation hints.",
@@ -1426,6 +1426,10 @@
       "inputSchema": {
         "type": "object",
         "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
           "ref": {
             "description": "Element ref from the latest snapshot, such as \"e12\".",
             "type": "string"
@@ -1447,10 +1451,6 @@
           "timeout_ms": {
             "description": "How long to wait for the page to settle, in milliseconds (default 30000).",
             "type": "integer"
-          },
-          "browser": {
-            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
-            "type": "string"
           }
         },
         "required": []
@@ -1488,14 +1488,6 @@
             "description": "For new: defaults true. For select: true selects for this session without switching the visible browser tab; defaults false.",
             "type": "boolean"
           },
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
-          "url": {
-            "description": "For new: the address to open.",
-            "type": "string"
-          },
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
             "type": "string"
@@ -1517,6 +1509,14 @@
               "viewport",
               "none"
             ],
+            "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "url": {
+            "description": "For new: the address to open.",
             "type": "string"
           }
         },
@@ -1544,16 +1544,12 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "full_page": {
-            "type": "boolean"
-          },
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
             "type": "string"
+          },
+          "full_page": {
+            "type": "boolean"
           },
           "max_bytes": {
             "default": 2097152,
@@ -1571,6 +1567,10 @@
             "default": 1600,
             "maximum": 8192,
             "minimum": 256,
+            "type": "integer"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
             "type": "integer"
           }
         },
@@ -1596,15 +1596,11 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "expression": {
-            "type": "string"
-          },
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
+          "expression": {
             "type": "string"
           },
           "max_chars": {
@@ -1621,6 +1617,10 @@
               "none"
             ],
             "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
           }
         },
         "required": [
@@ -1647,6 +1647,10 @@
       "inputSchema": {
         "type": "object",
         "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
           "max_chars": {
             "description": "Size limit (default 40000).",
             "type": "integer"
@@ -1654,10 +1658,6 @@
           "tab": {
             "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
             "type": "integer"
-          },
-          "browser": {
-            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
-            "type": "string"
           }
         },
         "required": []
@@ -1682,6 +1682,10 @@
       "inputSchema": {
         "type": "object",
         "properties": {
+          "browser": {
+            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
+            "type": "string"
+          },
           "device": {
             "description": "Device id, such as \"iphone-16\".",
             "type": "string"
@@ -1694,6 +1698,11 @@
             "description": "Rotate a device to landscape.",
             "type": "boolean"
           },
+          "max_chars": {
+            "maximum": 400000,
+            "minimum": 2000,
+            "type": "integer"
+          },
           "mobile": {
             "description": "Mobile user agent on Windows/macOS; also touch and mobile viewport emulation on Windows. Defaults to on for phones and tablets. Custom sizes use Android phone/tablet identity by width.",
             "type": "boolean"
@@ -1701,23 +1710,6 @@
           "off": {
             "description": "Leave responsive mode and fill the window again.",
             "type": "boolean"
-          },
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
-          "width": {
-            "description": "Custom width in CSS pixels (200-3840), with height.",
-            "type": "integer"
-          },
-          "browser": {
-            "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
-            "type": "string"
-          },
-          "max_chars": {
-            "maximum": 400000,
-            "minimum": 2000,
-            "type": "integer"
           },
           "output": {
             "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
@@ -1728,6 +1720,14 @@
               "none"
             ],
             "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
+          },
+          "width": {
+            "description": "Custom width in CSS pixels (200-3840), with height.",
+            "type": "integer"
           }
         },
         "required": []
@@ -1752,13 +1752,13 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "tab": {
-            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
-            "type": "integer"
-          },
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
             "type": "string"
+          },
+          "tab": {
+            "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
+            "type": "integer"
           }
         },
         "required": []
@@ -1844,6 +1844,7 @@
       },
       "description": "Scroll the document, or a container ref, by CSS pixels or to top/bottom. Returns observed position and a fresh snapshot. DOM scrolling; custom wheel-only widgets may require page scripting.",
       "inputSchema": {
+        "type": "object",
         "properties": {
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
@@ -1919,8 +1920,7 @@
             "type": "object"
           }
         },
-        "required": [],
-        "type": "object"
+        "required": []
       },
       "name": "browser_scroll",
       "title": "Scroll page or container",
@@ -2000,6 +2000,7 @@
       },
       "description": "Synthetic HTML drag/drop between distinct refs in the same document. Source must be draggable; target must accept dragover. Refuses covered targets. Does not emulate trusted pointer drags, cross-document drags or OS file drops. Inspect state to verify the site's outcome.",
       "inputSchema": {
+        "type": "object",
         "properties": {
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
@@ -2065,8 +2066,7 @@
         "required": [
           "source_ref",
           "target_ref"
-        ],
-        "type": "object"
+        ]
       },
       "name": "browser_drag_and_drop",
       "title": "Drag an HTML element",
@@ -2146,6 +2146,7 @@
       },
       "description": "Set 0-8 client-supplied files on a file input by snapshot ref or unique CSS selector (including a hidden input). Exactly one ref/selector is required. Standard base64; 96 KiB per file and 128 KiB total raw bytes, portable across current transport body limits. Empty files array clears selection. Dispatches synthetic input/change; the site may upload immediately. Never reads local paths or opens the OS chooser. This confirms selection, not server receipt.",
       "inputSchema": {
+        "type": "object",
         "properties": {
           "browser": {
             "description": "Exact browser target copied from Kitsuvo or returned by browser_attach/browser_windows. Include on EVERY call in a targeted conversation, including status, tabs, controller and cleanup. Keeps window and chat selections isolated even when clients share an MCP connection.",
@@ -2238,8 +2239,7 @@
         },
         "required": [
           "files"
-        ],
-        "type": "object"
+        ]
       },
       "name": "browser_upload_file",
       "title": "Set files on an upload input",
@@ -2319,6 +2319,7 @@
       },
       "description": "List, explicitly add or remove bookmark links within one supplied origin in this selected profile. Bounded metadata only; does not expose folders, saved-page contents, other origins, private or sensitive entries. Adds canonical URLs without fragments. Remove requires an exact returned bookmark id and matching origin; cannot remove folders.",
       "inputSchema": {
+        "type": "object",
         "properties": {
           "action": {
             "enum": [
@@ -2383,8 +2384,7 @@
         "required": [
           "action",
           "origin"
-        ],
-        "type": "object"
+        ]
       },
       "name": "browser_bookmarks",
       "title": "Manage scoped bookmarks",
@@ -2404,6 +2404,7 @@
       },
       "description": "List bounded URL/title/visit metadata for one explicitly supplied origin, or delete one exact URL's recorded history. Never returns saved content or the whole profile. Sensitive/authentication URLs stay excluded even when sensitive page interaction is allowed. No bulk deletion.",
       "inputSchema": {
+        "type": "object",
         "properties": {
           "action": {
             "enum": [
@@ -2459,8 +2460,7 @@
         "required": [
           "action",
           "origin"
-        ],
-        "type": "object"
+        ]
       },
       "name": "browser_history",
       "title": "Read or delete scoped history",
@@ -2480,6 +2480,7 @@
       },
       "description": "List persisted normal-profile download metadata for one origin, or forget one finished record by returned id. No paths, file bytes, private downloads, file deletion, opening, execution or transfer cancellation. Start downloads with the page's normal link/button and inspect these records afterward. Recently starting downloads may not yet have a stored id.",
       "inputSchema": {
+        "type": "object",
         "properties": {
           "action": {
             "enum": [
@@ -2535,8 +2536,7 @@
         "required": [
           "action",
           "origin"
-        ],
-        "type": "object"
+        ]
       },
       "name": "browser_downloads",
       "title": "Inspect scoped download records",
@@ -2554,13 +2554,20 @@
         "openWorldHint": true,
         "readOnlyHint": false
       },
-      "description": "Get the allowed appearance/performance/filter preferences or atomically apply an explicit patch. Only theme, performance_mode, block_ai, block_ai_content, block_ai_media, block_ai_images, serp_snippet_filter and spoof_warn. Does not expose account/model secrets or permit assistant access, sensitive-page, remote, network, telemetry or release settings. Never change a preference without a user request.",
+      "description": "Catalog all profile settings with types, current values and prerequisites. get returns direct preferences; set validates and applies an explicit ordinary patch. Access, network and data settings require prepare, native user review, then apply with review_id. review reads approval status. setup requests native review of a cataloged setup operation with parameters; apply starts it after approval, and setup_status reads its operation_id receipt. Tool arguments cannot approve changes. Stop and scoped task grants remain enforced. Secrets and complex private data are redacted. Check applied and persisted independently; some native settings require reload or new tabs. Never change settings without a user request.",
       "inputSchema": {
+        "type": "object",
         "properties": {
           "action": {
             "enum": [
               "get",
-              "set"
+              "catalog",
+              "set",
+              "prepare",
+              "review",
+              "apply",
+              "setup",
+              "setup_status"
             ],
             "type": "string"
           },
@@ -2573,6 +2580,15 @@
             "minimum": 2000,
             "type": "integer"
           },
+          "operation": {
+            "maxLength": 96,
+            "type": "string"
+          },
+          "operation_id": {
+            "maxLength": 48,
+            "minLength": 48,
+            "type": "string"
+          },
           "output": {
             "description": "Action output. Full snapshot by default. Changed sends only differences from this session's prior snapshot. None skips snapshot extraction; call browser_snapshot before using new refs.",
             "enum": [
@@ -2583,38 +2599,441 @@
             ],
             "type": "string"
           },
+          "parameters": {
+            "type": "object"
+          },
           "patch": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
-            "maxProperties": 8,
+            "maxProperties": 64,
             "minProperties": 1,
             "properties": {
+              "agent_background": {
+                "description": "Prevent Agent mode from taking foreground focus automatically.",
+                "type": "boolean",
+                "x-mcp-access": "direct"
+              },
+              "ai_chat_enabled": {
+                "description": "Configure ai chat enabled.",
+                "type": "boolean",
+                "x-mcp-access": "review"
+              },
+              "ai_filter_level": {
+                "description": "Broader local policy, including scores without builder fingerprints.",
+                "enum": [
+                  "evidence",
+                  "likely",
+                  "possible"
+                ],
+                "type": "string",
+                "x-mcp-access": "direct"
+              },
+              "assistant_access": {
+                "description": "Make this profile available to authenticated local assistants. Sensitive pages are accessible by default; private tabs stay protected.",
+                "type": "boolean",
+                "x-mcp-access": "review"
+              },
+              "auto_cleanup": {
+                "description": "Remove data nobody can use (icons of forgotten sites, dead download entries, old crash dumps, leftover installers) and compact the profile database, a little after each launch (`cleanup.rs`). Never touches history, bookmarks, cookies or anything else the user keeps.",
+                "type": "boolean",
+                "x-mcp-access": "review"
+              },
+              "auto_update": {
+                "description": "Check kitsuvo.com for a new version once a day and download it. On for new profiles; saved choices persist. Local only blocks it.",
+                "type": "boolean",
+                "x-mcp-access": "review"
+              },
+              "autofill_extensions": {
+                "description": "Enable password-manager extensions in the personal Windows profile after restarting. Isolated agent and private profiles do not load extensions. macOS uses system AutoFill instead.",
+                "type": "boolean",
+                "x-application": "after_restart",
+                "x-mcp-access": "review",
+                "x-platforms": [
+                  "windows"
+                ]
+              },
               "block_ai": {
-                "type": "boolean"
+                "description": "Hide pages and search results whose verdict is \"Likely AI-built\".",
+                "type": "boolean",
+                "x-mcp-access": "direct"
               },
               "block_ai_content": {
-                "type": "boolean"
+                "description": "Configure block ai content.",
+                "type": "boolean",
+                "x-mcp-access": "direct"
               },
               "block_ai_images": {
-                "type": "boolean"
+                "description": "Hide image-search tiles whose source host has a local AI verdict. Off by default while image-result selectors and list provenance mature.",
+                "type": "boolean",
+                "x-mcp-access": "direct"
               },
               "block_ai_media": {
-                "type": "boolean"
+                "description": "Configure block ai media.",
+                "type": "boolean",
+                "x-mcp-access": "direct"
+              },
+              "browser_plugin": {
+                "description": "Configure browser plugin. Configure through the matching reviewed setup workflow; raw object patches are refused.",
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "x-mcp-access": "workflow"
+              },
+              "canvas_layout": {
+                "description": "Explicitly saved, validated canvas appearance only; no generated document. Configure through the matching reviewed setup workflow; raw object patches are refused.",
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "x-mcp-access": "workflow"
+              },
+              "chat_connection": {
+                "additionalProperties": false,
+                "description": "Configure chat connection.",
+                "properties": {
+                  "endpoint": {
+                    "maxLength": 512,
+                    "type": "string"
+                  },
+                  "model": {
+                    "maxLength": 128,
+                    "type": "string"
+                  },
+                  "runtime": {
+                    "enum": [
+                      "ollama",
+                      "openai_compatible",
+                      "built_in"
+                    ],
+                    "type": "string"
+                  },
+                  "trust_local_server": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "runtime",
+                  "endpoint",
+                  "model",
+                  "trust_local_server"
+                ],
+                "type": "object",
+                "x-mcp-access": "review"
+              },
+              "claude_auto": {
+                "description": "Ask Claude on every page automatically (otherwise on demand).",
+                "type": "boolean",
+                "x-mcp-access": "review"
+              },
+              "coding_session_plugin": {
+                "description": "Configure coding session plugin. Configure through the matching reviewed setup workflow; raw object patches are refused.",
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "x-mcp-access": "workflow"
+              },
+              "community_lists": {
+                "description": "Opt in to locally supplied uBlacklist community rules. Off by default; this first slice does not fetch or persist list contents.",
+                "type": "boolean",
+                "x-mcp-access": "review"
+              },
+              "content_search": {
+                "description": "Opt-in local indexing of public page text for history search.",
+                "type": "boolean",
+                "x-mcp-access": "review"
+              },
+              "custom_search_url": {
+                "description": "HTTPS search URL containing exactly one {query} in the query string, without credentials or fragment.",
+                "maxLength": 2048,
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "x-mcp-access": "review"
+              },
+              "developer_tools": {
+                "description": "Developer tools (F12, Inspect) on content tabs, on by default as in other browsers. Open tabs pick it up on their next load on Windows; on macOS it reaches tabs opened afterwards.",
+                "type": "boolean",
+                "x-mcp-access": "direct"
+              },
+              "explain_engine": {
+                "description": "Engine behind \"Ask ... why\".",
+                "enum": [
+                  "local",
+                  "claude",
+                  "openai"
+                ],
+                "type": "string",
+                "x-mcp-access": "direct"
+              },
+              "history_enabled": {
+                "description": "Record visited pages in local history.",
+                "type": "boolean",
+                "x-mcp-access": "review"
+              },
+              "interface_language": {
+                "description": "Configure interface language.",
+                "enum": [
+                  "system",
+                  "en",
+                  "es",
+                  "fr",
+                  "de",
+                  "it",
+                  "pt",
+                  "nl",
+                  "pl",
+                  "ru",
+                  "uk",
+                  "tr",
+                  "ar",
+                  "fa",
+                  "he",
+                  "ur",
+                  "hi",
+                  "bn",
+                  "ta",
+                  "te",
+                  "mr",
+                  "id",
+                  "ms",
+                  "vi",
+                  "th",
+                  "zh-Hans",
+                  "zh-Hant",
+                  "ja",
+                  "ko",
+                  "sv",
+                  "sw",
+                  "ro"
+                ],
+                "maxLength": 2048,
+                "type": "string",
+                "x-mcp-access": "direct"
+              },
+              "jev_auto": {
+                "description": "Run Jev on every page automatically. Off by default: it sends a digest of every page to a cloud model without the user asking.",
+                "type": "boolean",
+                "x-mcp-access": "review"
+              },
+              "kitsuvo_search": {
+                "description": "Kitsuvo Search: results pages drawn by Kitsuvo and ranked on this computer (`search.rs`). Off leaves the engine's own layout.",
+                "type": "boolean",
+                "x-mcp-access": "direct"
+              },
+              "learn_from_corrections": {
+                "description": "Let the user's AI-built corrections raise the Likely line for pages without a builder fingerprint (`learning.rs`).",
+                "type": "boolean",
+                "x-mcp-access": "direct"
+              },
+              "local_auto": {
+                "description": "Use the chosen Ollama text model automatically in normal public tabs.",
+                "type": "boolean",
+                "x-mcp-access": "review",
+                "x-prerequisites": [
+                  "An installed local text model; private and sign-in pages are excluded."
+                ]
+              },
+              "local_model": {
+                "description": "Ollama model tag for written verdicts on this computer (\"qwen3:4b\").",
+                "maxLength": 128,
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "x-mcp-access": "direct"
+              },
+              "local_only": {
+                "description": "Refuse even the AI engines the user connected: nothing Kitsuvo itself sends leaves this computer. Pages still load, and loopback (a local model) stays allowed. See `net`.",
+                "type": "boolean",
+                "x-mcp-access": "review"
+              },
+              "local_vision_model": {
+                "description": "Optional, separately selected vision-capable Ollama model.",
+                "maxLength": 128,
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "x-mcp-access": "direct",
+                "x-prerequisites": [
+                  "An installed, verified vision-capable Ollama model."
+                ]
+              },
+              "openai_model": {
+                "description": "OpenAI model slug; `None` picks the first listed model.",
+                "maxLength": 128,
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "x-mcp-access": "direct"
+              },
+              "openai_source": {
+                "description": "Which OpenAI credential the OpenAI engine uses.",
+                "enum": [
+                  "auto",
+                  "chatgpt_plan",
+                  "api_key"
+                ],
+                "type": "string",
+                "x-mcp-access": "direct"
               },
               "performance_mode": {
+                "description": "Configure performance mode.",
                 "enum": [
                   "eco",
                   "balanced",
                   "performance"
                 ],
-                "type": "string"
+                "type": "string",
+                "x-mcp-access": "direct"
+              },
+              "pinterest_ai_labels": {
+                "description": "Hide Pins that carry Pinterest's own \"AI modified\" label. Off by default.",
+                "type": "boolean",
+                "x-mcp-access": "direct"
+              },
+              "quiet_reddit": {
+                "description": "Configure quiet reddit.",
+                "type": "boolean",
+                "x-mcp-access": "direct"
+              },
+              "quiet_youtube": {
+                "description": "Configure quiet youtube.",
+                "type": "boolean",
+                "x-mcp-access": "direct"
+              },
+              "qwen_chat_enabled": {
+                "description": "Configure qwen chat enabled.",
+                "type": "boolean",
+                "x-mcp-access": "review"
+              },
+              "qwen_chat_plugin": {
+                "description": "Configure qwen chat plugin. Configure through the matching reviewed setup workflow; raw object patches are refused.",
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "x-mcp-access": "workflow"
+              },
+              "read_auto": {
+                "description": "Open Kitsuvo's read by itself only for pages scored 40 or more and results pages with hidden results; fold it on the rest (`readpane.js`).",
+                "type": "boolean",
+                "x-mcp-access": "direct"
+              },
+              "reader_style": {
+                "description": "Configure reader style.",
+                "type": "boolean",
+                "x-mcp-access": "direct"
+              },
+              "remote_access": {
+                "description": "Assistants on other computers may use the isolated agent profile through the Kitsuvo MCP relay. Off by default.",
+                "type": "boolean",
+                "x-mcp-access": "review",
+                "x-prerequisites": [
+                  "Local only off",
+                  "Each remote assistant identity approved separately in native UI",
+                  "Remote access remains on the isolated agent profile"
+                ]
+              },
+              "restore_session": {
+                "description": "Reopen unpinned tabs from the last session. Pinned tabs always return.",
+                "type": "boolean",
+                "x-mcp-access": "review"
+              },
+              "search_engine": {
+                "description": "Where address-bar searches go.",
+                "enum": [
+                  "duckduckgo",
+                  "google",
+                  "bing"
+                ],
+                "type": "string",
+                "x-mcp-access": "direct"
+              },
+              "search_source": {
+                "description": "Where Kitsuvo Search gets results. Brave needs the user's own key and is skipped under Local only.",
+                "enum": [
+                  "engine",
+                  "brave"
+                ],
+                "type": "string",
+                "x-mcp-access": "review",
+                "x-prerequisites": {
+                  "brave": [
+                    "User-supplied Brave Search key",
+                    "Local only off"
+                  ]
+                }
               },
               "serp_snippet_filter": {
-                "type": "boolean"
+                "description": "Opt-in SERP snippet labels; off by default and never hides results.",
+                "type": "boolean",
+                "x-mcp-access": "direct"
+              },
+              "sidebar_dock": {
+                "description": "Where the sidebar sits: docked on either side, or in its own window.",
+                "enum": [
+                  "left",
+                  "right",
+                  "window"
+                ],
+                "type": "string",
+                "x-mcp-access": "direct"
+              },
+              "sleep_after_minutes": {
+                "description": "Idle minutes before a background page releases its renderer, on both OSes.",
+                "enum": [
+                  5,
+                  15,
+                  30,
+                  60
+                ],
+                "minimum": 0,
+                "type": "integer",
+                "x-mcp-access": "direct"
+              },
+              "sleep_tabs": {
+                "description": "Put tabs to sleep after they have been in the background for a while: the page is closed to free memory and reloads when the tab is shown.",
+                "type": "boolean",
+                "x-mcp-access": "direct"
               },
               "spoof_warn": {
-                "type": "boolean"
+                "description": "Warn before showing a page that likely impersonates a brand or asks visitors to run a command. Also lets sign-in pages be checked for impersonation on this computer; with it off they are skipped unread.",
+                "type": "boolean",
+                "x-mcp-access": "direct"
+              },
+              "streaming_channel": {
+                "description": "Configure streaming channel.",
+                "maxLength": 25,
+                "type": "string",
+                "x-mcp-access": "direct"
+              },
+              "streaming_cover": {
+                "description": "Configure streaming cover.",
+                "type": "boolean",
+                "x-mcp-access": "review"
+              },
+              "streaming_mode": {
+                "description": "Configure streaming mode.",
+                "type": "boolean",
+                "x-mcp-access": "review"
+              },
+              "tab_sidebar_width": {
+                "description": "Preferred expanded tab-rail width in CSS pixels; None keeps the adaptive default.",
+                "maximum": 640,
+                "minimum": 240,
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "x-mcp-access": "direct"
               },
               "theme": {
+                "description": "Configure theme.",
                 "enum": [
                   "system",
                   "washi",
@@ -2623,10 +3042,37 @@
                   "moss",
                   "sakura"
                 ],
-                "type": "string"
+                "type": "string",
+                "x-mcp-access": "direct",
+                "x-prerequisites": {
+                  "autumn": "Kitsuvo Plus",
+                  "moss": "Kitsuvo Plus",
+                  "sakura": "Kitsuvo Plus"
+                }
+              },
+              "youtube_ai_allowed_channels": {
+                "description": "Channels (`@handle` or `UC…` id, lowercase) whose AI-labeled videos stay visible.",
+                "items": {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array",
+                "x-mcp-access": "direct"
+              },
+              "youtube_ai_labels": {
+                "description": "Hide YouTube videos that carry YouTube's own AI disclosure label. Off by default.",
+                "type": "boolean",
+                "x-mcp-access": "direct"
               }
             },
+            "title": "Kitsuvo profile settings patch",
             "type": "object"
+          },
+          "review_id": {
+            "maxLength": 48,
+            "minLength": 48,
+            "type": "string"
           },
           "tab": {
             "description": "Tab number from browser_tabs. Defaults to this MCP session's selected tab. An explicit tab updates that selection. A closed selection produces an error; select or open a tab to recover.",
@@ -2635,8 +3081,7 @@
         },
         "required": [
           "action"
-        ],
-        "type": "object"
+        ]
       },
       "name": "browser_preferences",
       "title": "Read or change browser preferences",

@@ -7,6 +7,10 @@ detection-evidence, and responsive-check skills. The logo and icons are copies
 of the existing Kitsuvo assets, with the brand's Vermilion accent. No API key is
 needed for local browser automation or local detection.
 
+## Grok Bot
+
+Use the [Grok Bot setup guide](grok-bot.md) to connect your own desktop browser through the existing OAuth relay. It includes a copyable connection request, a real-tool connection check and disconnect steps. The local stdio plugin cannot reach your computer from the Bot's cloud computer. Live Grok Bot qualification remains separate from configuration generation.
+
 ## More clients and install bundles
 
 Grok Bot uses the remote URL with OAuth, not a local executable on its cloud

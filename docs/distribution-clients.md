@@ -10,6 +10,8 @@ The client receives requested page text, screenshots and reports. No API key
 is needed for local automation. These installation sources do not establish
 public directory approval or tested compatibility in every client.
 
+For a step-by-step Grok Bot connection, use the [Grok Bot guide](grok-bot.md). It uses the existing remote configuration generator; no local plugin is required in the Bot's cloud environment.
+
 ## Local clients
 
 For a visual browser inside ChatGPT, Claude, Cursor, or T3 Code, use the

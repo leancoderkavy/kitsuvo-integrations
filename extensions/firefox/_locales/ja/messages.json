@@ -3,6 +3,6 @@
     "message": "Kitsuvo — AI site filter"
   },
   "extDescription": {
-    "message": "AI ビルダーに関するローカルの証拠と、任意の検索フィルタリング。"
+    "message": "検索で見かける AI を減らします。AI 回答と AI で作られた可能性が高い結果を任意で非表示にし、AI ビルダーの証拠をローカルで示します。"
   }
 }

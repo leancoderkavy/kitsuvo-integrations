@@ -3,6 +3,6 @@
     "message": "Kitsuvo — AI site filter"
   },
   "extDescription": {
-    "message": "Indizi locali sui builder IA e filtro di ricerca facoltativo."
+    "message": "Meno IA nella ricerca: nascondi in modo facoltativo risposte IA e risultati probabilmente creati con IA, con indizi locali."
   }
 }
