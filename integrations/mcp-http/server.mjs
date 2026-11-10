@@ -41,7 +41,7 @@ const icons = [{ src: `data:image/png;base64,${readFileSync(new URL('./icon-256.
 export function createAppServer(backend, serialize = (operation, options) => operation(options?.signal), { forwardSessions = false } = {}) {
   const session = randomUUID();
   const server = new Server(
-    { name: 'kitsuvo', title: 'Kitsuvo', version: '0.2.6',
+    { name: 'kitsuvo', title: 'Kitsuvo', version: '0.2.7',
       icons },
     { capabilities: { tools: {}, resources: {} },
       instructions: `${backend.getInstructions?.() || browserInstructions + managementInstructions}\nCall kitsuvo_browser to display the interactive browser inside chat. Native tools remain available for automation.` },
@@ -92,19 +92,49 @@ function bridgeToken(value) {
   if (!tokenPattern.test(value || '')) throw new Error('HTTP access requires KITSUVO_MCP_TOKEN: a private 32-byte base64url credential. Configure the same bearer credential in your MCP client or tunnel. Stdio does not require it.');
   return value;
 }
+// Extra Host values for a private-network proxy (for example tailscale serve) that
+// forwards the original hostname. Each entry is a DNS name with an optional port;
+// a bare name means the HTTPS default port 443. Matching is exact. The bridge still
+// listens only on 127.0.0.1 and still requires the bearer credential.
+const hostLabel = /^(?!-)[a-z0-9-]{1,63}(?<!-)$/;
+export function parseAllowedHosts(value) {
+  if (value === undefined || value.trim() === '') return [];
+  const entries = value.split(',').map(entry => entry.trim().toLowerCase()).filter(Boolean);
+  if (entries.length > 8) throw new Error('KITSUVO_MCP_ALLOWED_HOSTS accepts at most 8 hostnames.');
+  return entries.flatMap(entry => {
+    const match = /^([^:]+)(?::(\d{1,5}))?$/.exec(entry);
+    const name = match?.[1].replace(/\.$/, '') ?? '';
+    const labels = name.split('.');
+    const port = match?.[2] === undefined ? 443 : Number(match[2]);
+    if (!match || name.length > 253 || labels.length < 2 || !labels.every(label => hostLabel.test(label)) || /^\d+$/.test(labels.at(-1)) || port < 1 || port > 65535) {
+      throw new Error(`KITSUVO_MCP_ALLOWED_HOSTS entry "${entry}" must be a DNS hostname with an optional port, such as my-mac.example-tailnet.ts.net:8788. Wildcards, IP addresses, schemes and paths are not accepted.`);
+    }
+    return port === 443 ? [name, `${name}:443`] : [`${name}:${port}`];
+  });
+}
+// Lowercase and drop one trailing dot from the hostname, keeping any port.
+const normalHost = value => typeof value === 'string' ? value.toLowerCase().replace(/\.(?=(?::\d+)?$)/, '') : '';
+
 export function readConfig(env = process.env) {
   const port = Number(env.KITSUVO_MCP_PORT ?? 8787);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error('KITSUVO_MCP_PORT must be an integer between 1 and 65535.');
   }
   if (env.KITSUVO_MCP_TOKEN !== undefined) bridgeToken(env.KITSUVO_MCP_TOKEN);
-  return { port, binary: env.KITSUVO_BINARY || 'kitsuvo', headless: env.KITSUVO_HEADLESS === '1', token: env.KITSUVO_MCP_TOKEN };
+  // Parsed here but enforced only when serving HTTP, so stdio setups never fail on it.
+  let allowedHosts = [], allowedHostsError;
+  try { allowedHosts = parseAllowedHosts(env.KITSUVO_MCP_ALLOWED_HOSTS); } catch (error) { allowedHostsError = error.message; }
+  return { port, binary: env.KITSUVO_BINARY || 'kitsuvo', headless: env.KITSUVO_HEADLESS === '1', token: env.KITSUVO_MCP_TOKEN, allowedHosts, allowedHostsError };
 }
 
-export function createBridge(backend, { port = 8787, embed = false, token, createBackend, ...sessionOptions } = {}) {
+export function createBridge(backend, { port = 8787, embed = false, token, createBackend, allowedHosts = [], allowedHostsError, ...sessionOptions } = {}) {
   const expected = Buffer.from(`Bearer ${bridgeToken(token)}`);
-  const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
-  const origins = new Set([...hosts].map(host => `http://${host}`));
+  if (allowedHostsError) throw new Error(allowedHostsError);
+  const loopback = [`127.0.0.1:${port}`, `localhost:${port}`];
+  const hosts = new Set([...loopback, ...allowedHosts]);
+  // Origins stay loopback-only: remote MCP clients send no Origin, and browser
+  // pages on other hostnames are not a supported way to reach the bridge.
+  const origins = new Set(loopback.map(host => `http://${host}`));
   const protocolSessions = createSessions();
   const queue = operationQueue();
   const serialize = (operation, options) => queue.run(operation, options);
@@ -115,8 +145,13 @@ export function createBridge(backend, { port = 8787, embed = false, token, creat
     res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
     res.setHeader('Content-Type', 'text/plain; charset=utf-8'); res.setHeader('Content-Language', 'en');
-    if (!hosts.has(req.headers.host) || (req.headers.origin && !origins.has(req.headers.origin))) {
-      res.writeHead(403).end('Untrusted Host or Origin.');
+    // Tailscale Funnel marks requests that arrive from the public internet.
+    if (req.headers['tailscale-funnel-request'] !== undefined) {
+      res.writeHead(403).end('Requests from the public internet are not accepted. Use tailscale serve, not tailscale funnel.');
+      return;
+    }
+    if (!hosts.has(normalHost(req.headers.host)) || (req.headers.origin && !origins.has(req.headers.origin))) {
+      res.writeHead(403).end('Untrusted Host or Origin. A remote hostname must be listed in KITSUVO_MCP_ALLOWED_HOSTS.');
       return;
     }
     // Public embed shell/SDK contain no browser state. Reading the panel resource
@@ -178,7 +213,7 @@ export function nativeEnvironment(env = process.env) {
   return { ...getDefaultEnvironment(), ...Object.fromEntries(passed.map(key => [key, env[key]])), KITSUVO_MCP_SCOPE: 'isolated', KITSUVO_MCP_ISOLATED_ONLY: '1' };
 }
 
-export async function createNativeBackend(config, clientInfo = { name: 'kitsuvo-http-bridge', version: '0.2.6' }) {
+export async function createNativeBackend(config, clientInfo = { name: 'kitsuvo-http-bridge', version: '0.2.7' }) {
   const { stdout: help } = await promisify(execFile)(config.binary, ['--help'], { timeout: 5000, maxBuffer: 65536, windowsHide: true });
   // Keep the title: Kitsuvo's agent bar prefers it over the package name.
   const title = typeof clientInfo.title === 'string' && clientInfo.title.trim() ? { title: clientInfo.title } : {};
@@ -213,7 +248,11 @@ export async function checkPort(port) {
 async function main() {
   const config = readConfig();
   // Reject missing credentials and a busy port before starting a browser/native backend.
-  if (!process.argv.includes('--stdio')) { bridgeToken(config.token); await checkPort(config.port); }
+  if (!process.argv.includes('--stdio')) {
+    bridgeToken(config.token);
+    if (config.allowedHostsError) throw new Error(config.allowedHostsError);
+    await checkPort(config.port);
+  }
   const backend = await createNativeBackend(config);
   try {
     // Bundle once before accepting connections, so build errors fail at startup.
@@ -239,6 +278,7 @@ async function main() {
     });
     bridge.listen(config.port, '127.0.0.1', () => {
       console.error(`Kitsuvo MCP listening at http://127.0.0.1:${config.port}/mcp (bearer authentication required, including through a tunnel).`);
+      if (config.allowedHosts.length) console.error(`Also accepting Host: ${config.allowedHosts.join(', ')} from a private-network proxy.`);
       if (process.argv.includes('--embed')) console.error(`Embed example: http://127.0.0.1:${config.port}/embed`);
     });
     const stop = () => {

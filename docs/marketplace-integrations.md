@@ -299,12 +299,46 @@ the package description. Install the resulting connection and test a new chat.
 Use the supplied `plugins/kitsuvo/assets/icon-256.png` for the listing logo.
 
 The bridge binds only to `127.0.0.1` and rejects foreign Host and Origin
-headers. The tunnel must preserve or rewrite the destination Host to the
-loopback address. There is no public unauthenticated deployment mode, OAuth
+headers. The tunnel must rewrite the destination Host to the loopback address,
+or the hostname it forwards must be listed in `KITSUVO_MCP_ALLOWED_HOSTS` (see
+the private-network section below). There is no public unauthenticated deployment mode, OAuth
 implementation, or wildcard CORS. Do not expose this port with an anonymous
 public forwarding service. The secure tunnel handles remote identity and
 access; the separate bridge token authenticates access to the local HTTP
 listener. Neither credential appears in the plugin package.
+
+### Private network: agents on your other computers (Tailscale)
+
+To let AI clients on your other computers drive this browser without a cloud
+relay, publish the bridge on a private network such as a Tailscale tailnet. The
+bridge still listens only on `127.0.0.1`, every request still needs the bearer
+token, and remote sessions stay in the isolated agent profile: they cannot list
+or attach to your normal signed-in profile.
+
+1. Install Tailscale on the host computer and on each client computer, signed in
+   to the same tailnet. Enable HTTPS certificates for the tailnet in the Tailscale
+   admin console.
+2. Publish the bridge to the tailnet only:
+   `tailscale serve --bg --https=8788 http://127.0.0.1:8787`.
+   Never use `tailscale funnel`, which exposes the port to the internet; the
+   bridge refuses requests that Funnel marks as public.
+3. Tailscale forwards the tailnet hostname as the Host header. Allow that exact
+   name and port before starting the bridge, alongside the token above:
+   `KITSUVO_MCP_ALLOWED_HOSTS=host-name.your-tailnet.ts.net:8788`. Use the
+   machine name shown by `tailscale status`. A name without a port means 443.
+   Separate up to 8 names with commas. Wildcards, IP addresses, schemes and
+   paths are rejected, and an invalid value stops the HTTP bridge from starting
+   (stdio mode ignores it).
+4. On each client, add an HTTP MCP server for
+   `https://host-name.your-tailnet.ts.net:8788/mcp` that sends
+   `Authorization: Bearer <KITSUVO_MCP_TOKEN>`. For Claude Code:
+   `claude mcp add --transport http kitsuvo-remote https://host-name.your-tailnet.ts.net:8788/mcp --header "Authorization: Bearer <token>"`.
+   Copy the token through a private channel, such as Taildrop, and never into a URL.
+
+The host computer must be awake with the bridge running. Browser Origins stay
+loopback-only, so this is for MCP clients, not web pages. Sign in to sites the
+agents need inside the agent profile's Kitsuvo window on the host. To stop
+remote access, run `tailscale serve --https=8788 off` or stop the bridge.
 
 One bridge connects to one agent profile. Independent HTTP MCP sessions keep
 their own selected tabs and execute concurrently in the same native browser.
