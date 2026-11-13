@@ -179,9 +179,18 @@ block that later receives results is shown again. After a quiet spell a page
 change is handled at once; bursts such as infinite scroll are handled at most
 every 120 ms, and each link's host is worked out once.
 
-The two search settings, and a hidden status line, ride along with the
+**Human mode** (popup checkbox, off by default) reorders organic result rows
+so discussions, forums, Q&A, Wikipedia and pages dated before 2023 come first.
+It never hides a row and reads only the results page; rows the filter hides
+keep their place. `human-mode.js` is generated from `src/inject/human_mode.js`
+by `scripts/build_extensions.py`, so the extension and the apps share one
+scorer. A note before the results offers **Original order**. It asks for the
+same search-site access as the other search settings, inside its own click.
+See [Human mode](human-mode.md).
+
+The search settings, and a hidden status line, ride along with the
 registration as one-line flag files (`search-flag-filter.js`,
-`search-flag-answers.js`, `search-flag-quiet.js`, set in the extension's
+`search-flag-answers.js`, `search-flag-human.js`, `search-flag-quiet.js`, set in the extension's
 isolated world), so the first pass at `document_start` does not wait for an
 asynchronous storage read. Storage is still read and wins: always-show hosts
 are applied and a stale flag is undone in the same task, before a paint. The
@@ -268,6 +277,22 @@ container, so search home pages and unsupported hosts show nothing. It adds no
 permission, network request or telemetry. The desktop browser's status line
 is separate and not part of this extension change.
 
+Each hidden result also explains itself (0.1.21, scope-freeze gates 7 to 9;
+the same spec as the desktop `src/serp.js` and the mobile apps). In place of
+the result, one compact, muted line (`data-kitsuvo-why`) reads
+**Hidden: {reason}** · **Show** · **Wrong?**. The reason comes only from the
+public host-list entry that matched: "Hosted on {platform}" with the entry's
+platform name, or "Likely mass-produced page" when the entry names none.
+**Show** is a button with `aria-expanded`, described by the reason; it reveals
+that result alone and becomes **Hide**. The choice follows the result's address
+across engine re-renders and ends with the search (a new query starts hidden
+again); nothing is stored. **Wrong?** is a plain link to
+`https://kitsuvo.com/disputes?url={encodeURIComponent(result URL)}` in a new
+tab with `rel="noopener noreferrer"`; nothing is sent unless the user follows
+it. Lines use the row's own element (`li` on Bing, `tr` on DuckDuckGo Lite),
+are put back if an engine drops them, and leave with the hidden state (Show
+hidden results, filter off, always-show, recycled rows).
+
 A new install opens a welcome page (`welcome.html`) in one tab. Extension,
 browser and shared-module updates never open it. The page explains page scans,
 **Hide AI answers in search** and the search filter, and offers both search
@@ -278,7 +303,8 @@ page also says where the controls live later and links to
 the status line on search pages. It makes no network requests. Finishing,
 leaving or closing it records guide version 5, so the popup does not repeat
 the same steps. A new install is therefore not walked through the popup's
-Rate Kitsuvo link. The popup's **Setup guide** footer link
+Rate Kitsuvo link. The popup introduces version 6 (Hidden this week) and
+version 7 (Human mode) itself, once each. The popup's **Setup guide** footer link
 reopens it.
 
 The popup's nonblocking guide appears the first time it opens unless the
@@ -287,8 +313,11 @@ in local extension storage, and **Help** replays all of its steps. Version 5
 has five steps: page scans, Hide AI answers, the Setup guide link, the status
 line checkbox and the footer links. Step 5 points at **Rate Kitsuvo** in store
 installs and at the full-browser link otherwise, and is skipped if neither link
-is shown. Someone who closed an earlier version sees only the newer steps once
-(version 2 sees steps 3 to 5; version 4 sees step 5). Close and Escape
+is shown. Version 6 adds step 6 (the Hidden this week checkbox) and version 7
+adds step 7 (the Human mode checkbox); both only point at their setting.
+Someone who closed an earlier version sees only the newer steps once
+(version 2 sees steps 3 to 7; version 5 sees steps 6 and 7; version 6 sees
+step 7). Close and Escape
 restore focus. Neither the guide nor the welcome page scans, ticks a setting
 or grants access on the user's behalf. Keyboard, reduced-motion, and narrow
 layouts are supported.
@@ -334,16 +363,43 @@ does not automatically become a navigation rule. Codex runtime support still
 requires loading and testing the extension in Codex itself.
 
 No cookies, history, native messaging, web-request listeners, remote executable code,
-or cloud connections are requested. Local extension storage holds seven keys:
+or cloud connections are requested. Local extension storage holds ten keys:
 `searchFilter` (search-result filter), `hideAiPanels` (Hide AI answers in
-search), `navigationBlock` (the Chromium-only Block known AI-builder sites
+search), `humanMode` (Human mode; missing means off), `navigationBlock` (the Chromium-only Block known AI-builder sites
 switch), `alwaysShowHosts` (exact hostnames you choose to always show, from the
 popup or from **Wrong verdict?** on a search page), `searchStatus` (whether the
 status line shows on search pages; missing means on), `tourVersion` (the
-completed or closed guide version) and `rateAsk` (the capped rating counter
-above, its last date, and the Not now or Don’t ask again choice). Paths, query
-strings,
+completed or closed guide version), `rateAsk` (the capped rating counter
+above, its last date, and the Not now or Don’t ask again choice), `hiddenWeekOn`
+(the opt-in **Count what Kitsuvo hides each week** checkbox; missing means off)
+and `hiddenWeek` (see below). Paths, query strings,
 page content and reports are not saved.
+
+### Hidden this week (opt-in, counts only)
+
+Founder exception 2026-11-12 (AGENTS.md). With **Count what Kitsuvo hides each
+week** ticked, the popup shows a **Hidden this week** card: AI answers hidden
+and AI-built results hidden, this week and last week. It is off by default and
+asks for no permission. `search.js` sends the background worker a
+`{type:'hidden-week', kind, n}` message with a number only (never a host,
+address or query); the worker (`background.js`) is the only writer, one write at
+a time, and ignores it while the box is unticked, from a private window or from
+anything other than a supported search page. `hiddenWeek` holds
+`{weeks:{"2026-W46":{answers,results,pages}}}` for the current and the previous
+ISO week in local time; older weeks are dropped on the next write, and the popup
+ignores stale ones. Hides are deduplicated per search page: only growth over the
+last report for the same search counts, so re-rendering results never counts
+twice, and a new search on the same page starts again. Unticking the box,
+**Clear counts** and any change of `hiddenWeekOn` to off delete `hiddenWeek`.
+**Copy text** and **Save image** run only when pressed: the text goes to the
+clipboard and the PNG is downloaded to this computer; nothing is uploaded and no
+link to Kitsuvo is included. The extension cannot count pages blocked by the
+Chromium navigation rules (the browser reports nothing to extensions), so its
+card has no pages row. The week arithmetic is `extensions/shared/hidden-week.js`,
+a port of `src/hidden_week.rs` tested against the same vectors
+(`tests/fixtures/hidden-week-vectors.json`). The popup tour is version 7 (step 7
+is Human mode); the welcome page still saves version 5, so a new install sees
+steps 6 and 7 once.
 Page scans skip sign-in provider hosts, password-field pages, and private tabs.
 Scan copies strip input values and editable content before local analysis.
 Scans read the page through the DOM prototypes, so a page cannot hide its
@@ -434,3 +490,16 @@ Official format and distribution references:
 [Opera guidelines](https://help.opera.com/en/extensions/publishing-guidelines/).
 
 After scanning, Always show this host keeps that exact host visible in search. Reset the choice in the popup to restore filtering; evidence scores are unchanged. Disabling restores hidden results immediately, and reenabling resumes filtering in loaded supported pages.
+
+### Shared native search summary (2026-11-12)
+
+Native apps now use `src/serp.js` to count hidden answers separately from hidden
+search results, with a reversible page-only Show/Hide summary. Chat entry links
+are hidden silently and never count as answers. The native content policy hands
+engine answers to SERP to avoid double hiding. The extension retains its existing
+status line/settings; both finders recognize headingless Google Overview/AI Mode,
+Bing Copilot and DuckDuckGo Assist markers, with organic-result boundaries.
+`tests/desktop-serp-status-line.test.cjs` compares both finders against the same
+small DOM fixtures. These are regression fixtures, not live selector readbacks.
+No new engine or host permission was added. Native runtime qualification and
+publication remain separate pending work.
